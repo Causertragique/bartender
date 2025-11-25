@@ -175,9 +175,20 @@ export default function Sales() {
   const total = subtotal + tax;
 
   const handleCheckout = () => {
-    alert(`Order processed! Total: $${total.toFixed(2)}`);
+    if (paymentMethod === "cash") {
+      alert(`Cash payment received! Total: $${total.toFixed(2)}`);
+      setCart([]);
+      setPaymentMethod(null);
+    } else if (paymentMethod === "card") {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    setShowPaymentModal(false);
     setCart([]);
     setPaymentMethod(null);
+    alert(`Order completed! Total: $${total.toFixed(2)}`);
   };
 
   return (
