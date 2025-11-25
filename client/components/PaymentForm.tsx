@@ -113,8 +113,8 @@ export default function PaymentForm({
     return (
       <div className="text-center py-8 space-y-3">
         <div className="flex justify-center">
-          <div className="p-3 bg-success/20 rounded-full">
-            <Check className="h-8 w-8 text-success" />
+          <div className="p-3 bg-green-900/40 rounded-full">
+            <Check className="h-8 w-8 text-green-400" />
           </div>
         </div>
         <h3 className="font-semibold text-foreground">Payment Successful!</h3>
