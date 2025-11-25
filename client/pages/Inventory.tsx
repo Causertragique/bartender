@@ -97,18 +97,16 @@ export default function Inventory() {
   const handleAddStock = (id: string, amount: number) => {
     setProducts(
       products.map((p) =>
-        p.id === id ? { ...p, quantity: p.quantity + amount } : p
-      )
+        p.id === id ? { ...p, quantity: p.quantity + amount } : p,
+      ),
     );
   };
 
   const handleRemoveStock = (id: string, amount: number) => {
     setProducts(
       products.map((p) =>
-        p.id === id
-          ? { ...p, quantity: Math.max(0, p.quantity - amount) }
-          : p
-      )
+        p.id === id ? { ...p, quantity: Math.max(0, p.quantity - amount) } : p,
+      ),
     );
   };
 
@@ -116,15 +114,16 @@ export default function Inventory() {
     setProducts(products.filter((p) => p.id !== id));
   };
 
-  const totalValue = products.reduce(
-    (sum, p) => sum + p.price * p.quantity,
-    0
-  );
+  const totalValue = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const lowStockCount = products.filter((p) => p.quantity < 5).length;
 
-  const categories: Array<
-    "all" | "spirits" | "liquor" | "beer" | "snacks"
-  > = ["all", "spirits", "liquor", "beer", "snacks"];
+  const categories: Array<"all" | "spirits" | "liquor" | "beer" | "snacks"> = [
+    "all",
+    "spirits",
+    "liquor",
+    "beer",
+    "snacks",
+  ];
   const categoryLabels = {
     all: "All Products",
     spirits: "Spirits",

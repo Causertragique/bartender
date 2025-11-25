@@ -66,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
                     "flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2",
                     active
                       ? "border-primary text-primary bg-background/50"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4" />

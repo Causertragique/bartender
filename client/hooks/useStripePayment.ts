@@ -17,7 +17,7 @@ export function useStripePayment() {
   const [error, setError] = useState<string | null>(null);
 
   const processPayment = async (
-    data: PaymentData
+    data: PaymentData,
   ): Promise<PaymentResponse> => {
     setIsProcessing(true);
     setError(null);
@@ -27,7 +27,7 @@ export function useStripePayment() {
 
       if (!stripeKey) {
         console.warn(
-          "Stripe key not configured. Using mock payment. Add VITE_STRIPE_PUBLISHABLE_KEY to .env"
+          "Stripe key not configured. Using mock payment. Add VITE_STRIPE_PUBLISHABLE_KEY to .env",
         );
         // Mock payment for development without keys
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -52,7 +52,7 @@ export function useStripePayment() {
         throw new Error("Payment processing failed");
       }
 
-      const result = await response.json() as PaymentResponse;
+      const result = (await response.json()) as PaymentResponse;
       return result;
     } catch (err) {
       const errorMessage =

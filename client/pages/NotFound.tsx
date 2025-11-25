@@ -27,7 +27,8 @@ const NotFound = () => {
             This page doesn't exist yet.
           </p>
           <p className="text-sm text-muted-foreground">
-            Continue building out your BarFlow system by exploring the available features below.
+            Continue building out your BarFlow system by exploring the available
+            features below.
           </p>
         </div>
 

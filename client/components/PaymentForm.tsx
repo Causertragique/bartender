@@ -38,7 +38,8 @@ export default function PaymentForm({
     } else if (field === "expiry") {
       formattedValue = value.replace(/\D/g, "").slice(0, 4);
       if (formattedValue.length >= 2) {
-        formattedValue = formattedValue.slice(0, 2) + "/" + formattedValue.slice(2);
+        formattedValue =
+          formattedValue.slice(0, 2) + "/" + formattedValue.slice(2);
       }
     } else if (field === "cvc") {
       formattedValue = value.replace(/\D/g, "").slice(0, 4);
@@ -60,7 +61,12 @@ export default function PaymentForm({
       return;
     }
 
-    if (!cardData.number || !cardData.expiry || !cardData.cvc || !cardData.name) {
+    if (
+      !cardData.number ||
+      !cardData.expiry ||
+      !cardData.cvc ||
+      !cardData.name
+    ) {
       setError("Please fill in all card details");
       return;
     }
@@ -134,7 +140,7 @@ export default function PaymentForm({
             "w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 font-medium",
             paymentMethod === "card"
               ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-secondary hover:border-primary/50 text-foreground"
+              : "border-border bg-secondary hover:border-primary/50 text-foreground",
           )}
         >
           <CreditCard className="h-5 w-5" />
@@ -149,7 +155,7 @@ export default function PaymentForm({
             disabled={isProcessing}
             className={cn(
               "w-full p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-3 font-medium",
-              "border-border bg-black text-white hover:bg-gray-900 disabled:opacity-50"
+              "border-border bg-black text-white hover:bg-gray-900 disabled:opacity-50",
             )}
           >
             <Apple className="h-5 w-5" />

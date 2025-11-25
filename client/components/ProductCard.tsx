@@ -59,27 +59,27 @@ export default function ProductCard({
             <span
               className={cn(
                 "inline-block mt-2 text-xs font-medium px-2 py-1 rounded border",
-                categoryColors[product.category]
+                categoryColors[product.category],
               )}
             >
               {categoryLabels[product.category]}
             </span>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
+            <p className="text-lg font-bold text-primary">
+              ${product.price.toFixed(2)}
+            </p>
           </div>
         </div>
 
         {/* Stock Status */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              Stock Level
-            </span>
+            <span className="text-xs text-muted-foreground">Stock Level</span>
             <span
               className={cn(
                 "text-sm font-semibold",
-                isLowStock ? "text-warning" : "text-success"
+                isLowStock ? "text-warning" : "text-success",
               )}
             >
               {product.quantity} {product.unit}
@@ -89,7 +89,7 @@ export default function ProductCard({
             <div
               className={cn(
                 "h-full transition-all",
-                isLowStock ? "bg-warning" : "bg-success"
+                isLowStock ? "bg-warning" : "bg-success",
               )}
               style={{
                 width: `${Math.min((product.quantity / 20) * 100, 100)}%`,

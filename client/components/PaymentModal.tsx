@@ -24,7 +24,9 @@ export default function PaymentModal({
       <div className="bg-card border border-border rounded-lg max-w-md w-full shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-foreground">Complete Payment</h2>
+          <h2 className="text-xl font-bold text-foreground">
+            Complete Payment
+          </h2>
           <button
             onClick={onClose}
             disabled={isProcessing}

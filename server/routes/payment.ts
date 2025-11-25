@@ -43,7 +43,7 @@ export const handleProcessPayment: RequestHandler<
     const stripeApiKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeApiKey) {
       console.warn(
-        "STRIPE_SECRET_KEY not configured. Using mock payment processing."
+        "STRIPE_SECRET_KEY not configured. Using mock payment processing.",
       );
 
       // Mock successful payment for development

@@ -119,14 +119,18 @@ export default function Sales() {
   const [filterCategory, setFilterCategory] = useState<
     "all" | "spirits" | "liquor" | "beer" | "snacks"
   >("all");
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | null
-  >(null);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | null>(
+    null,
+  );
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const categories: Array<
-    "all" | "spirits" | "liquor" | "beer" | "snacks"
-  > = ["all", "spirits", "liquor", "beer", "snacks"];
+  const categories: Array<"all" | "spirits" | "liquor" | "beer" | "snacks"> = [
+    "all",
+    "spirits",
+    "liquor",
+    "beer",
+    "snacks",
+  ];
   const categoryLabels = {
     all: "All",
     spirits: "Spirits",
@@ -136,7 +140,7 @@ export default function Sales() {
   };
 
   const filteredProducts = PRODUCTS_FOR_SALE.filter(
-    (p) => filterCategory === "all" || p.category === filterCategory
+    (p) => filterCategory === "all" || p.category === filterCategory,
   );
 
   const addToCart = (product: Product) => {
@@ -146,8 +150,8 @@ export default function Sales() {
         cart.map((item) =>
           item.id === product.id
             ? { ...item, cartQuantity: item.cartQuantity + 1 }
-            : item
-        )
+            : item,
+        ),
       );
     } else {
       setCart([...cart, { ...product, cartQuantity: 1 }]);
@@ -164,13 +168,16 @@ export default function Sales() {
     } else {
       setCart(
         cart.map((item) =>
-          item.id === id ? { ...item, cartQuantity: quantity } : item
-        )
+          item.id === id ? { ...item, cartQuantity: quantity } : item,
+        ),
       );
     }
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.cartQuantity,
+    0,
+  );
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
 
@@ -233,7 +240,9 @@ export default function Sales() {
                   <p className="font-semibold text-sm line-clamp-2">
                     {product.name}
                   </p>
-                  <p className="text-lg font-bold mt-2">${product.price.toFixed(2)}</p>
+                  <p className="text-lg font-bold mt-2">
+                    ${product.price.toFixed(2)}
+                  </p>
                   <p className="text-xs opacity-75 mt-1">{product.unit}</p>
                 </button>
               ))}
@@ -243,7 +252,9 @@ export default function Sales() {
           {/* Cart Sidebar */}
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4 space-y-4">
-              <h3 className="font-bold text-lg text-foreground">Order Summary</h3>
+              <h3 className="font-bold text-lg text-foreground">
+                Order Summary
+              </h3>
 
               {/* Cart Items */}
               <div className="space-y-2 max-h-64 overflow-y-auto">

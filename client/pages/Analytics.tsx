@@ -46,7 +46,8 @@ export default function Analytics() {
 
         <div className="bg-card border border-border rounded-lg p-8 text-center">
           <p className="text-muted-foreground">
-            Analytics dashboard coming soon. Continue adding features to build out this section!
+            Analytics dashboard coming soon. Continue adding features to build
+            out this section!
           </p>
         </div>
       </div>
