@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
+import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
 import { Trash2, Plus, Minus, CreditCard, DollarSign } from "lucide-react";
 
