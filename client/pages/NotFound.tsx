@@ -18,8 +18,8 @@ const NotFound = () => {
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="bg-card border border-border rounded-lg p-8 text-center space-y-4">
           <div className="flex justify-center">
-            <div className="p-4 bg-warning/20 rounded-full">
-              <AlertCircle className="h-12 w-12 text-warning" />
+            <div className="p-4 bg-amber-900/40 rounded-full">
+              <AlertCircle className="h-12 w-12 text-amber-300" />
             </div>
           </div>
           <h1 className="text-4xl font-bold text-foreground">404</h1>
