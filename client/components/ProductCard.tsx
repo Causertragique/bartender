@@ -108,7 +108,7 @@ export default function ProductCard({
               e.stopPropagation();
               onAddStock?.(product.id, 1);
             }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-success/20 text-success hover:bg-success/30 rounded transition-colors text-xs font-medium"
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-900/40 text-green-400 hover:bg-green-900/60 rounded transition-colors text-xs font-medium"
           >
             <Plus className="h-3 w-3" />
             Add
