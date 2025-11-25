@@ -89,7 +89,7 @@ export default function ProductCard({
             <div
               className={cn(
                 "h-full transition-all",
-                isLowStock ? "bg-warning" : "bg-success",
+                isLowStock ? "bg-amber-500" : "bg-green-500",
               )}
               style={{
                 width: `${Math.min((product.quantity / 20) * 100, 100)}%`,
