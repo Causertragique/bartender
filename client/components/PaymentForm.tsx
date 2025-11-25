@@ -248,7 +248,7 @@ export default function PaymentForm({
           <button
             type="submit"
             disabled={isProcessing || !paymentMethod}
-            className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 font-medium"
+            className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             Pay ${amount.toFixed(2)}
           </button>
