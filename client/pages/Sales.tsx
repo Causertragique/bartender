@@ -122,6 +122,7 @@ export default function Sales() {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash" | "card" | null
   >(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const categories: Array<
     "all" | "spirits" | "liquor" | "beer" | "snacks"
