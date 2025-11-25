@@ -79,7 +79,7 @@ export default function ProductCard({
             <span
               className={cn(
                 "text-sm font-semibold",
-                isLowStock ? "text-warning" : "text-success",
+                isLowStock ? "text-amber-300" : "text-green-400",
               )}
             >
               {product.quantity} {product.unit}
