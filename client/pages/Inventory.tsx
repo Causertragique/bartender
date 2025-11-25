@@ -173,7 +173,7 @@ export default function Inventory() {
             </p>
             <p
               className={`text-2xl font-bold mt-2 ${
-                lowStockCount > 0 ? "text-warning" : "text-success"
+                lowStockCount > 0 ? "text-amber-300" : "text-green-400"
               }`}
             >
               {lowStockCount}
