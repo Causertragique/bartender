@@ -97,7 +97,7 @@ export default function ProductCard({
             />
           </div>
           {isLowStock && (
-            <p className="text-xs text-warning font-medium">Low stock!</p>
+            <p className="text-xs text-amber-300 font-medium">Low stock!</p>
           )}
         </div>
 
