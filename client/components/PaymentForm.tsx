@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CreditCard, Apple, AlertCircle, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface PaymentFormProps {
   amount: number;
@@ -19,6 +20,7 @@ export default function PaymentForm({
   onPaymentComplete,
   onCancel,
 }: PaymentFormProps) {
+  const { t } = useI18n();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [cardData, setCardData] = useState({
     number: "",
@@ -57,7 +59,7 @@ export default function PaymentForm({
     setError("");
 
     if (paymentMethod !== "card") {
-      setError("Please select card payment");
+      setError(t.paymentForm.errors.selectCard);
       return;
     }
 
@@ -67,12 +69,12 @@ export default function PaymentForm({
       !cardData.cvc ||
       !cardData.name
     ) {
-      setError("Please fill in all card details");
+      setError(t.paymentForm.errors.fillAllDetails);
       return;
     }
 
     if (cardData.number.replace(/\s/g, "").length !== 16) {
-      setError("Card number must be 16 digits");
+      setError(t.paymentForm.errors.cardNumberLength);
       return;
     }
 
@@ -86,7 +88,7 @@ export default function PaymentForm({
         onPaymentComplete();
       }, 1500);
     } catch (err) {
-      setError("Payment failed. Please try again.");
+      setError(t.paymentForm.errors.paymentFailed);
       setIsProcessing(false);
     }
   };
@@ -104,7 +106,7 @@ export default function PaymentForm({
         onPaymentComplete();
       }, 1500);
     } catch (err) {
-      setError("Apple Pay failed. Please try again.");
+      setError(t.paymentForm.errors.applePayFailed);
       setIsProcessing(false);
     }
   };
@@ -117,9 +119,9 @@ export default function PaymentForm({
             <Check className="h-8 w-8 text-green-400" />
           </div>
         </div>
-        <h3 className="font-semibold text-foreground">Payment Successful!</h3>
+        <h3 className="font-semibold text-foreground">{t.paymentForm.paymentSuccessful}</h3>
         <p className="text-sm text-muted-foreground">
-          Thank you for your purchase
+          {t.paymentForm.thankYou}
         </p>
       </div>
     );
@@ -130,7 +132,7 @@ export default function PaymentForm({
       {/* Payment Method Selection */}
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase">
-          Choose Payment Method
+          {t.paymentForm.choosePaymentMethod}
         </p>
 
         <button
@@ -144,7 +146,7 @@ export default function PaymentForm({
           )}
         >
           <CreditCard className="h-5 w-5" />
-          Card Payment
+          {t.paymentForm.cardPayment}
         </button>
 
         {/* Apple Pay Button */}
@@ -159,7 +161,7 @@ export default function PaymentForm({
             )}
           >
             <Apple className="h-5 w-5" />
-            Apple Pay
+            {t.paymentForm.applePay}
           </button>
         )}
       </div>
@@ -169,7 +171,7 @@ export default function PaymentForm({
         <div className="space-y-3 pt-4 border-t border-border">
           <div>
             <label className="text-xs font-medium text-muted-foreground">
-              Card Number
+              {t.paymentForm.cardNumber}
             </label>
             <input
               type="text"
@@ -183,7 +185,7 @@ export default function PaymentForm({
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">
-              Cardholder Name
+              {t.paymentForm.cardholderName}
             </label>
             <input
               type="text"
@@ -198,7 +200,7 @@ export default function PaymentForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                Expiry Date
+                {t.paymentForm.expiryDate}
               </label>
               <input
                 type="text"
@@ -211,7 +213,7 @@ export default function PaymentForm({
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">
-                CVC
+                {t.paymentForm.cvc}
               </label>
               <input
                 type="text"
@@ -242,7 +244,7 @@ export default function PaymentForm({
           disabled={isProcessing}
           className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50 font-medium"
         >
-          Cancel
+          {t.paymentForm.cancel}
         </button>
         {paymentMethod === "card" && (
           <button
@@ -250,7 +252,7 @@ export default function PaymentForm({
             disabled={isProcessing || !paymentMethod}
             className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Pay ${amount.toFixed(2)}
+            {t.paymentForm.pay} ${amount.toFixed(2)}
           </button>
         )}
       </div>
@@ -258,7 +260,7 @@ export default function PaymentForm({
       {/* Test Card Notice */}
       <div className="text-center">
         <p className="text-xs text-muted-foreground">
-          Test card: 4242 4242 4242 4242 | Any future date | Any CVC
+          {t.paymentForm.testCardNotice}
         </p>
       </div>
     </form>
@@ -266,8 +268,10 @@ export default function PaymentForm({
 }
 
 function isApplePayAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  
+  const ApplePaySession = (window as any).ApplePaySession;
   return (
-    typeof window !== "undefined" &&
     "ApplePaySession" in window &&
     ApplePaySession?.canMakePayments?.() === true
   );

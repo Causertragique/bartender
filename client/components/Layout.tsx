@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, ShoppingCart, Package } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,24 +10,30 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { t } = useI18n();
 
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
     {
-      label: "Inventory",
+      label: t.layout.nav.inventory,
       path: "/",
       icon: Package,
     },
     {
-      label: "Sales",
+      label: t.layout.nav.sales,
       path: "/sales",
       icon: ShoppingCart,
     },
     {
-      label: "Analytics",
+      label: t.layout.nav.analytics,
       path: "/analytics",
       icon: BarChart3,
+    },
+    {
+      label: t.layout.nav.settings,
+      path: "/settings",
+      icon: Settings,
     },
   ];
 
@@ -37,13 +44,15 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary text-primary-foreground">
-                <Package className="h-6 w-6" />
-              </div>
+              <img
+                src="/logo_bar.png"
+                alt={t.layout.appName}
+                className="h-12 w-auto object-contain"
+              />
               <div>
-                <h1 className="text-2xl font-bold">BarFlow</h1>
+                <h1 className="text-2xl font-bold">{t.layout.appName}</h1>
                 <p className="text-xs text-muted-foreground">
-                  Inventory & POS System
+                  {t.layout.appSubtitle}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import PaymentForm from "./PaymentForm";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function PaymentModal({
   onClose,
   onPaymentComplete,
 }: PaymentModalProps) {
+  const { t } = useI18n();
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
@@ -25,12 +27,13 @@ export default function PaymentModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-xl font-bold text-foreground">
-            Complete Payment
+            {t.paymentModal.completePayment}
           </h2>
           <button
             onClick={onClose}
             disabled={isProcessing}
             className="p-1 hover:bg-secondary rounded transition-colors disabled:opacity-50"
+            aria-label="Close payment modal"
           >
             <X className="h-5 w-5" />
           </button>
@@ -41,7 +44,7 @@ export default function PaymentModal({
           {/* Amount Display */}
           <div className="bg-secondary rounded-lg p-4 text-center">
             <p className="text-xs text-muted-foreground uppercase font-medium mb-2">
-              Total Amount
+              {t.paymentModal.totalAmount}
             </p>
             <p className="text-3xl font-bold text-primary">
               ${amount.toFixed(2)}
@@ -61,7 +64,7 @@ export default function PaymentModal({
             <div className="flex flex-col items-center justify-center py-8 space-y-3">
               <Loader2 className="h-8 w-8 text-primary animate-spin" />
               <p className="text-sm text-muted-foreground">
-                Processing your payment...
+                {t.paymentModal.processingPayment}
               </p>
             </div>
           )}

@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
 import { handleProcessPayment } from "./routes/payment";
+import { handleSAQScrape } from "./routes/saq-scraper";
 
 export function createServer() {
   const app = express();
@@ -22,6 +23,9 @@ export function createServer() {
 
   // Payment processing endpoint
   app.post("/api/process-payment", handleProcessPayment);
+
+  // SAQ product scraper endpoint
+  app.get("/api/saq-scrape", handleSAQScrape);
 
   return app;
 }

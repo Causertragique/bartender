@@ -1,0 +1,1529 @@
+// Translation system
+export type Language = "en" | "fr" | "es" | "de";
+
+export interface Translations {
+  // Layout & Navigation
+  layout: {
+    appName: string;
+    appSubtitle: string;
+    nav: {
+      inventory: string;
+      sales: string;
+      analytics: string;
+      settings: string;
+    };
+  };
+
+  // Inventory page
+  inventory: {
+    title: string;
+    subtitle: string;
+    addProduct: string;
+    totalInventoryValue: string;
+    totalProducts: string;
+    lowStockItems: string;
+    searchProducts: string;
+    noProductsFound: string;
+    confirmDelete: string;
+    categories: {
+      all: string;
+      spirits: string;
+      liquor: string;
+      beer: string;
+      snacks: string;
+    };
+      addProductModal: {
+        title: string;
+        description: string;
+        name: string;
+        category: string;
+        subcategory: string;
+        origin: string;
+        quantity: string;
+        pricePerBottle: string;
+        inventoryCode: string;
+        inventoryCodeHint: string;
+        inventoryCodePlaceholder: string;
+        qrCode: string;
+        generateQR: string;
+        downloadQR: string;
+        qrCodePlaceholder: string;
+        codeLabel: string;
+        fillRequiredFields: string;
+        imageUrl: string;
+        searchImage: string;
+        searchingImage: string;
+        fillProductName: string;
+        imageApiNotConfigured: string;
+        imageNotFound: string;
+        imageSearchError: string;
+        editTitle: string;
+        editDescription: string;
+        save: string;
+        cancel: string;
+      categories: {
+        spirits: string;
+        beer: string;
+        wine: string;
+        aperitif: string;
+        champagne: string;
+        readyToDrink: string;
+        snacks: string;
+      };
+      subcategories: {
+        redWine: string;
+        whiteWine: string;
+        roseWine: string;
+        scotchWhisky: string;
+        liqueurCream: string;
+        gin: string;
+        rum: string;
+        vodka: string;
+        tequila: string;
+        cognacBrandy: string;
+      };
+      origins: {
+        imported: string;
+        canadian: string;
+        quebec: string;
+        spain: string;
+        france: string;
+        italy: string;
+        usa: string;
+        australia: string;
+        southAfrica: string;
+        newZealand: string;
+        portugal: string;
+        chile: string;
+        uk: string;
+      };
+    };
+  };
+
+  // Product Card
+  productCard: {
+    stockLevel: string;
+    lowStock: string;
+    add: string;
+    remove: string;
+    categories: {
+      spirits: string;
+      liquor: string;
+      beer: string;
+      snacks: string;
+    };
+  };
+
+  // Sales page
+  sales: {
+    title: string;
+    subtitle: string;
+    orderSummary: string;
+    noItemsInCart: string;
+    each: string;
+    subtotal: string;
+    tax: string;
+    total: string;
+    paymentMethod: string;
+    cash: string;
+    card: string;
+    completeSale: string;
+    categories: {
+      all: string;
+      spirits: string;
+      liquor: string;
+      beer: string;
+      snacks: string;
+    };
+    alerts: {
+      cashPayment: string;
+      orderCompleted: string;
+    };
+  };
+
+  // Analytics page
+  analytics: {
+    title: string;
+    subtitle: string;
+    salesAnalytics: string;
+    salesAnalyticsDesc: string;
+    inventoryTrends: string;
+    inventoryTrendsDesc: string;
+    revenueReports: string;
+    revenueReportsDesc: string;
+    comingSoon: string;
+  };
+
+  // NotFound page
+  notFound: {
+    title: string;
+    subtitle: string;
+    description: string;
+    inventory: string;
+    inventoryDesc: string;
+    pointOfSale: string;
+    pointOfSaleDesc: string;
+    analytics: string;
+    analyticsDesc: string;
+  };
+
+  // Payment Modal
+  paymentModal: {
+    completePayment: string;
+    totalAmount: string;
+    processingPayment: string;
+  };
+
+  // Payment Form
+  paymentForm: {
+    choosePaymentMethod: string;
+    cardPayment: string;
+    applePay: string;
+    cardNumber: string;
+    cardholderName: string;
+    expiryDate: string;
+    cvc: string;
+    cancel: string;
+    pay: string;
+    paymentSuccessful: string;
+    thankYou: string;
+    errors: {
+      selectCard: string;
+      fillAllDetails: string;
+      cardNumberLength: string;
+      paymentFailed: string;
+      applePayFailed: string;
+    };
+    testCardNotice: string;
+  };
+
+  // Settings page
+  settings: {
+    title: string;
+    subtitle: string;
+    saveChanges: string;
+    general: {
+      title: string;
+      description: string;
+      barName: string;
+      email: string;
+      phone: string;
+      address: string;
+      currency: string;
+      taxRegion: string;
+      taxRate: string;
+      taxRegions: {
+        quebec: string;
+        ontario: string;
+        "british-columbia": string;
+        alberta: string;
+        manitoba: string;
+        saskatchewan: string;
+        "nova-scotia": string;
+        "new-brunswick": string;
+        newfoundland: string;
+        "prince-edward-island": string;
+        "northwest-territories": string;
+        nunavut: string;
+        yukon: string;
+        california: string;
+        "new-york": string;
+        texas: string;
+        florida: string;
+        illinois: string;
+        france: string;
+        spain: string;
+        germany: string;
+        italy: string;
+        uk: string;
+        belgium: string;
+        netherlands: string;
+        portugal: string;
+        sweden: string;
+        denmark: string;
+        poland: string;
+        australia: string;
+        "new-zealand": string;
+        switzerland: string;
+        custom: string;
+      };
+    };
+    notifications: {
+      title: string;
+      description: string;
+      lowStockAlerts: string;
+      lowStockAlertsDesc: string;
+      emailNotifications: string;
+      emailNotificationsDesc: string;
+      salesReports: string;
+      salesReportsDesc: string;
+      weeklySummary: string;
+      weeklySummaryDesc: string;
+    };
+    inventory: {
+      title: string;
+      description: string;
+      lowStockThreshold: string;
+      lowStockThresholdDesc: string;
+      autoReorder: string;
+      autoReorderDesc: string;
+      reorderQuantity: string;
+    };
+    import: {
+      title: string;
+      description: string;
+      importInventory: string;
+      selectFile: string;
+      supportedFormats: string;
+      importSuccess: string;
+      importError: string;
+      fileRequired: string;
+      processing: string;
+      selected: string;
+      productsImported: string;
+    };
+    export: {
+      title: string;
+      description: string;
+      exportInventory: string;
+      exportAsCSV: string;
+      exportAsExcel: string;
+      exportSuccess: string;
+      exportError: string;
+      noProducts: string;
+    };
+    appearance: {
+      title: string;
+      description: string;
+      theme: string;
+      language: string;
+    };
+  };
+
+  // Common
+  common: {
+    light: string;
+    dark: string;
+    system: string;
+    units: {
+      bottles: string;
+      bottle: string;
+      bags: string;
+      bag: string;
+      shot: string;
+      shooter: string;
+      glass: string;
+      drink: string;
+    };
+  };
+}
+
+const translations: Record<Language, Translations> = {
+  en: {
+    layout: {
+      appName: "Reserve Vault",
+      appSubtitle: "Inventory & POS System",
+      nav: {
+        inventory: "Inventory",
+        sales: "Sales",
+        analytics: "Analytics",
+        settings: "Settings",
+      },
+    },
+    inventory: {
+      title: "Inventory",
+      subtitle: "Manage your bar stock levels and products",
+      addProduct: "Add Product",
+      totalInventoryValue: "Total Inventory Value",
+      totalProducts: "Total Products",
+      lowStockItems: "Low Stock Items",
+      searchProducts: "Search products...",
+      noProductsFound: "No products found",
+      confirmDelete: "Are you sure you want to delete \"{name}\"?",
+      categories: {
+        all: "All Products",
+        spirits: "Spirits",
+        liquor: "Liquor",
+        beer: "Beer",
+        snacks: "Snacks",
+      },
+      addProductModal: {
+        title: "Add New Product",
+        description: "Add a new product to your inventory",
+        name: "Product Name",
+        category: "Category",
+        subcategory: "Subcategory",
+        origin: "Origin",
+        quantity: "Quantity",
+        pricePerBottle: "Price per Bottle",
+        inventoryCode: "Inventory Code",
+        inventoryCodeHint: "Auto-generated if empty",
+        inventoryCodePlaceholder: "Enter code or leave empty for auto-generation",
+        qrCode: "QR Code",
+        generateQR: "Generate QR Code",
+        downloadQR: "Download QR Code",
+        qrCodePlaceholder: "Fill in the product name and inventory code, then click 'Generate' to create a QR code",
+        codeLabel: "Code",
+        fillRequiredFields: "Please fill in all required fields",
+        imageUrl: "Image URL",
+        searchImage: "Search Image",
+        searchingImage: "Searching...",
+        fillProductName: "Please enter a product name first",
+        imageApiNotConfigured: "To use automatic image search, configure a Google Custom Search API key in settings.",
+        imageNotFound: "No image found automatically. You can enter the image URL manually in the field below.",
+        imageSearchError: "Error during image search. You can enter the URL manually in the field below.",
+        editTitle: "Edit Product",
+        editDescription: "Modify product information",
+        save: "Save Product",
+        cancel: "Cancel",
+        categories: {
+          spirits: "Spirits",
+          beer: "Beer",
+          wine: "Wine",
+          aperitif: "Aperitif",
+          champagne: "Champagne & Sparkling",
+          readyToDrink: "Ready to Drink",
+          snacks: "Snacks",
+        },
+        subcategories: {
+          redWine: "Red Wine",
+          whiteWine: "White Wine",
+          roseWine: "Rosé Wine",
+          scotchWhisky: "Scotch & Whisky",
+          liqueurCream: "Liqueur & Cream",
+          gin: "Gin",
+          rum: "Rum",
+          vodka: "Vodka",
+          tequila: "Tequila",
+          cognacBrandy: "Cognac & Brandy",
+        },
+        origins: {
+          imported: "Imported",
+          canadian: "Canadian",
+          quebec: "Quebec",
+          spain: "Spain",
+          france: "France",
+          italy: "Italy",
+          usa: "United States",
+          australia: "Australia",
+          southAfrica: "South Africa",
+          newZealand: "New Zealand",
+          portugal: "Portugal",
+          chile: "Chile",
+          uk: "United Kingdom",
+        },
+      },
+    },
+    productCard: {
+      stockLevel: "Stock Level",
+      lowStock: "Low stock!",
+      add: "Add",
+      remove: "Remove",
+      categories: {
+        spirits: "Spirits",
+        liquor: "Liquor",
+        beer: "Beer",
+        snacks: "Snacks",
+      },
+    },
+    sales: {
+      title: "Point of Sale",
+      subtitle: "Process customer orders and ring up sales",
+      orderSummary: "Order Summary",
+      noItemsInCart: "No items in cart",
+      each: "each",
+      subtotal: "Subtotal",
+      tax: "Tax (8%)",
+      total: "Total",
+      paymentMethod: "Payment Method",
+      cash: "Cash",
+      card: "Card",
+      completeSale: "Complete Sale",
+      categories: {
+        all: "All",
+        spirits: "Spirits",
+        liquor: "Liquor",
+        beer: "Beer",
+        snacks: "Snacks",
+      },
+      alerts: {
+        cashPayment: "Cash payment received! Total: $",
+        orderCompleted: "Order completed! Total: $",
+      },
+    },
+    analytics: {
+      title: "Analytics",
+      subtitle: "Sales reports, inventory trends, and business insights",
+      salesAnalytics: "Sales Analytics",
+      salesAnalyticsDesc: "Track daily, weekly, and monthly sales performance",
+      inventoryTrends: "Inventory Trends",
+      inventoryTrendsDesc: "Analyze product popularity and stock turnover",
+      revenueReports: "Revenue Reports",
+      revenueReportsDesc: "View detailed revenue breakdowns by category",
+      comingSoon: "Analytics dashboard coming soon. Continue adding features to build out this section!",
+    },
+    notFound: {
+      title: "404",
+      subtitle: "This page doesn't exist yet.",
+      description: "Continue building out your La Réserve system by exploring the available features below.",
+      inventory: "Inventory",
+      inventoryDesc: "Manage stock levels and products",
+      pointOfSale: "Point of Sale",
+      pointOfSaleDesc: "Ring up sales and process orders",
+      analytics: "Analytics",
+      analyticsDesc: "View reports and insights",
+    },
+    paymentModal: {
+      completePayment: "Complete Payment",
+      totalAmount: "Total Amount",
+      processingPayment: "Processing your payment...",
+    },
+    paymentForm: {
+      choosePaymentMethod: "Choose Payment Method",
+      cardPayment: "Card Payment",
+      applePay: "Apple Pay",
+      cardNumber: "Card Number",
+      cardholderName: "Cardholder Name",
+      expiryDate: "Expiry Date",
+      cvc: "CVC",
+      cancel: "Cancel",
+      pay: "Pay",
+      paymentSuccessful: "Payment Successful!",
+      thankYou: "Thank you for your purchase",
+      errors: {
+        selectCard: "Please select card payment",
+        fillAllDetails: "Please fill in all card details",
+        cardNumberLength: "Card number must be 16 digits",
+        paymentFailed: "Payment failed. Please try again.",
+        applePayFailed: "Apple Pay failed. Please try again.",
+      },
+      testCardNotice: "Test card: 4242 4242 4242 4242 | Any future date | Any CVC",
+    },
+    settings: {
+      title: "Settings",
+      subtitle: "Manage your bar settings and preferences",
+      saveChanges: "Save Changes",
+      general: {
+        title: "General Information",
+        description: "Basic information about your bar or establishment",
+        barName: "Bar Name",
+        email: "Email",
+        phone: "Phone",
+        address: "Address",
+        currency: "Currency",
+        taxRegion: "Tax Region",
+        taxRate: "Tax Rate (%)",
+        taxRegions: {
+          quebec: "Quebec, Canada (TPS 5% + TVQ 9.975%)",
+          ontario: "Ontario, Canada (HST 13%)",
+          "british-columbia": "British Columbia, Canada (GST 5% + PST 7%)",
+          alberta: "Alberta, Canada (GST 5%)",
+          manitoba: "Manitoba, Canada (GST 5% + PST 7%)",
+          saskatchewan: "Saskatchewan, Canada (GST 5% + PST 6%)",
+          "nova-scotia": "Nova Scotia, Canada (HST 15%)",
+          "new-brunswick": "New Brunswick, Canada (HST 15%)",
+          newfoundland: "Newfoundland, Canada (HST 15%)",
+          "prince-edward-island": "Prince Edward Island, Canada (HST 15%)",
+          "northwest-territories": "Northwest Territories, Canada (GST 5%)",
+          nunavut: "Nunavut, Canada (GST 5%)",
+          yukon: "Yukon, Canada (GST 5%)",
+          california: "California, USA (7.25%)",
+          "new-york": "New York, USA (8%)",
+          texas: "Texas, USA (6.25%)",
+          florida: "Florida, USA (6%)",
+          illinois: "Illinois, USA (6.25%)",
+          france: "France (TVA 20%)",
+          spain: "Spain (IVA 21%)",
+          germany: "Germany (MwSt 19%)",
+          italy: "Italy (IVA 22%)",
+          uk: "United Kingdom (VAT 20%)",
+          belgium: "Belgium (TVA 21%)",
+          netherlands: "Netherlands (BTW 21%)",
+          portugal: "Portugal (IVA 23%)",
+          sweden: "Sweden (Moms 25%)",
+          denmark: "Denmark (Moms 25%)",
+          poland: "Poland (VAT 23%)",
+          australia: "Australia (GST 10%)",
+          "new-zealand": "New Zealand (GST 15%)",
+          switzerland: "Switzerland (TVA 7.7%)",
+          custom: "Custom Rate",
+        },
+      },
+      notifications: {
+        title: "Notifications",
+        description: "Configure how and when you receive notifications",
+        lowStockAlerts: "Low Stock Alerts",
+        lowStockAlertsDesc: "Get notified when inventory levels are low",
+        emailNotifications: "Email Notifications",
+        emailNotificationsDesc: "Receive notifications via email",
+        salesReports: "Daily Sales Reports",
+        salesReportsDesc: "Receive daily sales summary reports",
+        weeklySummary: "Weekly Summary",
+        weeklySummaryDesc: "Receive weekly performance summary",
+      },
+      inventory: {
+        title: "Inventory Management",
+        description: "Configure inventory tracking and alerts",
+        lowStockThreshold: "Low Stock Threshold",
+        lowStockThresholdDesc: "Alert when stock falls below this quantity",
+        autoReorder: "Auto Reorder",
+        autoReorderDesc: "Automatically create reorder requests when stock is low",
+        reorderQuantity: "Default Reorder Quantity",
+      },
+      import: {
+        title: "Import Inventory",
+        description: "Import your inventory from CSV, Excel, or Google Sheets",
+        importInventory: "Import Inventory",
+        selectFile: "Select File",
+        supportedFormats: "Supported formats: CSV, Excel (.xlsx, .xls), Google Sheets",
+        importSuccess: "Inventory imported successfully!",
+        importError: "Error importing inventory. Please check the file format.",
+        fileRequired: "Please select a file to import",
+        processing: "Processing file...",
+        selected: "Selected",
+        productsImported: "products imported",
+      },
+      export: {
+        title: "Export Inventory",
+        description: "Export your inventory to CSV or Excel format",
+        exportInventory: "Export Inventory",
+        exportAsCSV: "Export as CSV",
+        exportAsExcel: "Export as Excel",
+        exportSuccess: "Inventory exported successfully!",
+        exportError: "Error exporting inventory. Please try again.",
+        noProducts: "No products to export",
+      },
+      appearance: {
+        title: "Appearance",
+        description: "Customize the look and feel of the application",
+        theme: "Theme",
+        language: "Language",
+      },
+    },
+    common: {
+      light: "Light",
+      dark: "Dark",
+      system: "System",
+      units: {
+        bottles: "bottles",
+        bottle: "bottle",
+        bags: "bags",
+        bag: "bag",
+        shot: "shot",
+        shooter: "shooter",
+        glass: "glass",
+        drink: "drink",
+      },
+    },
+  },
+  fr: {
+    layout: {
+      appName: "La Réserve",
+      appSubtitle: "Système d'inventaire et de caisse",
+      nav: {
+        inventory: "Inventaire",
+        sales: "Ventes",
+        analytics: "Analyses",
+        settings: "Paramètres",
+      },
+    },
+    inventory: {
+      title: "Inventaire",
+      subtitle: "Gérez les niveaux de stock et les produits de votre bar",
+      addProduct: "Ajouter un produit",
+      totalInventoryValue: "Valeur totale de l'inventaire",
+      totalProducts: "Total des produits",
+      lowStockItems: "Articles en stock faible",
+      searchProducts: "Rechercher des produits...",
+      noProductsFound: "Aucun produit trouvé",
+      confirmDelete: "Êtes-vous sûr de vouloir supprimer \"{name}\" ?",
+      categories: {
+        all: "Tous les produits",
+        spirits: "Spiritueux",
+        liquor: "Alcools",
+        beer: "Bière",
+        snacks: "Snacks",
+      },
+      addProductModal: {
+        title: "Ajouter un nouveau produit",
+        description: "Ajouter un nouveau produit à votre inventaire",
+        name: "Nom du produit",
+        category: "Catégorie",
+        subcategory: "Sous-catégorie",
+        origin: "Provenance",
+        quantity: "Quantité",
+        pricePerBottle: "Prix par bouteille",
+        inventoryCode: "Code d'inventaire",
+        inventoryCodeHint: "Auto-généré si vide",
+        inventoryCodePlaceholder: "Entrez un code ou laissez vide pour la génération automatique",
+        qrCode: "Code QR",
+        generateQR: "Générer le code QR",
+        downloadQR: "Télécharger le code QR",
+        qrCodePlaceholder: "Remplissez le nom du produit et le code d'inventaire, puis cliquez sur 'Générer' pour créer un code QR",
+        codeLabel: "Code",
+        fillRequiredFields: "Veuillez remplir tous les champs obligatoires",
+        imageUrl: "URL de l'image",
+        searchImage: "Rechercher image",
+        searchingImage: "Recherche...",
+        fillProductName: "Veuillez d'abord entrer un nom de produit",
+        imageApiNotConfigured: "Pour utiliser la recherche automatique d'images, configurez une clé API Google Custom Search dans les paramètres.",
+        imageNotFound: "Aucune image trouvée automatiquement. Vous pouvez entrer l'URL de l'image manuellement dans le champ ci-dessous.",
+        imageSearchError: "Erreur lors de la recherche d'image. Vous pouvez entrer l'URL manuellement dans le champ ci-dessous.",
+        editTitle: "Modifier le produit",
+        editDescription: "Modifiez les informations du produit",
+        save: "Enregistrer le produit",
+        cancel: "Annuler",
+        categories: {
+          spirits: "Spiritueux",
+          beer: "Bière",
+          wine: "Vin",
+          aperitif: "Apéritif",
+          champagne: "Champagne et mousseux",
+          readyToDrink: "Prêt-à-boire",
+          snacks: "Collation",
+        },
+        subcategories: {
+          redWine: "Vin rouge",
+          whiteWine: "Vin blanc",
+          roseWine: "Vin rosé",
+          scotchWhisky: "Scotch et Whisky",
+          liqueurCream: "Liqueur et Crème",
+          gin: "Gin",
+          rum: "Rhum",
+          vodka: "Vodka",
+          tequila: "Tequila",
+          cognacBrandy: "Cognac et Brandy",
+        },
+        origins: {
+          imported: "Importée",
+          canadian: "Canadien",
+          quebec: "Québécois",
+          spain: "Espagne",
+          france: "France",
+          italy: "Italie",
+          usa: "États-Unis",
+          australia: "Australie",
+          southAfrica: "Afrique du Sud",
+          newZealand: "Nouvelle-Zélande",
+          portugal: "Portugal",
+          chile: "Chili",
+          uk: "Royaume-Uni",
+        },
+      },
+    },
+    productCard: {
+      stockLevel: "Niveau de stock",
+      lowStock: "Stock faible !",
+      add: "Ajouter",
+      remove: "Retirer",
+      categories: {
+        spirits: "Spiritueux",
+        liquor: "Alcools",
+        beer: "Bière",
+        snacks: "Snacks",
+      },
+    },
+    sales: {
+      title: "Point de vente",
+      subtitle: "Traitez les commandes clients et enregistrez les ventes",
+      orderSummary: "Résumé de la commande",
+      noItemsInCart: "Aucun article dans le panier",
+      each: "chaque",
+      subtotal: "Sous-total",
+      tax: "Taxe (8%)",
+      total: "Total",
+      paymentMethod: "Méthode de paiement",
+      cash: "Espèces",
+      card: "Carte",
+      completeSale: "Finaliser la vente",
+      categories: {
+        all: "Tous",
+        spirits: "Spiritueux",
+        liquor: "Alcools",
+        beer: "Bière",
+        snacks: "Snacks",
+      },
+      alerts: {
+        cashPayment: "Paiement en espèces reçu ! Total : ",
+        orderCompleted: "Commande terminée ! Total : ",
+      },
+    },
+    analytics: {
+      title: "Analyses",
+      subtitle: "Rapports de ventes, tendances d'inventaire et informations commerciales",
+      salesAnalytics: "Analyses des ventes",
+      salesAnalyticsDesc: "Suivez les performances de ventes quotidiennes, hebdomadaires et mensuelles",
+      inventoryTrends: "Tendances d'inventaire",
+      inventoryTrendsDesc: "Analysez la popularité des produits et la rotation des stocks",
+      revenueReports: "Rapports de revenus",
+      revenueReportsDesc: "Consultez les répartitions détaillées des revenus par catégorie",
+      comingSoon: "Tableau de bord d'analyses à venir. Continuez à ajouter des fonctionnalités pour développer cette section !",
+    },
+    notFound: {
+      title: "404",
+      subtitle: "Cette page n'existe pas encore.",
+      description: "Continuez à développer votre système La Réserve en explorant les fonctionnalités disponibles ci-dessous.",
+      inventory: "Inventaire",
+      inventoryDesc: "Gérer les niveaux de stock et les produits",
+      pointOfSale: "Point de vente",
+      pointOfSaleDesc: "Enregistrer les ventes et traiter les commandes",
+      analytics: "Analyses",
+      analyticsDesc: "Consulter les rapports et informations",
+    },
+    paymentModal: {
+      completePayment: "Finaliser le paiement",
+      totalAmount: "Montant total",
+      processingPayment: "Traitement de votre paiement...",
+    },
+    paymentForm: {
+      choosePaymentMethod: "Choisir la méthode de paiement",
+      cardPayment: "Paiement par carte",
+      applePay: "Apple Pay",
+      cardNumber: "Numéro de carte",
+      cardholderName: "Nom du titulaire",
+      expiryDate: "Date d'expiration",
+      cvc: "CVC",
+      cancel: "Annuler",
+      pay: "Payer",
+      paymentSuccessful: "Paiement réussi !",
+      thankYou: "Merci pour votre achat",
+      errors: {
+        selectCard: "Veuillez sélectionner le paiement par carte",
+        fillAllDetails: "Veuillez remplir tous les détails de la carte",
+        cardNumberLength: "Le numéro de carte doit contenir 16 chiffres",
+        paymentFailed: "Le paiement a échoué. Veuillez réessayer.",
+        applePayFailed: "Apple Pay a échoué. Veuillez réessayer.",
+      },
+      testCardNotice: "Carte de test : 4242 4242 4242 4242 | Toute date future | Tout CVC",
+    },
+    settings: {
+      title: "Paramètres",
+      subtitle: "Gérez les paramètres et préférences de votre bar",
+      saveChanges: "Enregistrer les modifications",
+      general: {
+        title: "Informations générales",
+        description: "Informations de base sur votre bar ou établissement",
+        barName: "Nom du bar",
+        email: "Email",
+        phone: "Téléphone",
+        address: "Adresse",
+        currency: "Devise",
+        taxRegion: "Région fiscale",
+        taxRate: "Taux de taxe (%)",
+        taxRegions: {
+          quebec: "Québec, Canada (TPS 5% + TVQ 9,975%)",
+          ontario: "Ontario, Canada (TPS 13%)",
+          "british-columbia": "Colombie-Britannique, Canada (TPS 5% + PST 7%)",
+          alberta: "Alberta, Canada (TPS 5%)",
+          manitoba: "Manitoba, Canada (TPS 5% + PST 7%)",
+          saskatchewan: "Saskatchewan, Canada (TPS 5% + PST 6%)",
+          "nova-scotia": "Nouvelle-Écosse, Canada (TPS 15%)",
+          "new-brunswick": "Nouveau-Brunswick, Canada (TPS 15%)",
+          newfoundland: "Terre-Neuve, Canada (TPS 15%)",
+          "prince-edward-island": "Île-du-Prince-Édouard, Canada (TPS 15%)",
+          "northwest-territories": "Territoires du Nord-Ouest, Canada (TPS 5%)",
+          nunavut: "Nunavut, Canada (TPS 5%)",
+          yukon: "Yukon, Canada (TPS 5%)",
+          california: "Californie, États-Unis (7,25%)",
+          "new-york": "New York, États-Unis (8%)",
+          texas: "Texas, États-Unis (6,25%)",
+          florida: "Floride, États-Unis (6%)",
+          illinois: "Illinois, États-Unis (6,25%)",
+          france: "France (TVA 20%)",
+          spain: "Espagne (IVA 21%)",
+          germany: "Allemagne (MwSt 19%)",
+          italy: "Italie (IVA 22%)",
+          uk: "Royaume-Uni (TVA 20%)",
+          belgium: "Belgique (TVA 21%)",
+          netherlands: "Pays-Bas (TVA 21%)",
+          portugal: "Portugal (IVA 23%)",
+          sweden: "Suède (TVA 25%)",
+          denmark: "Danemark (TVA 25%)",
+          poland: "Pologne (TVA 23%)",
+          australia: "Australie (TPS 10%)",
+          "new-zealand": "Nouvelle-Zélande (TPS 15%)",
+          switzerland: "Suisse (TVA 7,7%)",
+          custom: "Taux personnalisé",
+        },
+      },
+      notifications: {
+        title: "Notifications",
+        description: "Configurez comment et quand vous recevez des notifications",
+        lowStockAlerts: "Alertes de stock faible",
+        lowStockAlertsDesc: "Soyez averti lorsque les niveaux d'inventaire sont bas",
+        emailNotifications: "Notifications par email",
+        emailNotificationsDesc: "Recevoir des notifications par email",
+        salesReports: "Rapports de ventes quotidiens",
+        salesReportsDesc: "Recevoir des rapports de synthèse des ventes quotidiennes",
+        weeklySummary: "Résumé hebdomadaire",
+        weeklySummaryDesc: "Recevoir un résumé hebdomadaire des performances",
+      },
+      inventory: {
+        title: "Gestion de l'inventaire",
+        description: "Configurez le suivi et les alertes d'inventaire",
+        lowStockThreshold: "Seuil de stock faible",
+        lowStockThresholdDesc: "Alerte lorsque le stock tombe en dessous de cette quantité",
+        autoReorder: "Réapprovisionnement automatique",
+        autoReorderDesc: "Créer automatiquement des demandes de réapprovisionnement lorsque le stock est faible",
+        reorderQuantity: "Quantité de réapprovisionnement par défaut",
+      },
+      import: {
+        title: "Importer l'inventaire",
+        description: "Importez votre inventaire depuis CSV, Excel ou Google Sheets",
+        importInventory: "Importer l'inventaire",
+        selectFile: "Sélectionner un fichier",
+        supportedFormats: "Formats supportés : CSV, Excel (.xlsx, .xls), Google Sheets",
+        importSuccess: "Inventaire importé avec succès !",
+        importError: "Erreur lors de l'importation. Veuillez vérifier le format du fichier.",
+        fileRequired: "Veuillez sélectionner un fichier à importer",
+        processing: "Traitement du fichier...",
+        selected: "Sélectionné",
+        productsImported: "produits importés",
+      },
+      export: {
+        title: "Exporter l'inventaire",
+        description: "Exportez votre inventaire au format CSV ou Excel",
+        exportInventory: "Exporter l'inventaire",
+        exportAsCSV: "Exporter en CSV",
+        exportAsExcel: "Exporter en Excel",
+        exportSuccess: "Inventaire exporté avec succès !",
+        exportError: "Erreur lors de l'exportation. Veuillez réessayer.",
+        noProducts: "Aucun produit à exporter",
+      },
+      appearance: {
+        title: "Apparence",
+        description: "Personnalisez l'apparence de l'application",
+        theme: "Thème",
+        language: "Langue",
+      },
+    },
+    common: {
+      light: "Clair",
+      dark: "Sombre",
+      system: "Système",
+      units: {
+        bottles: "bouteilles",
+        bottle: "bouteille",
+        bags: "sacs",
+        bag: "sac",
+        shot: "shot",
+        shooter: "shooter",
+        glass: "verre",
+        drink: "boisson",
+      },
+    },
+  },
+  es: {
+    layout: {
+      appName: "Reserva Boveda",
+      appSubtitle: "Sistema de inventario y punto de venta",
+      nav: {
+        inventory: "Inventario",
+        sales: "Ventas",
+        analytics: "Análisis",
+        settings: "Configuración",
+      },
+    },
+    inventory: {
+      title: "Inventario",
+      subtitle: "Administra los niveles de stock y productos de tu bar",
+      addProduct: "Agregar producto",
+      totalInventoryValue: "Valor total del inventario",
+      totalProducts: "Total de productos",
+      lowStockItems: "Artículos con stock bajo",
+      searchProducts: "Buscar productos...",
+      noProductsFound: "No se encontraron productos",
+      confirmDelete: "¿Está seguro de que desea eliminar \"{name}\"?",
+      categories: {
+        all: "Todos los productos",
+        spirits: "Licores",
+        liquor: "Bebidas alcohólicas",
+        beer: "Cerveza",
+        snacks: "Aperitivos",
+      },
+      addProductModal: {
+        title: "Agregar nuevo producto",
+        description: "Agregar un nuevo producto a tu inventario",
+        name: "Nombre del producto",
+        category: "Categoría",
+        subcategory: "Subcategoría",
+        origin: "Origen",
+        quantity: "Cantidad",
+        pricePerBottle: "Precio por botella",
+        inventoryCode: "Código de inventario",
+        inventoryCodeHint: "Auto-generado si está vacío",
+        inventoryCodePlaceholder: "Ingrese un código o deje vacío para generación automática",
+        qrCode: "Código QR",
+        generateQR: "Generar código QR",
+        downloadQR: "Descargar código QR",
+        qrCodePlaceholder: "Complete el nombre del producto y el código de inventario, luego haga clic en 'Generar' para crear un código QR",
+        codeLabel: "Código",
+        fillRequiredFields: "Por favor complete todos los campos obligatorios",
+        imageUrl: "URL de la imagen",
+        searchImage: "Buscar imagen",
+        searchingImage: "Buscando...",
+        fillProductName: "Por favor ingrese primero un nombre de producto",
+        imageApiNotConfigured: "Para usar la búsqueda automática de imágenes, configure una clave API de Google Custom Search en la configuración.",
+        imageNotFound: "No se encontró ninguna imagen automáticamente. Puede ingresar la URL de la imagen manualmente en el campo a continuación.",
+        imageSearchError: "Error durante la búsqueda de imagen. Puede ingresar la URL manualmente en el campo a continuación.",
+        editTitle: "Editar producto",
+        editDescription: "Modificar información del producto",
+        save: "Guardar producto",
+        cancel: "Cancelar",
+        categories: {
+          spirits: "Licores",
+          beer: "Cerveza",
+          wine: "Vino",
+          aperitif: "Aperitivo",
+          champagne: "Champán y espumoso",
+          readyToDrink: "Listo para beber",
+          snacks: "Aperitivos",
+        },
+        subcategories: {
+          redWine: "Vino tinto",
+          whiteWine: "Vino blanco",
+          roseWine: "Vino rosado",
+          scotchWhisky: "Scotch y Whisky",
+          liqueurCream: "Licor y Crema",
+          gin: "Ginebra",
+          rum: "Ron",
+          vodka: "Vodka",
+          tequila: "Tequila",
+          cognacBrandy: "Cognac y Brandy",
+        },
+        origins: {
+          imported: "Importado",
+          canadian: "Canadiense",
+          quebec: "Quebec",
+          spain: "España",
+          france: "Francia",
+          italy: "Italia",
+          usa: "Estados Unidos",
+          australia: "Australia",
+          southAfrica: "Sudáfrica",
+          newZealand: "Nueva Zelanda",
+          portugal: "Portugal",
+          chile: "Chile",
+          uk: "Reino Unido",
+        },
+      },
+    },
+    productCard: {
+      stockLevel: "Nivel de stock",
+      lowStock: "¡Stock bajo!",
+      add: "Agregar",
+      remove: "Quitar",
+      categories: {
+        spirits: "Licores",
+        liquor: "Bebidas alcohólicas",
+        beer: "Cerveza",
+        snacks: "Aperitivos",
+      },
+    },
+    sales: {
+      title: "Punto de venta",
+      subtitle: "Procesa pedidos de clientes y registra ventas",
+      orderSummary: "Resumen del pedido",
+      noItemsInCart: "No hay artículos en el carrito",
+      each: "cada",
+      subtotal: "Subtotal",
+      tax: "Impuesto (8%)",
+      total: "Total",
+      paymentMethod: "Método de pago",
+      cash: "Efectivo",
+      card: "Tarjeta",
+      completeSale: "Completar venta",
+      categories: {
+        all: "Todos",
+        spirits: "Licores",
+        liquor: "Bebidas alcohólicas",
+        beer: "Cerveza",
+        snacks: "Aperitivos",
+      },
+      alerts: {
+        cashPayment: "¡Pago en efectivo recibido! Total: $",
+        orderCompleted: "¡Pedido completado! Total: $",
+      },
+    },
+    analytics: {
+      title: "Análisis",
+      subtitle: "Informes de ventas, tendencias de inventario e información comercial",
+      salesAnalytics: "Análisis de ventas",
+      salesAnalyticsDesc: "Rastrea el rendimiento de ventas diario, semanal y mensual",
+      inventoryTrends: "Tendencias de inventario",
+      inventoryTrendsDesc: "Analiza la popularidad de productos y la rotación de stock",
+      revenueReports: "Informes de ingresos",
+      revenueReportsDesc: "Ver desgloses detallados de ingresos por categoría",
+      comingSoon: "Panel de análisis próximamente. ¡Continúa agregando funciones para desarrollar esta sección!",
+    },
+    notFound: {
+      title: "404",
+      subtitle: "Esta página aún no existe.",
+      description: "Continúa desarrollando tu sistema La Réserve explorando las funciones disponibles a continuación.",
+      inventory: "Inventario",
+      inventoryDesc: "Administrar niveles de stock y productos",
+      pointOfSale: "Punto de venta",
+      pointOfSaleDesc: "Registrar ventas y procesar pedidos",
+      analytics: "Análisis",
+      analyticsDesc: "Ver informes e información",
+    },
+    paymentModal: {
+      completePayment: "Completar pago",
+      totalAmount: "Monto total",
+      processingPayment: "Procesando tu pago...",
+    },
+    paymentForm: {
+      choosePaymentMethod: "Elegir método de pago",
+      cardPayment: "Pago con tarjeta",
+      applePay: "Apple Pay",
+      cardNumber: "Número de tarjeta",
+      cardholderName: "Nombre del titular",
+      expiryDate: "Fecha de vencimiento",
+      cvc: "CVC",
+      cancel: "Cancelar",
+      pay: "Pagar",
+      paymentSuccessful: "¡Pago exitoso!",
+      thankYou: "Gracias por tu compra",
+      errors: {
+        selectCard: "Por favor selecciona el pago con tarjeta",
+        fillAllDetails: "Por favor completa todos los detalles de la tarjeta",
+        cardNumberLength: "El número de tarjeta debe tener 16 dígitos",
+        paymentFailed: "El pago falló. Por favor intenta de nuevo.",
+        applePayFailed: "Apple Pay falló. Por favor intenta de nuevo.",
+      },
+      testCardNotice: "Tarjeta de prueba: 4242 4242 4242 4242 | Cualquier fecha futura | Cualquier CVC",
+    },
+    settings: {
+      title: "Configuración",
+      subtitle: "Administra la configuración y preferencias de tu bar",
+      saveChanges: "Guardar cambios",
+      general: {
+        title: "Información general",
+        description: "Información básica sobre tu bar o establecimiento",
+        barName: "Nombre del bar",
+        email: "Correo electrónico",
+        phone: "Teléfono",
+        address: "Dirección",
+        currency: "Moneda",
+        taxRegion: "Región fiscal",
+        taxRate: "Tasa de impuesto (%)",
+        taxRegions: {
+          quebec: "Quebec, Canadá (TPS 5% + TVQ 9,975%)",
+          ontario: "Ontario, Canadá (TPS 13%)",
+          "british-columbia": "Columbia Británica, Canadá (TPS 5% + PST 7%)",
+          alberta: "Alberta, Canadá (TPS 5%)",
+          manitoba: "Manitoba, Canadá (TPS 5% + PST 7%)",
+          saskatchewan: "Saskatchewan, Canadá (TPS 5% + PST 6%)",
+          "nova-scotia": "Nueva Escocia, Canadá (TPS 15%)",
+          "new-brunswick": "Nuevo Brunswick, Canadá (TPS 15%)",
+          newfoundland: "Terranova, Canadá (TPS 15%)",
+          "prince-edward-island": "Isla del Príncipe Eduardo, Canadá (TPS 15%)",
+          "northwest-territories": "Territorios del Noroeste, Canadá (TPS 5%)",
+          nunavut: "Nunavut, Canadá (TPS 5%)",
+          yukon: "Yukón, Canadá (TPS 5%)",
+          california: "California, EE. UU. (7,25%)",
+          "new-york": "Nueva York, EE. UU. (8%)",
+          texas: "Texas, EE. UU. (6,25%)",
+          florida: "Florida, EE. UU. (6%)",
+          illinois: "Illinois, EE. UU. (6,25%)",
+          france: "Francia (IVA 20%)",
+          spain: "España (IVA 21%)",
+          germany: "Alemania (MwSt 19%)",
+          italy: "Italia (IVA 22%)",
+          uk: "Reino Unido (IVA 20%)",
+          belgium: "Bélgica (IVA 21%)",
+          netherlands: "Países Bajos (IVA 21%)",
+          portugal: "Portugal (IVA 23%)",
+          sweden: "Suecia (IVA 25%)",
+          denmark: "Dinamarca (IVA 25%)",
+          poland: "Polonia (IVA 23%)",
+          australia: "Australia (TPS 10%)",
+          "new-zealand": "Nueva Zelanda (TPS 15%)",
+          switzerland: "Suiza (IVA 7,7%)",
+          custom: "Tasa personalizada",
+        },
+      },
+      notifications: {
+        title: "Notificaciones",
+        description: "Configura cómo y cuándo recibes notificaciones",
+        lowStockAlerts: "Alertas de stock bajo",
+        lowStockAlertsDesc: "Recibe notificaciones cuando los niveles de inventario sean bajos",
+        emailNotifications: "Notificaciones por correo",
+        emailNotificationsDesc: "Recibir notificaciones por correo electrónico",
+        salesReports: "Informes de ventas diarios",
+        salesReportsDesc: "Recibir informes resumen de ventas diarias",
+        weeklySummary: "Resumen semanal",
+        weeklySummaryDesc: "Recibir resumen semanal de rendimiento",
+      },
+      inventory: {
+        title: "Gestión de inventario",
+        description: "Configura el seguimiento y alertas de inventario",
+        lowStockThreshold: "Umbral de stock bajo",
+        lowStockThresholdDesc: "Alerta cuando el stock cae por debajo de esta cantidad",
+        autoReorder: "Reorden automático",
+        autoReorderDesc: "Crear automáticamente solicitudes de reorden cuando el stock es bajo",
+        reorderQuantity: "Cantidad de reorden por defecto",
+      },
+      import: {
+        title: "Importar inventario",
+        description: "Importa tu inventario desde CSV, Excel o Google Sheets",
+        importInventory: "Importar inventario",
+        selectFile: "Seleccionar archivo",
+        supportedFormats: "Formatos soportados: CSV, Excel (.xlsx, .xls), Google Sheets",
+        importSuccess: "¡Inventario importado con éxito!",
+        importError: "Error al importar el inventario. Por favor verifica el formato del archivo.",
+        fileRequired: "Por favor selecciona un archivo para importar",
+        processing: "Procesando archivo...",
+        selected: "Seleccionado",
+        productsImported: "productos importados",
+      },
+      export: {
+        title: "Exportar inventario",
+        description: "Exporta tu inventario en formato CSV o Excel",
+        exportInventory: "Exportar inventario",
+        exportAsCSV: "Exportar como CSV",
+        exportAsExcel: "Exportar como Excel",
+        exportSuccess: "¡Inventario exportado con éxito!",
+        exportError: "Error al exportar el inventario. Por favor intenta de nuevo.",
+        noProducts: "No hay productos para exportar",
+      },
+      appearance: {
+        title: "Apariencia",
+        description: "Personaliza la apariencia de la aplicación",
+        theme: "Tema",
+        language: "Idioma",
+      },
+    },
+    common: {
+      light: "Claro",
+      dark: "Oscuro",
+      system: "Sistema",
+      units: {
+        bottles: "botellas",
+        bottle: "botella",
+        bags: "bolsas",
+        bag: "bolsa",
+        shot: "shot",
+        shooter: "shooter",
+        glass: "vaso",
+        drink: "bebida",
+      },
+    },
+  },
+  de: {
+    layout: {
+      appName: "Lagerkammer",
+      appSubtitle: "Inventar- und Kassensystem",
+      nav: {
+        inventory: "Inventar",
+        sales: "Verkäufe",
+        analytics: "Analysen",
+        settings: "Einstellungen",
+      },
+    },
+    inventory: {
+      title: "Inventar",
+      subtitle: "Verwalten Sie Ihre Bar-Bestandsniveaus und Produkte",
+      addProduct: "Produkt hinzufügen",
+      totalInventoryValue: "Gesamter Inventarwert",
+      totalProducts: "Gesamtprodukte",
+      lowStockItems: "Artikel mit niedrigem Bestand",
+      searchProducts: "Produkte suchen...",
+      noProductsFound: "Keine Produkte gefunden",
+      confirmDelete: "Sind Sie sicher, dass Sie \"{name}\" löschen möchten?",
+      categories: {
+        all: "Alle Produkte",
+        spirits: "Spirituosen",
+        liquor: "Alkohol",
+        beer: "Bier",
+        snacks: "Snacks",
+      },
+      addProductModal: {
+        title: "Neues Produkt hinzufügen",
+        description: "Ein neues Produkt zu Ihrem Inventar hinzufügen",
+        name: "Produktname",
+        category: "Kategorie",
+        subcategory: "Unterkategorie",
+        origin: "Herkunft",
+        quantity: "Menge",
+        pricePerBottle: "Preis pro Flasche",
+        inventoryCode: "Inventarcode",
+        inventoryCodeHint: "Automatisch generiert wenn leer",
+        inventoryCodePlaceholder: "Code eingeben oder leer lassen für automatische Generierung",
+        qrCode: "QR-Code",
+        generateQR: "QR-Code generieren",
+        downloadQR: "QR-Code herunterladen",
+        qrCodePlaceholder: "Füllen Sie den Produktnamen und den Inventarcode aus, dann klicken Sie auf 'Generieren', um einen QR-Code zu erstellen",
+        codeLabel: "Code",
+        fillRequiredFields: "Bitte füllen Sie alle erforderlichen Felder aus",
+        imageUrl: "Bild-URL",
+        searchImage: "Bild suchen",
+        searchingImage: "Suche läuft...",
+        fillProductName: "Bitte geben Sie zuerst einen Produktnamen ein",
+        imageApiNotConfigured: "Um die automatische Bildsuche zu verwenden, konfigurieren Sie einen Google Custom Search API-Schlüssel in den Einstellungen.",
+        imageNotFound: "Kein Bild automatisch gefunden. Sie können die Bild-URL manuell in das Feld unten eingeben.",
+        imageSearchError: "Fehler bei der Bildsuche. Sie können die URL manuell in das Feld unten eingeben.",
+        editTitle: "Produkt bearbeiten",
+        editDescription: "Produktinformationen ändern",
+        save: "Produkt speichern",
+        cancel: "Abbrechen",
+        categories: {
+          spirits: "Spirituosen",
+          beer: "Bier",
+          wine: "Wein",
+          aperitif: "Aperitif",
+          champagne: "Champagner & Schaumwein",
+          readyToDrink: "Trinkfertig",
+          snacks: "Snacks",
+        },
+        subcategories: {
+          redWine: "Rotwein",
+          whiteWine: "Weißwein",
+          roseWine: "Roséwein",
+          scotchWhisky: "Scotch & Whisky",
+          liqueurCream: "Likör & Sahne",
+          gin: "Gin",
+          rum: "Rum",
+          vodka: "Wodka",
+          tequila: "Tequila",
+          cognacBrandy: "Cognac & Brandy",
+        },
+        origins: {
+          imported: "Importiert",
+          canadian: "Kanadisch",
+          quebec: "Québec",
+          spain: "Spanien",
+          france: "Frankreich",
+          italy: "Italien",
+          usa: "Vereinigte Staaten",
+          australia: "Australien",
+          southAfrica: "Südafrika",
+          newZealand: "Neuseeland",
+          portugal: "Portugal",
+          chile: "Chile",
+          uk: "Vereinigtes Königreich",
+        },
+      },
+    },
+    productCard: {
+      stockLevel: "Bestandsniveau",
+      lowStock: "Niedriger Bestand!",
+      add: "Hinzufügen",
+      remove: "Entfernen",
+      categories: {
+        spirits: "Spirituosen",
+        liquor: "Alkohol",
+        beer: "Bier",
+        snacks: "Snacks",
+      },
+    },
+    sales: {
+      title: "Kassensystem",
+      subtitle: "Kundenbestellungen bearbeiten und Verkäufe tätigen",
+      orderSummary: "Bestellübersicht",
+      noItemsInCart: "Keine Artikel im Warenkorb",
+      each: "jeweils",
+      subtotal: "Zwischensumme",
+      tax: "Steuer (8%)",
+      total: "Gesamt",
+      paymentMethod: "Zahlungsmethode",
+      cash: "Bargeld",
+      card: "Karte",
+      completeSale: "Verkauf abschließen",
+      categories: {
+        all: "Alle",
+        spirits: "Spirituosen",
+        liquor: "Alkohol",
+        beer: "Bier",
+        snacks: "Snacks",
+      },
+      alerts: {
+        cashPayment: "Barzahlung erhalten! Gesamt: $",
+        orderCompleted: "Bestellung abgeschlossen! Gesamt: $",
+      },
+    },
+    analytics: {
+      title: "Analysen",
+      subtitle: "Verkaufsberichte, Bestandstrends und Geschäftseinblicke",
+      salesAnalytics: "Verkaufsanalysen",
+      salesAnalyticsDesc: "Verfolgen Sie tägliche, wöchentliche und monatliche Verkaufsleistung",
+      inventoryTrends: "Bestandstrends",
+      inventoryTrendsDesc: "Analysieren Sie Produktpopularität und Lagerumschlag",
+      revenueReports: "Umsatzberichte",
+      revenueReportsDesc: "Detaillierte Umsatzaufschlüsselungen nach Kategorie anzeigen",
+      comingSoon: "Analysedashboard kommt bald. Fügen Sie weiterhin Funktionen hinzu, um diesen Abschnitt zu entwickeln!",
+    },
+    notFound: {
+      title: "404",
+      subtitle: "Diese Seite existiert noch nicht.",
+      description: "Entwickeln Sie Ihr La Réserve-System weiter, indem Sie die verfügbaren Funktionen unten erkunden.",
+      inventory: "Inventar",
+      inventoryDesc: "Bestandsniveaus und Produkte verwalten",
+      pointOfSale: "Kassensystem",
+      pointOfSaleDesc: "Verkäufe tätigen und Bestellungen bearbeiten",
+      analytics: "Analysen",
+      analyticsDesc: "Berichte und Einblicke anzeigen",
+    },
+    paymentModal: {
+      completePayment: "Zahlung abschließen",
+      totalAmount: "Gesamtbetrag",
+      processingPayment: "Ihre Zahlung wird bearbeitet...",
+    },
+    paymentForm: {
+      choosePaymentMethod: "Zahlungsmethode wählen",
+      cardPayment: "Kartenzahlung",
+      applePay: "Apple Pay",
+      cardNumber: "Kartennummer",
+      cardholderName: "Karteninhaber",
+      expiryDate: "Ablaufdatum",
+      cvc: "CVC",
+      cancel: "Abbrechen",
+      pay: "Zahlen",
+      paymentSuccessful: "Zahlung erfolgreich!",
+      thankYou: "Vielen Dank für Ihren Einkauf",
+      errors: {
+        selectCard: "Bitte wählen Sie Kartenzahlung",
+        fillAllDetails: "Bitte füllen Sie alle Kartendaten aus",
+        cardNumberLength: "Kartennummer muss 16 Stellen haben",
+        paymentFailed: "Zahlung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        applePayFailed: "Apple Pay fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      },
+      testCardNotice: "Testkarte: 4242 4242 4242 4242 | Jedes zukünftige Datum | Jeder CVC",
+    },
+    settings: {
+      title: "Einstellungen",
+      subtitle: "Verwalten Sie Ihre Bar-Einstellungen und Präferenzen",
+      saveChanges: "Änderungen speichern",
+      general: {
+        title: "Allgemeine Informationen",
+        description: "Grundlegende Informationen über Ihre Bar oder Einrichtung",
+        barName: "Bar-Name",
+        email: "E-Mail",
+        phone: "Telefon",
+        address: "Adresse",
+        currency: "Währung",
+        taxRegion: "Steuerregion",
+        taxRate: "Steuersatz (%)",
+        taxRegions: {
+          quebec: "Québec, Kanada (TPS 5% + TVQ 9,975%)",
+          ontario: "Ontario, Kanada (TPS 13%)",
+          "british-columbia": "British Columbia, Kanada (TPS 5% + PST 7%)",
+          alberta: "Alberta, Kanada (TPS 5%)",
+          manitoba: "Manitoba, Kanada (TPS 5% + PST 7%)",
+          saskatchewan: "Saskatchewan, Kanada (TPS 5% + PST 6%)",
+          "nova-scotia": "Neuschottland, Kanada (TPS 15%)",
+          "new-brunswick": "New Brunswick, Kanada (TPS 15%)",
+          newfoundland: "Neufundland, Kanada (TPS 15%)",
+          "prince-edward-island": "Prinz-Edward-Insel, Kanada (TPS 15%)",
+          "northwest-territories": "Nordwest-Territorien, Kanada (TPS 5%)",
+          nunavut: "Nunavut, Kanada (TPS 5%)",
+          yukon: "Yukon, Kanada (TPS 5%)",
+          california: "Kalifornien, USA (7,25%)",
+          "new-york": "New York, USA (8%)",
+          texas: "Texas, USA (6,25%)",
+          florida: "Florida, USA (6%)",
+          illinois: "Illinois, USA (6,25%)",
+          france: "Frankreich (MwSt 20%)",
+          spain: "Spanien (MwSt 21%)",
+          germany: "Deutschland (MwSt 19%)",
+          italy: "Italien (MwSt 22%)",
+          uk: "Vereinigtes Königreich (MwSt 20%)",
+          belgium: "Belgien (MwSt 21%)",
+          netherlands: "Niederlande (MwSt 21%)",
+          portugal: "Portugal (MwSt 23%)",
+          sweden: "Schweden (MwSt 25%)",
+          denmark: "Dänemark (MwSt 25%)",
+          poland: "Polen (MwSt 23%)",
+          australia: "Australien (MwSt 10%)",
+          "new-zealand": "Neuseeland (MwSt 15%)",
+          switzerland: "Schweiz (MwSt 7,7%)",
+          custom: "Benutzerdefinierter Satz",
+        },
+      },
+      notifications: {
+        title: "Benachrichtigungen",
+        description: "Konfigurieren Sie, wie und wann Sie Benachrichtigungen erhalten",
+        lowStockAlerts: "Niedrige Bestandsalarme",
+        lowStockAlertsDesc: "Benachrichtigt werden, wenn die Lagerbestände niedrig sind",
+        emailNotifications: "E-Mail-Benachrichtigungen",
+        emailNotificationsDesc: "Benachrichtigungen per E-Mail erhalten",
+        salesReports: "Tägliche Verkaufsberichte",
+        salesReportsDesc: "Tägliche Verkaufszusammenfassungsberichte erhalten",
+        weeklySummary: "Wöchentliche Zusammenfassung",
+        weeklySummaryDesc: "Wöchentliche Leistungszusammenfassung erhalten",
+      },
+      inventory: {
+        title: "Bestandsverwaltung",
+        description: "Konfigurieren Sie die Bestandsverfolgung und Warnungen",
+        lowStockThreshold: "Niedrige Bestandsschwelle",
+        lowStockThresholdDesc: "Alarm, wenn der Bestand unter diese Menge fällt",
+        autoReorder: "Automatische Nachbestellung",
+        autoReorderDesc: "Automatisch Nachbestellungsanfragen erstellen, wenn der Bestand niedrig ist",
+        reorderQuantity: "Standard-Nachbestellungsmenge",
+      },
+      import: {
+        title: "Inventar importieren",
+        description: "Importieren Sie Ihr Inventar aus CSV, Excel oder Google Sheets",
+        importInventory: "Inventar importieren",
+        selectFile: "Datei auswählen",
+        supportedFormats: "Unterstützte Formate: CSV, Excel (.xlsx, .xls), Google Sheets",
+        importSuccess: "Inventar erfolgreich importiert!",
+        importError: "Fehler beim Importieren des Inventars. Bitte überprüfen Sie das Dateiformat.",
+        fileRequired: "Bitte wählen Sie eine Datei zum Importieren aus",
+        processing: "Datei wird verarbeitet...",
+        selected: "Ausgewählt",
+        productsImported: "Produkte importiert",
+      },
+      export: {
+        title: "Inventar exportieren",
+        description: "Exportieren Sie Ihr Inventar im CSV- oder Excel-Format",
+        exportInventory: "Inventar exportieren",
+        exportAsCSV: "Als CSV exportieren",
+        exportAsExcel: "Als Excel exportieren",
+        exportSuccess: "Inventar erfolgreich exportiert!",
+        exportError: "Fehler beim Exportieren des Inventars. Bitte versuchen Sie es erneut.",
+        noProducts: "Keine Produkte zum Exportieren",
+      },
+      appearance: {
+        title: "Erscheinungsbild",
+        description: "Passen Sie das Aussehen und Verhalten der Anwendung an",
+        theme: "Thema",
+        language: "Sprache",
+      },
+    },
+    common: {
+      light: "Hell",
+      dark: "Dunkel",
+      system: "System",
+      units: {
+        bottles: "Flaschen",
+        bottle: "Flasche",
+        bags: "Tüten",
+        bag: "Tüte",
+        shot: "shot",
+        shooter: "shooter",
+        glass: "Glas",
+        drink: "Getränk",
+      },
+    },
+  },
+};
+
+export function getTranslations(lang: Language): Translations {
+  return translations[lang];
+}
+
+export function getTranslation(
+  lang: Language,
+  path: string,
+): string | undefined {
+  const keys = path.split(".");
+  let value: any = translations[lang];
+
+  for (const key of keys) {
+    value = value?.[key];
+    if (value === undefined) return undefined;
+  }
+
+  return typeof value === "string" ? value : undefined;
+}

@@ -2,9 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { AlertCircle, ArrowRight } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const NotFound = () => {
   const location = useLocation();
+  const { t } = useI18n();
 
   useEffect(() => {
     console.error(
@@ -22,13 +24,12 @@ const NotFound = () => {
               <AlertCircle className="h-12 w-12 text-amber-300" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-foreground">404</h1>
+          <h1 className="text-4xl font-bold text-foreground">{t.notFound.title}</h1>
           <p className="text-lg text-muted-foreground">
-            This page doesn't exist yet.
+            {t.notFound.subtitle}
           </p>
           <p className="text-sm text-muted-foreground">
-            Continue building out your BarFlow system by exploring the available
-            features below.
+            {t.notFound.description}
           </p>
         </div>
 
@@ -39,10 +40,10 @@ const NotFound = () => {
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                Inventory
+                {t.notFound.inventory}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Manage stock levels and products
+                {t.notFound.inventoryDesc}
               </p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -54,10 +55,10 @@ const NotFound = () => {
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                Point of Sale
+                {t.notFound.pointOfSale}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Ring up sales and process orders
+                {t.notFound.pointOfSaleDesc}
               </p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -69,10 +70,10 @@ const NotFound = () => {
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                Analytics
+                {t.notFound.analytics}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                View reports and insights
+                {t.notFound.analyticsDesc}
               </p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />

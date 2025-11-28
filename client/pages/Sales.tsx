@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
 import { Trash2, Plus, Minus, CreditCard, DollarSign } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 interface CartItem extends Product {
   cartQuantity: number;
@@ -108,13 +109,14 @@ const PRODUCTS_FOR_SALE: Product[] = [
 ];
 
 const categoryColors = {
-  spirits: "bg-purple-500/20 text-purple-300 hover:bg-purple-500/30",
-  liquor: "bg-blue-500/20 text-blue-300 hover:bg-blue-500/30",
-  beer: "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30",
-  snacks: "bg-green-500/20 text-green-300 hover:bg-green-500/30",
+  spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
+  liquor: "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-500/30 hover:bg-blue-200 dark:hover:bg-blue-500/30",
+  beer: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/30 hover:bg-amber-200 dark:hover:bg-amber-500/30",
+  snacks: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30 hover:bg-green-200 dark:hover:bg-green-500/30",
 };
 
 export default function Sales() {
+  const { t } = useI18n();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [filterCategory, setFilterCategory] = useState<
     "all" | "spirits" | "liquor" | "beer" | "snacks"
@@ -132,11 +134,40 @@ export default function Sales() {
     "snacks",
   ];
   const categoryLabels = {
-    all: "All",
-    spirits: "Spirits",
-    liquor: "Liquor",
-    beer: "Beer",
-    snacks: "Snacks",
+    all: t.sales.categories.all,
+    spirits: t.sales.categories.spirits,
+    liquor: t.sales.categories.liquor,
+    beer: t.sales.categories.beer,
+    snacks: t.sales.categories.snacks,
+  };
+
+  // Translate unit
+  const translateUnit = (unit: string): string => {
+    const unitLower = unit.toLowerCase();
+    const units = t.common.units;
+    
+    if (unitLower === "bottles" || unitLower === "bouteilles" || unitLower === "botellas" || unitLower === "flaschen") {
+      return units.bottles;
+    }
+    if (unitLower === "bottle" || unitLower === "bouteille" || unitLower === "botella" || unitLower === "flasche") {
+      return units.bottle;
+    }
+    if (unitLower === "bags" || unitLower === "sacs" || unitLower === "bolsas" || unitLower === "tüten") {
+      return units.bags;
+    }
+    if (unitLower === "bag" || unitLower === "sac" || unitLower === "bolsa" || unitLower === "tüte") {
+      return units.bag;
+    }
+    if (unitLower === "shot" || unitLower === "shooter") {
+      return units.shot;
+    }
+    if (unitLower === "glass" || unitLower === "verre" || unitLower === "vaso" || unitLower === "glas") {
+      return units.glass;
+    }
+    if (unitLower === "drink" || unitLower === "boisson" || unitLower === "bebida" || unitLower === "getränk") {
+      return units.drink;
+    }
+    return unit; // Fallback to original if not found
   };
 
   const filteredProducts = PRODUCTS_FOR_SALE.filter(
@@ -183,7 +214,7 @@ export default function Sales() {
 
   const handleCheckout = () => {
     if (paymentMethod === "cash") {
-      alert(`Cash payment received! Total: $${total.toFixed(2)}`);
+      alert(`${t.sales.alerts.cashPayment}$${total.toFixed(2)}`);
       setCart([]);
       setPaymentMethod(null);
     } else if (paymentMethod === "card") {
@@ -195,7 +226,7 @@ export default function Sales() {
     setShowPaymentModal(false);
     setCart([]);
     setPaymentMethod(null);
-    alert(`Order completed! Total: $${total.toFixed(2)}`);
+    alert(`${t.sales.alerts.orderCompleted}$${total.toFixed(2)}`);
   };
 
   return (
@@ -203,9 +234,9 @@ export default function Sales() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Point of Sale</h2>
+          <h2 className="text-3xl font-bold text-foreground">{t.sales.title}</h2>
           <p className="text-muted-foreground mt-1">
-            Process customer orders and ring up sales
+            {t.sales.subtitle}
           </p>
         </div>
 
@@ -235,7 +266,7 @@ export default function Sales() {
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className={`p-3 rounded-lg border border-border transition-all text-left hover:scale-105 active:scale-95 ${categoryColors[product.category]}`}
+                  className={`p-3 rounded-lg border transition-all text-left hover:scale-105 active:scale-95 ${categoryColors[product.category]}`}
                 >
                   <p className="font-semibold text-sm line-clamp-2">
                     {product.name}
@@ -243,7 +274,7 @@ export default function Sales() {
                   <p className="text-lg font-bold mt-2">
                     ${product.price.toFixed(2)}
                   </p>
-                  <p className="text-xs opacity-75 mt-1">{product.unit}</p>
+                  <p className="text-xs opacity-80 mt-1">{translateUnit(product.unit)}</p>
                 </button>
               ))}
             </div>
@@ -253,14 +284,14 @@ export default function Sales() {
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4 space-y-4">
               <h3 className="font-bold text-lg text-foreground">
-                Order Summary
+                {t.sales.orderSummary}
               </h3>
 
               {/* Cart Items */}
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {cart.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-4">
-                    No items in cart
+                    {t.sales.noItemsInCart}
                   </p>
                 ) : (
                   cart.map((item) => (
@@ -273,7 +304,7 @@ export default function Sales() {
                           {item.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          ${item.price.toFixed(2)} each
+                          ${item.price.toFixed(2)} {t.sales.each}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 ml-2">
@@ -282,6 +313,7 @@ export default function Sales() {
                             updateQuantity(item.id, item.cartQuantity - 1)
                           }
                           className="p-1 hover:bg-background rounded transition-colors"
+                          aria-label="Decrease quantity"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -293,12 +325,14 @@ export default function Sales() {
                             updateQuantity(item.id, item.cartQuantity + 1)
                           }
                           className="p-1 hover:bg-background rounded transition-colors"
+                          aria-label="Increase quantity"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => removeFromCart(item.id)}
                           className="p-1 hover:bg-destructive/20 rounded transition-colors text-destructive"
+                          aria-label="Remove from cart"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -311,15 +345,15 @@ export default function Sales() {
               {/* Totals */}
               <div className="space-y-2 border-t border-border pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="text-muted-foreground">{t.sales.subtotal}</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tax (8%)</span>
+                  <span className="text-muted-foreground">{t.sales.tax}</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
-                  <span>Total</span>
+                  <span>{t.sales.total}</span>
                   <span className="text-primary">${total.toFixed(2)}</span>
                 </div>
               </div>
@@ -328,7 +362,7 @@ export default function Sales() {
               {cart.length > 0 && (
                 <div className="space-y-2 border-t border-border pt-4">
                   <p className="text-xs font-medium text-muted-foreground uppercase">
-                    Payment Method
+                    {t.sales.paymentMethod}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -340,7 +374,7 @@ export default function Sales() {
                       }`}
                     >
                       <DollarSign className="h-4 w-4" />
-                      Cash
+                      {t.sales.cash}
                     </button>
                     <button
                       onClick={() => setPaymentMethod("card")}
@@ -351,7 +385,7 @@ export default function Sales() {
                       }`}
                     >
                       <CreditCard className="h-4 w-4" />
-                      Card
+                      {t.sales.card}
                     </button>
                   </div>
                 </div>
@@ -363,7 +397,7 @@ export default function Sales() {
                 disabled={cart.length === 0 || !paymentMethod}
                 className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-bold transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Complete Sale
+                {t.sales.completeSale}
               </button>
             </div>
           </div>

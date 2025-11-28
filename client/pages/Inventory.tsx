@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProductCard, { Product } from "@/components/ProductCard";
+import AddProductModal from "@/components/AddProductModal";
 import { Plus, Search } from "lucide-react";
+import { useI18n } from "@/contexts/I18nContext";
 
 const SAMPLE_PRODUCTS: Product[] = [
   {
@@ -79,11 +81,31 @@ const SAMPLE_PRODUCTS: Product[] = [
 ];
 
 export default function Inventory() {
-  const [products, setProducts] = useState<Product[]>(SAMPLE_PRODUCTS);
+  const { t } = useI18n();
+  // Load products from localStorage or use sample products
+  const loadProducts = (): Product[] => {
+    const stored = localStorage.getItem("inventory-products");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return SAMPLE_PRODUCTS;
+      }
+    }
+    return SAMPLE_PRODUCTS;
+  };
+  const [products, setProducts] = useState<Product[]>(loadProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<
     "all" | "spirits" | "liquor" | "beer" | "snacks"
   >("all");
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Save products to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("inventory-products", JSON.stringify(products));
+  }, [products]);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -111,7 +133,35 @@ export default function Inventory() {
   };
 
   const handleDelete = (id: string) => {
-    setProducts(products.filter((p) => p.id !== id));
+    const product = products.find((p) => p.id === id);
+    if (product) {
+      const message = (t.inventory.confirmDelete || "Êtes-vous sûr de vouloir supprimer \"{name}\" ?").replace("{name}", product.name);
+      if (window.confirm(message)) {
+        setProducts(products.filter((p) => p.id !== id));
+      }
+    }
+  };
+
+  const handleAddProduct = (newProduct: Product) => {
+    setProducts([...products, newProduct]);
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setIsAddProductModalOpen(true);
+  };
+
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    if (editingProduct) {
+      // Replace the existing product by its original ID to avoid creating duplicates
+      setProducts(
+        products.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
+      );
+      setEditingProduct(null);
+    } else {
+      // Only add new product if not editing
+      handleAddProduct(updatedProduct);
+    }
   };
 
   const totalValue = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
@@ -125,11 +175,11 @@ export default function Inventory() {
     "snacks",
   ];
   const categoryLabels = {
-    all: "All Products",
-    spirits: "Spirits",
-    liquor: "Liquor",
-    beer: "Beer",
-    snacks: "Snacks",
+    all: t.inventory.categories.all,
+    spirits: t.inventory.categories.spirits,
+    liquor: t.inventory.categories.liquor,
+    beer: t.inventory.categories.beer,
+    snacks: t.inventory.categories.snacks,
   };
 
   return (
@@ -138,14 +188,17 @@ export default function Inventory() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">Inventory</h2>
+            <h2 className="text-3xl font-bold text-foreground">{t.inventory.title}</h2>
             <p className="text-muted-foreground mt-1">
-              Manage your bar stock levels and products
+              {t.inventory.subtitle}
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium">
+          <button
+            onClick={() => setIsAddProductModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+          >
             <Plus className="h-5 w-5" />
-            Add Product
+            {t.inventory.addProduct}
           </button>
         </div>
 
@@ -153,7 +206,7 @@ export default function Inventory() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card border border-border rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              Total Inventory Value
+              {t.inventory.totalInventoryValue}
             </p>
             <p className="text-2xl font-bold text-primary mt-2">
               ${totalValue.toFixed(2)}
@@ -161,7 +214,7 @@ export default function Inventory() {
           </div>
           <div className="bg-card border border-border rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              Total Products
+              {t.inventory.totalProducts}
             </p>
             <p className="text-2xl font-bold text-foreground mt-2">
               {products.length}
@@ -169,7 +222,7 @@ export default function Inventory() {
           </div>
           <div className="bg-card border border-border rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              Low Stock Items
+              {t.inventory.lowStockItems}
             </p>
             <p
               className={`text-2xl font-bold mt-2 ${
@@ -188,7 +241,7 @@ export default function Inventory() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder={t.inventory.searchProducts}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -222,16 +275,27 @@ export default function Inventory() {
               onAddStock={handleAddStock}
               onRemoveStock={handleRemoveStock}
               onDelete={handleDelete}
+              onEdit={handleEdit}
             />
           ))}
         </div>
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No products found</p>
+            <p className="text-muted-foreground">{t.inventory.noProductsFound}</p>
           </div>
         )}
       </div>
+
+      <AddProductModal
+        isOpen={isAddProductModalOpen}
+        onClose={() => {
+          setIsAddProductModalOpen(false);
+          setEditingProduct(null);
+        }}
+        onSave={handleUpdateProduct}
+        editingProduct={editingProduct}
+      />
     </Layout>
   );
 }
