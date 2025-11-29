@@ -31,7 +31,7 @@ Vous **N'AVEZ PAS BESOIN** de Bundle ID, App Store ID ou Team ID pour Google Cus
    - Une fois créé, allez dans "Setup" > "Basics"
    - Copiez le "Search engine ID" (CX)
 
-5. **Configurer dans l'application**
+5. **Configurer dans l'application (côté serveur uniquement)**
    
    **Vous avez déjà votre CX : `2604700cf916145eb`** ✅
    
@@ -40,23 +40,19 @@ Vous **N'AVEZ PAS BESOIN** de Bundle ID, App Store ID ou Team ID pour Google Cus
    - Créez une "API Key"
    - Copiez la clé générée
    
-   Ensuite, configurez dans l'application :
+   **⚠️ IMPORTANT : Sécurité**
    
-   **Option A : Fichier `.env` (recommandé)**
+   Les clés API sont maintenant stockées **uniquement côté serveur** pour des raisons de sécurité. 
+   Elles ne doivent **jamais** être exposées dans le code client ou dans localStorage.
+   
+   **Configuration dans le fichier `.env` (serveur uniquement)**
    - Créez un fichier `.env` à la racine du projet :
      ```
-     VITE_GOOGLE_API_KEY=votre_cle_api_ici
-     VITE_GOOGLE_CX=2604700cf916145eb
+     GOOGLE_API_KEY=votre_cle_api_ici
+     GOOGLE_CX=2604700cf916145eb
      ```
-   
-   **Option B : localStorage (pour tester rapidement)**
-   - Ouvrez la console du navigateur (F12)
-   - Exécutez :
-     ```javascript
-     localStorage.setItem('google_api_key', 'votre_cle_api_ici')
-     localStorage.setItem('google_cx', '2604700cf916145eb')
-     ```
-   - Rechargez la page
+   - **Note :** Utilisez `GOOGLE_API_KEY` (sans le préfixe `VITE_`) car cette variable est utilisée côté serveur uniquement
+   - La recherche d'images se fait maintenant via l'endpoint `/api/image-search` qui garde la clé API sécurisée sur le serveur
    
    **Note :** Le code que vous avez montré (`<script async src="https://cse.google.com/cse.js?cx=...">`) est pour un widget de recherche sur une page web. Pour la recherche d'images dans l'application, on utilise l'API (qui nécessite aussi une clé API).
 

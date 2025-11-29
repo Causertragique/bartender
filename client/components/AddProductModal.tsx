@@ -123,11 +123,13 @@ export default function AddProductModal({
     snippet?: string;
   }>> => {
     try {
-      // Check for API keys in environment variables or localStorage
+      // Note: API keys are now stored server-side only for security
+      // Image search is done via /api/image-search endpoint
+      // Web search still uses direct API calls (can be moved to server later if needed)
+      
+      // For web search, we still need API keys (temporary - should be moved to server)
       const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || localStorage.getItem('google_api_key');
       const GOOGLE_CX = import.meta.env.VITE_GOOGLE_CX || localStorage.getItem('google_cx');
-
-      console.log("API Key present:", !!GOOGLE_API_KEY, "CX present:", !!GOOGLE_CX);
 
       if (GOOGLE_API_KEY && GOOGLE_CX && GOOGLE_API_KEY !== 'YOUR_GOOGLE_API_KEY') {
         try {
@@ -194,33 +196,34 @@ export default function AddProductModal({
                 snippet?: string;
               }> = [];
               
-              // Search for images matching the products (up to 15)
-              // Make 2 requests to get up to 15 images
+              // Search for images via server API (secure, API key stays on server)
               let allImageItems: any[] = [];
               
-              // First image request: get first 10 results
-              const imageSearchUrl1 = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(searchQuery)}&searchType=image&num=10&safe=active&imgSize=medium&imgType=photo`;
-              const imageResponse1 = await fetch(imageSearchUrl1);
-              
-              if (imageResponse1.ok) {
-                const imageData1 = await imageResponse1.json();
-                if (imageData1.items) {
-                  allImageItems.push(...imageData1.items);
-                }
+              try {
+                const imageResponse = await fetch("/api/image-search", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ productName: searchQuery }),
+                });
                 
-                // Second image request: get next 5 results
-                if (imageData1.queries?.nextPage && allImageItems.length >= 10) {
-                  const imageStartIndex = 11;
-                  const imageSearchUrl2 = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(searchQuery)}&searchType=image&num=10&start=${imageStartIndex}&safe=active&imgSize=medium&imgType=photo`;
-                  const imageResponse2 = await fetch(imageSearchUrl2);
-                  
-                  if (imageResponse2.ok) {
-                    const imageData2 = await imageResponse2.json();
-                    if (imageData2.items) {
-                      allImageItems.push(...imageData2.items);
-                    }
+                if (imageResponse.ok) {
+                  const imageData = await imageResponse.json();
+                  if (imageData.images && imageData.images.length > 0) {
+                    // Convert server response format to expected format
+                    allImageItems = imageData.images.map((img: any) => ({
+                      link: img.imageUrl,
+                      image: {
+                        contextLink: img.contextUrl,
+                        thumbnailLink: img.thumbnailUrl,
+                      },
+                      displayLink: img.contextUrl ? new URL(img.contextUrl).hostname : '',
+                    }));
                   }
+                } else {
+                  console.warn("Image search API returned error:", imageResponse.status);
                 }
+              } catch (e) {
+                console.error("Error calling image search API:", e);
               }
               
               const saqImages = allImageItems.filter((item: any) => 
@@ -397,27 +400,9 @@ export default function AddProductModal({
         }
       } else {
         // Provide helpful feedback when no image is found
-        const hasGoogleApi = (import.meta.env.VITE_GOOGLE_API_KEY || localStorage.getItem('google_api_key')) &&
-                            (import.meta.env.VITE_GOOGLE_CX || localStorage.getItem('google_cx'));
-        const hasApiKey = hasGoogleApi;
-        
-        console.log("No image found. Has API key:", hasApiKey);
-        
-        if (!hasApiKey) {
-          const message = t.inventory.addProductModal.imageApiNotConfigured || 
-            "Pour utiliser la recherche automatique d'images, configurez une clé API Google Custom Search dans les paramètres.\n\n" +
-            "Instructions :\n" +
-            "1. Créez un projet sur https://console.cloud.google.com/\n" +
-            "2. Activez l'API Custom Search\n" +
-            "3. Créez un moteur de recherche sur https://cse.google.com/\n" +
-            "4. Ajoutez les clés dans les paramètres de l'application\n\n" +
-            "Sinon, vous pouvez entrer l'URL de l'image manuellement dans le champ ci-dessous.";
-          alert(message);
-        } else {
-          const message = t.inventory.addProductModal.imageNotFound || 
-            "Aucune image trouvée automatiquement. Vous pouvez entrer l'URL de l'image manuellement dans le champ ci-dessous.";
-          alert(message);
-        }
+        const message = t.inventory.addProductModal.imageNotFound || 
+          "Aucune image trouvée automatiquement. Vous pouvez entrer l'URL de l'image manuellement dans le champ ci-dessous.";
+        alert(message);
       }
     } catch (error) {
       console.error("Error searching for image:", error);
@@ -1035,10 +1020,10 @@ export default function AddProductModal({
                     onClick={async () => {
                       await applyProductResult(result);
                     }}
-                    className="flex items-center gap-4 p-4 border border-border rounded-lg hover:border-primary/50 hover:bg-secondary/50 transition-all cursor-pointer"
+                    className="flex items-center gap-4 p-4 border-2 border-foreground/20 rounded-lg hover:border-primary/50 hover:bg-secondary/50 transition-all cursor-pointer"
                   >
                     {result.imageUrl && (
-                      <div className="w-24 h-24 rounded-lg overflow-hidden border border-border bg-secondary flex-shrink-0">
+                      <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
                         <img
                           src={result.imageUrl}
                           alt={result.title}

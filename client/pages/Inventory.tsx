@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import ProductCard, { Product } from "@/components/ProductCard";
 import AddProductModal from "@/components/AddProductModal";
-import { Plus, Search } from "lucide-react";
+import QRCodeScanner from "@/components/QRCodeScanner";
+import { Plus, Search, Camera } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const SAMPLE_PRODUCTS: Product[] = [
   {
@@ -45,7 +47,7 @@ const SAMPLE_PRODUCTS: Product[] = [
   {
     id: "5",
     name: "Red Wine - Cabernet Sauvignon",
-    category: "liquor",
+    category: "wine",
     price: 28.99,
     quantity: 12,
     unit: "bottles",
@@ -63,7 +65,7 @@ const SAMPLE_PRODUCTS: Product[] = [
   {
     id: "7",
     name: "Mixed Nuts",
-    category: "snacks",
+    category: "other",
     price: 4.99,
     quantity: 15,
     unit: "bags",
@@ -72,7 +74,7 @@ const SAMPLE_PRODUCTS: Product[] = [
   {
     id: "8",
     name: "Pretzels",
-    category: "snacks",
+    category: "other",
     price: 3.49,
     quantity: 22,
     unit: "bags",
@@ -82,6 +84,8 @@ const SAMPLE_PRODUCTS: Product[] = [
 
 export default function Inventory() {
   const { t } = useI18n();
+  const { checkLowStock } = useNotifications();
+  
   // Load products from localStorage or use sample products
   const loadProducts = (): Product[] => {
     const stored = localStorage.getItem("inventory-products");
@@ -101,11 +105,17 @@ export default function Inventory() {
   >("all");
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
   // Save products to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem("inventory-products", JSON.stringify(products));
   }, [products]);
+
+  // Check for low stock notifications
+  useEffect(() => {
+    checkLowStock(products.map(p => ({ id: p.id, name: p.name, quantity: p.quantity })));
+  }, [products, checkLowStock]);
 
   const filteredProducts = products
     .filter((product) => {
@@ -227,15 +237,15 @@ export default function Inventory() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {t.inventory.totalInventoryValue}
             </p>
-            <p className="text-2xl font-bold text-primary mt-2">
+            <p className="text-2xl font-bold text-foreground mt-2">
               ${totalValue.toFixed(2)}
             </p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {t.inventory.totalProducts}
             </p>
@@ -243,13 +253,13 @@ export default function Inventory() {
               {products.length}
             </p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {t.inventory.lowStockItems}
             </p>
             <p
               className={`text-2xl font-bold mt-2 ${
-                lowStockCount > 0 ? "text-amber-300" : "text-green-400"
+                lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-400"
               }`}
             >
               {lowStockCount}
@@ -267,8 +277,16 @@ export default function Inventory() {
                 placeholder={t.inventory.searchProducts}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full pl-10 pr-12 py-2 bg-secondary border-2 border-foreground/20 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
+              <button
+                onClick={() => setIsQRScannerOpen(true)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1.5 hover:bg-secondary rounded transition-colors"
+                title="Scanner QR Code"
+                aria-label="Scanner QR Code"
+              >
+                <Camera className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+              </button>
             </div>
           </div>
 
@@ -289,7 +307,7 @@ export default function Inventory() {
           </div>
         </div>
 
-        {/* Products Grid */}
+        {/* Products Grid - Virtualized for performance */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredProducts.map((product) => (
             <ProductCard
@@ -318,6 +336,41 @@ export default function Inventory() {
         }}
         onSave={handleUpdateProduct}
         editingProduct={editingProduct}
+      />
+
+      <QRCodeScanner
+        isOpen={isQRScannerOpen}
+        onClose={() => setIsQRScannerOpen(false)}
+        onScan={(result) => {
+          try {
+            // Try to parse as JSON (product QR code format)
+            const productData = JSON.parse(result);
+            if (productData.id || productData.code) {
+              // Search by product ID
+              const productId = productData.id || productData.code;
+              const foundProduct = products.find(p => p.id === productId);
+              if (foundProduct) {
+                setSearchTerm(foundProduct.name);
+                // Scroll to product if needed
+                setTimeout(() => {
+                  const element = document.querySelector(`[data-product-id="${productId}"]`);
+                  element?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+              } else {
+                setSearchTerm(productData.name || productId);
+              }
+            } else if (productData.name) {
+              // Search by product name
+              setSearchTerm(productData.name);
+            } else {
+              // Fallback: use the raw result as search term
+              setSearchTerm(result);
+            }
+          } catch {
+            // If not JSON, treat as plain text search
+            setSearchTerm(result);
+          }
+        }}
       />
     </Layout>
   );

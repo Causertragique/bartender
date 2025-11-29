@@ -94,10 +94,17 @@ export const handleSAQScrape: RequestHandler = async (req, res) => {
       }
     }
     
-    // Extract subcategory from URL (e.g., /spiritueux/vodka/)
-    const subcategoryMatch = url.match(/\/produits\/[^\/]+\/([^\/]+)/);
-    if (subcategoryMatch) {
-      details.subcategory = subcategoryMatch[1];
+    // Extract subcategory from URL (e.g., /spiritueux/vodka/ or /produits/spiritueux/vodka/)
+    const subcategoryMatch = url.match(/\/produits\/[^\/]+\/([^\/]+)/) || 
+                             url.match(/\/spiritueux\/([^\/]+)/) ||
+                             url.match(/\/vin\/([^\/]+)/) ||
+                             url.match(/\/bière\/([^\/]+)/);
+    if (subcategoryMatch && subcategoryMatch[1]) {
+      let subcategory = subcategoryMatch[1].toLowerCase();
+      // Clean up common URL patterns
+      subcategory = subcategory.replace(/^produits\//, '').replace(/\/$/, '');
+      details.subcategory = subcategory;
+      console.log(`Subcategory extracted from URL: ${details.subcategory}`);
     }
 
     // Extract origin/provenance
@@ -124,9 +131,21 @@ export const handleSAQScrape: RequestHandler = async (req, res) => {
     // Extract subcategory from HTML if not already found from URL
     if (!details.subcategory) {
       const subcategoryHtmlMatch = html.match(/"subcategory":\s*"([^"]+)"/) ||
-                                 html.match(/data-subcategory="([^"]+)"/);
-      if (subcategoryHtmlMatch) {
-        details.subcategory = subcategoryHtmlMatch[1];
+                                 html.match(/data-subcategory="([^"]+)"/) ||
+                                 html.match(/<meta[^>]*property="product:type"[^>]*content="([^"]+)"/i) ||
+                                 html.match(/type[^>]*>([^<]+)</i);
+      if (subcategoryHtmlMatch && subcategoryHtmlMatch[1]) {
+        details.subcategory = subcategoryHtmlMatch[1].trim();
+        console.log(`Subcategory extracted from HTML: ${details.subcategory}`);
+      }
+      
+      // Also try to extract from breadcrumbs or navigation
+      if (!details.subcategory) {
+        const breadcrumbMatch = html.match(/breadcrumb[^>]*>.*?(vodka|gin|rum|whisky|whiskey|tequila|cognac|brandy|liqueur|vin rouge|vin blanc|rosé|bière|cidre)/i);
+        if (breadcrumbMatch && breadcrumbMatch[1]) {
+          details.subcategory = breadcrumbMatch[1].toLowerCase();
+          console.log(`Subcategory extracted from breadcrumb: ${details.subcategory}`);
+        }
       }
     }
 

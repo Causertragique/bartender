@@ -137,11 +137,25 @@ function initDatabase() {
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS stripe_keys (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      secretKey TEXT NOT NULL,
+      publishableKey TEXT NOT NULL,
+      terminalLocationId TEXT,
+      isTestMode INTEGER DEFAULT 1,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(userId)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
     CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
     CREATE INDEX IF NOT EXISTS idx_sales_createdAt ON sales(createdAt);
     CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipeId ON recipe_ingredients(recipeId);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_stripe_keys_userId ON stripe_keys(userId);
   `);
 
   return db;

@@ -23,9 +23,9 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-lg max-w-md w-full shadow-xl">
+      <div className="bg-card border-2 border-foreground/20 rounded-lg max-w-md w-full shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex items-center justify-between p-6 border-b-2 border-foreground/20">
           <h2 className="text-xl font-bold text-foreground">
             {t.paymentModal.completePayment}
           </h2>
@@ -46,7 +46,7 @@ export default function PaymentModal({
             <p className="text-xs text-muted-foreground uppercase font-medium mb-2">
               {t.paymentModal.totalAmount}
             </p>
-            <p className="text-3xl font-bold text-primary">
+            <p className="text-3xl font-bold text-foreground">
               ${amount.toFixed(2)}
             </p>
           </div>

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { CreditCard, Apple, AlertCircle, Check } from "lucide-react";
+import { CreditCard, Apple, AlertCircle, Check, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
+import StripeTerminalPayment from "./StripeTerminalPayment";
 
 interface PaymentFormProps {
   amount: number;
@@ -11,7 +12,7 @@ interface PaymentFormProps {
   onCancel: () => void;
 }
 
-type PaymentMethod = "card" | "applepay" | null;
+type PaymentMethod = "card" | "applepay" | "terminal" | null;
 
 export default function PaymentForm({
   amount,
@@ -93,6 +94,17 @@ export default function PaymentForm({
     }
   };
 
+  const handleTerminalPaymentComplete = (paymentIntentId: string) => {
+    setSuccess(true);
+    setTimeout(() => {
+      onPaymentComplete();
+    }, 1500);
+  };
+
+  const handleTerminalError = (error: string) => {
+    setError(error);
+  };
+
   const handleApplePayment = async () => {
     setPaymentMethod("applepay");
     setError("");
@@ -135,6 +147,21 @@ export default function PaymentForm({
           {t.paymentForm.choosePaymentMethod}
         </p>
 
+        {/* Stripe Terminal Payment */}
+        <button
+          type="button"
+          onClick={() => setPaymentMethod("terminal")}
+          className={cn(
+            "w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 font-medium",
+            paymentMethod === "terminal"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-secondary hover:border-primary/50 text-foreground",
+          )}
+        >
+          <Terminal className="h-5 w-5" />
+          Card Reader (Stripe Terminal)
+        </button>
+
         <button
           type="button"
           onClick={() => setPaymentMethod("card")}
@@ -166,9 +193,21 @@ export default function PaymentForm({
         )}
       </div>
 
+      {/* Stripe Terminal Payment */}
+      {paymentMethod === "terminal" && (
+        <div className="pt-4 border-t-2 border-foreground/20">
+          <StripeTerminalPayment
+            amount={amount}
+            onPaymentComplete={handleTerminalPaymentComplete}
+            onCancel={onCancel}
+            onError={handleTerminalError}
+          />
+        </div>
+      )}
+
       {/* Card Payment Form */}
       {paymentMethod === "card" && (
-        <div className="space-y-3 pt-4 border-t border-border">
+        <div className="space-y-3 pt-4 border-t-2 border-foreground/20">
           <div>
             <label className="text-xs font-medium text-muted-foreground">
               {t.paymentForm.cardNumber}
@@ -178,7 +217,7 @@ export default function PaymentForm({
               placeholder="4242 4242 4242 4242"
               value={cardData.number}
               onChange={(e) => handleCardChange("number", e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full mt-1 px-3 py-2 bg-secondary border-2 border-foreground/20 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               disabled={isProcessing}
             />
           </div>
@@ -192,7 +231,7 @@ export default function PaymentForm({
               placeholder="John Doe"
               value={cardData.name}
               onChange={(e) => handleCardChange("name", e.target.value)}
-              className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full mt-1 px-3 py-2 bg-secondary border-2 border-foreground/20 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               disabled={isProcessing}
             />
           </div>
@@ -207,7 +246,7 @@ export default function PaymentForm({
                 placeholder="MM/YY"
                 value={cardData.expiry}
                 onChange={(e) => handleCardChange("expiry", e.target.value)}
-                className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full mt-1 px-3 py-2 bg-secondary border-2 border-foreground/20 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 disabled={isProcessing}
               />
             </div>
@@ -220,7 +259,7 @@ export default function PaymentForm({
                 placeholder="123"
                 value={cardData.cvc}
                 onChange={(e) => handleCardChange("cvc", e.target.value)}
-                className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full mt-1 px-3 py-2 bg-secondary border-2 border-foreground/20 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 disabled={isProcessing}
               />
             </div>
@@ -237,7 +276,7 @@ export default function PaymentForm({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-3 pt-4 border-t border-border">
+      <div className="flex gap-3 pt-4 border-t-2 border-foreground/20">
         <button
           type="button"
           onClick={onCancel}
@@ -254,6 +293,9 @@ export default function PaymentForm({
           >
             {t.paymentForm.pay} ${amount.toFixed(2)}
           </button>
+        )}
+        {paymentMethod === "terminal" && (
+          <div className="flex-1" />
         )}
       </div>
 

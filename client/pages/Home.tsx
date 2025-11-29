@@ -47,7 +47,7 @@ export default function Home() {
       if (isSignUp) {
         // Inscription
         console.log("Attempting to register:", formData.username);
-        
+
         const response = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -57,11 +57,20 @@ export default function Home() {
           }),
         });
 
-        const data = await response.json();
+        let data: any = null;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error("Failed to parse JSON from /api/auth/register", {
+            error: parseError,
+            status: response.status,
+          });
+        }
+
         console.log("Register response:", { status: response.status, data });
 
         if (!response.ok) {
-          setError(data.error || t.home.signUpError);
+          setError(data?.error || t.home.signUpError);
           return;
         }
 
@@ -81,10 +90,18 @@ export default function Home() {
           }),
         });
 
-        const data = await response.json();
+        let data: any = null;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          console.error("Failed to parse JSON from /api/auth/login", {
+            error: parseError,
+            status: response.status,
+          });
+        }
 
         if (!response.ok) {
-          setError(data.error || t.home.loginError);
+          setError(data?.error || t.home.loginError);
           return;
         }
 
@@ -122,23 +139,31 @@ export default function Home() {
         {/* Left Side - Logo and Welcome Section */}
         <div className="flex flex-col items-center justify-center text-center">
           <div className="flex justify-center mb-6 overflow-hidden">
-            <img
-              src="/Logoaccueil.png"
-              alt="La Réserve"
-              className="h-40 w-auto max-w-full object-contain"
-            />
+            <picture>
+              <source srcSet="/Logoaccueil.webp" type="image/webp" />
+              <source srcSet="/Logoaccueil-optimized.png" type="image/png" />
+              <img
+                src="/Logoaccueil.png"
+                alt="La Réserve"
+                className="h-40 w-auto max-w-full object-contain"
+                width="160"
+                height="160"
+                loading="eager"
+                fetchPriority="high"
+              />
+            </picture>
           </div>
           <h1 className="text-5xl font-bold text-foreground mb-4">
             {t.home.title}
           </h1>
-          <p className="text-muted-foreground text-xl">
+          <p className="text-muted-foreground text-xl mt-1">
             {t.home.subtitle}
           </p>
         </div>
 
         {/* Right Side - Login/Sign Up Card */}
         <div className="flex items-center justify-center">
-          <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl p-8 shadow-2xl">
+          <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border-2 border-foreground/20 rounded-2xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium flex items-center gap-2">
@@ -200,7 +225,7 @@ export default function Home() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
+                <span className="w-full border-t-2 border-foreground/20" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-card px-2 text-muted-foreground">{t.home.or}</span>

@@ -27,7 +27,7 @@ interface ProductCardProps {
 const categoryColors = {
   spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30",
   wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30",
-  beer: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/30",
+  beer: "bg-red-100 dark:bg-red-900/20 text-red-900 dark:text-red-100 border-red-300 dark:border-red-900/30",
   soda: "bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30",
   juice: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-500/30",
   other: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30",
@@ -112,7 +112,7 @@ export default function ProductCard({
   return (
     <div
       onClick={() => onClick?.(product)}
-      className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-all cursor-pointer"
+      className="bg-card border-2 border-foreground/20 rounded-lg p-4 hover:border-primary/50 transition-all cursor-pointer"
     >
       <div className="space-y-3">
         {/* Header */}
@@ -120,7 +120,7 @@ export default function ProductCard({
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Product Image */}
             {product.imageUrl && (
-              <div className="w-[100px] h-[100px] rounded-lg overflow-hidden border border-border bg-secondary flex-shrink-0">
+              <div className="w-[100px] h-[100px] rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
                 <img
                   src={product.imageUrl}
                   alt={product.name}
@@ -135,18 +135,10 @@ export default function ProductCard({
               <h3 className="font-semibold text-base text-foreground line-clamp-2">
                 {product.name}
               </h3>
-              <span
-                className={cn(
-                  "inline-block mt-2 text-xs font-medium px-2 py-1 rounded border",
-                  categoryColors[product.category],
-                )}
-              >
-                {categoryLabels[product.category]}
-              </span>
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <p className="text-lg font-bold text-primary">
+            <p className="text-lg font-bold text-foreground">
               ${product.price.toFixed(2)}
             </p>
             {/* QR Code */}
@@ -169,7 +161,7 @@ export default function ProductCard({
               </button>
               {/* Expanded QR Code on hover/click */}
               {showQRCode && (
-                <div className="absolute top-full right-0 mt-2 z-10 p-3 bg-card border border-border rounded-lg shadow-lg">
+                <div className="absolute top-full right-0 mt-2 z-10 p-3 bg-card border-2 border-foreground/20 rounded-lg shadow-lg">
                   <div className="flex flex-col items-center gap-2">
                     <QRCodeSVG
                       value={qrCodeValue}
@@ -197,7 +189,7 @@ export default function ProductCard({
             <span
               className={cn(
                 "text-sm font-semibold",
-                isLowStock ? "text-amber-600 dark:text-amber-300" : "text-green-600 dark:text-green-400",
+                isLowStock ? "text-red-900 dark:text-red-200" : "text-green-600 dark:text-green-400",
               )}
             >
               {product.quantity} {translateUnit(product.unit)}
@@ -208,23 +200,23 @@ export default function ProductCard({
               ref={progressBarRef}
               className={cn(
                 "h-full transition-all",
-                isLowStock ? "bg-amber-500 dark:bg-amber-500" : "bg-green-500 dark:bg-green-500",
+                isLowStock ? "bg-red-900 dark:bg-red-900" : "bg-green-500 dark:bg-green-500",
               )}
             />
           </div>
           {isLowStock && (
-            <p className="text-xs text-amber-600 dark:text-amber-300 font-medium">{t.productCard.lowStock}</p>
+            <p className="text-xs text-red-900 dark:text-red-200 font-medium">{t.productCard.lowStock}</p>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t border-border">
+        <div className="flex gap-2 pt-2 border-t-2 border-foreground/20">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onAddStock?.(product.id, 1);
             }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border border-green-300 dark:border-green-500/30"
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border-2 border-green-300 dark:border-green-500/30"
           >
             <Plus className="h-3 w-3" />
             {t.productCard.add}
@@ -234,7 +226,7 @@ export default function ProductCard({
               e.stopPropagation();
               onRemoveStock?.(product.id, 1);
             }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border border-red-300 dark:border-destructive/30"
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border-2 border-red-300 dark:border-destructive/30"
           >
             <Minus className="h-3 w-3" />
             {t.productCard.remove}

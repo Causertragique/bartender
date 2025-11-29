@@ -18,10 +18,10 @@ const NotFound = () => {
   return (
     <Layout>
       <div className="space-y-6 max-w-2xl mx-auto">
-        <div className="bg-card border border-border rounded-lg p-8 text-center space-y-4">
+        <div className="bg-card border-2 border-foreground/20 rounded-lg p-8 text-center space-y-4">
           <div className="flex justify-center">
-            <div className="p-4 bg-amber-900/40 rounded-full">
-              <AlertCircle className="h-12 w-12 text-amber-300" />
+            <div className="p-4 bg-red-900/40 rounded-full">
+              <AlertCircle className="h-12 w-12 text-red-900 dark:text-red-200" />
             </div>
           </div>
           <h1 className="text-4xl font-bold text-foreground">{t.notFound.title}</h1>
@@ -36,7 +36,7 @@ const NotFound = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             to="/"
-            className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
+            className="flex items-center justify-between p-4 bg-card border-2 border-foreground/20 rounded-lg hover:border-primary/50 transition-colors group"
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
@@ -51,7 +51,7 @@ const NotFound = () => {
 
           <Link
             to="/sales"
-            className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
+            className="flex items-center justify-between p-4 bg-card border-2 border-foreground/20 rounded-lg hover:border-primary/50 transition-colors group"
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
@@ -66,7 +66,7 @@ const NotFound = () => {
 
           <Link
             to="/analytics"
-            className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:border-primary/50 transition-colors group"
+            className="flex items-center justify-between p-4 bg-card border-2 border-foreground/20 rounded-lg hover:border-primary/50 transition-colors group"
           >
             <div className="text-left">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">

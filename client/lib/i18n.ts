@@ -28,9 +28,11 @@ export interface Translations {
     categories: {
       all: string;
       spirits: string;
-      liquor: string;
+      wine: string;
       beer: string;
-      snacks: string;
+      soda: string;
+      juice: string;
+      other: string;
     };
       addProductModal: {
         title: string;
@@ -108,36 +110,38 @@ export interface Translations {
     remove: string;
     categories: {
       spirits: string;
-      liquor: string;
+      wine: string;
       beer: string;
-      snacks: string;
+      soda: string;
+      juice: string;
+      other: string;
     };
   };
 
   // Sales page
-  sales: {
-    title: string;
-    subtitle: string;
-    orderSummary: string;
-    noItemsInCart: string;
-    each: string;
-    subtotal: string;
-    tax: string;
-    total: string;
-    paymentMethod: string;
-    cash: string;
-    card: string;
-    tab: string;
-    openTab: string;
-    openNewTab: string;
-    selectTab: string;
+    sales: {
+      title: string;
+      subtitle: string;
+      orderSummary: string;
+      noItemsInCart: string;
+      each: string;
+      subtotal: string;
+      tax: string;
+      total: string;
+      paymentMethod: string;
+      cash: string;
+      card: string;
+      tab: string;
+      openTab: string;
+      openNewTab: string;
+      selectTab: string;
       tabName: string;
       tabNamePlaceholder: string;
       creditCardNumber: string;
       creditCardInfo: string;
       tabCreated: string;
-    tabClosed: string;
-    noOpenTabs: string;
+      tabClosed: string;
+      noOpenTabs: string;
       tabs: string;
       closeTab: string;
       payTab: string;
@@ -147,13 +151,16 @@ export interface Translations {
       hideDetails: string;
       allTabsTotal: string;
       completeSale: string;
-    categories: {
-      all: string;
-      spirits: string;
-      liquor: string;
-      beer: string;
-      snacks: string;
-    };
+      categories: {
+        all: string;
+        spirits: string;
+        wine: string;
+        beer: string;
+        soda: string;
+        juice: string;
+        other: string;
+        cocktail: string;
+      };
     alerts: {
       cashPayment: string;
       orderCompleted: string;
@@ -221,6 +228,8 @@ export interface Translations {
     title: string;
     subtitle: string;
     saveChanges: string;
+    saveSuccess: string;
+    saveError: string;
     general: {
       title: string;
       description: string;
@@ -250,6 +259,11 @@ export interface Translations {
         texas: string;
         florida: string;
         illinois: string;
+        nevada: string;
+        washington: string;
+        oregon: string;
+        "new-hampshire": string;
+        montana: string;
         france: string;
         spain: string;
         germany: string;
@@ -261,6 +275,15 @@ export interface Translations {
         sweden: string;
         denmark: string;
         poland: string;
+        mexico: string;
+        argentina: string;
+        chile: string;
+        colombia: string;
+        peru: string;
+        ecuador: string;
+        uruguay: string;
+        panama: string;
+        "dominican-republic": string;
         australia: string;
         "new-zealand": string;
         switzerland: string;
@@ -388,9 +411,11 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "All Products",
         spirits: "Spirits",
-        liquor: "Liquor",
+        wine: "Wine",
         beer: "Beer",
-        snacks: "Snacks",
+        soda: "Soda",
+        juice: "Juice",
+        other: "Other",
       },
       addProductModal: {
         title: "Add New Product",
@@ -466,9 +491,11 @@ const translations: Record<Language, Translations> = {
       remove: "Remove",
       categories: {
         spirits: "Spirits",
-        liquor: "Liquor",
+        wine: "Wine",
         beer: "Beer",
-        snacks: "Snacks",
+        soda: "Soda",
+        juice: "Juice",
+        other: "Other",
       },
     },
     sales: {
@@ -506,9 +533,12 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "All",
         spirits: "Spirits",
-        liquor: "Liquor",
+        wine: "Wine",
         beer: "Beer",
-        snacks: "Snacks",
+        soda: "Soda",
+        juice: "Juice",
+        other: "Other",
+        cocktail: "Cocktails",
       },
       alerts: {
         cashPayment: "Cash payment received! Total: $",
@@ -567,6 +597,8 @@ const translations: Record<Language, Translations> = {
       title: "Settings",
       subtitle: "Manage your bar settings and preferences",
       saveChanges: "Save Changes",
+      saveSuccess: "Settings saved successfully!",
+      saveError: "Error saving settings.",
       general: {
         title: "General Information",
         description: "Basic information about your bar or establishment",
@@ -591,11 +623,16 @@ const translations: Record<Language, Translations> = {
           "northwest-territories": "Northwest Territories, Canada (GST 5%)",
           nunavut: "Nunavut, Canada (GST 5%)",
           yukon: "Yukon, Canada (GST 5%)",
-          california: "California, USA (7.25%)",
-          "new-york": "New York, USA (8%)",
-          texas: "Texas, USA (6.25%)",
-          florida: "Florida, USA (6%)",
-          illinois: "Illinois, USA (6.25%)",
+          california: "California, USA (7.25% - 10%)",
+          "new-york": "New York, USA (4% - 8.875%)",
+          texas: "Texas, USA (6.25% - 8.25%)",
+          florida: "Florida, USA (6% - 7.5%)",
+          illinois: "Illinois, USA (6.25% - 11%)",
+          nevada: "Nevada, USA (6.85% - 8.375%)",
+          washington: "Washington, USA (6.5% - 10.4%)",
+          oregon: "Oregon, USA (0%)",
+          "new-hampshire": "New Hampshire, USA (0%)",
+          montana: "Montana, USA (0%)",
           france: "France (TVA 20%)",
           spain: "Spain (IVA 21%)",
           germany: "Germany (MwSt 19%)",
@@ -607,6 +644,15 @@ const translations: Record<Language, Translations> = {
           sweden: "Sweden (Moms 25%)",
           denmark: "Denmark (Moms 25%)",
           poland: "Poland (VAT 23%)",
+          mexico: "Mexico (IVA 16%)",
+          argentina: "Argentina (IVA 21%)",
+          chile: "Chile (IVA 19%)",
+          colombia: "Colombia (IVA 19%)",
+          peru: "Peru (IGV 18%)",
+          ecuador: "Ecuador (IVA 12%)",
+          uruguay: "Uruguay (IVA 22%)",
+          panama: "Panama (ITBMS 7%)",
+          "dominican-republic": "Dominican Republic (ITBIS 18%)",
           australia: "Australia (GST 10%)",
           "new-zealand": "New Zealand (GST 15%)",
           switzerland: "Switzerland (TVA 7.7%)",
@@ -728,9 +774,11 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Tous les produits",
         spirits: "Spiritueux",
-        liquor: "Alcools",
+        wine: "Vin",
         beer: "Bière",
-        snacks: "Snacks",
+        soda: "Boissons gazeuses",
+        juice: "Jus",
+        other: "Autres",
       },
       addProductModal: {
         title: "Ajouter un nouveau produit",
@@ -806,9 +854,11 @@ const translations: Record<Language, Translations> = {
       remove: "Retirer",
       categories: {
         spirits: "Spiritueux",
-        liquor: "Alcools",
+        wine: "Vin",
         beer: "Bière",
-        snacks: "Snacks",
+        soda: "Boissons gazeuses",
+        juice: "Jus",
+        other: "Autres",
       },
     },
     sales: {
@@ -846,9 +896,12 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Tous",
         spirits: "Spiritueux",
-        liquor: "Alcools",
+        wine: "Vin",
         beer: "Bière",
-        snacks: "Snacks",
+        soda: "Boissons gazeuses",
+        juice: "Jus",
+        other: "Autres",
+        cocktail: "Cocktails",
       },
       alerts: {
         cashPayment: "Paiement en espèces reçu ! Total : ",
@@ -907,6 +960,8 @@ const translations: Record<Language, Translations> = {
       title: "Paramètres",
       subtitle: "Gérez les paramètres et préférences de votre bar",
       saveChanges: "Enregistrer les modifications",
+      saveSuccess: "Paramètres enregistrés avec succès !",
+      saveError: "Erreur lors de l'enregistrement des paramètres.",
       general: {
         title: "Informations générales",
         description: "Informations de base sur votre bar ou établissement",
@@ -931,11 +986,16 @@ const translations: Record<Language, Translations> = {
           "northwest-territories": "Territoires du Nord-Ouest, Canada (TPS 5%)",
           nunavut: "Nunavut, Canada (TPS 5%)",
           yukon: "Yukon, Canada (TPS 5%)",
-          california: "Californie, États-Unis (7,25%)",
-          "new-york": "New York, États-Unis (8%)",
-          texas: "Texas, États-Unis (6,25%)",
-          florida: "Floride, États-Unis (6%)",
-          illinois: "Illinois, États-Unis (6,25%)",
+          california: "Californie, États-Unis (7,25% - 10%)",
+          "new-york": "New York, États-Unis (4% - 8,875%)",
+          texas: "Texas, États-Unis (6,25% - 8,25%)",
+          florida: "Floride, États-Unis (6% - 7,5%)",
+          illinois: "Illinois, États-Unis (6,25% - 11%)",
+          nevada: "Nevada, États-Unis (6,85% - 8,375%)",
+          washington: "Washington, États-Unis (6,5% - 10,4%)",
+          oregon: "Oregon, États-Unis (0%)",
+          "new-hampshire": "New Hampshire, États-Unis (0%)",
+          montana: "Montana, États-Unis (0%)",
           france: "France (TVA 20%)",
           spain: "Espagne (IVA 21%)",
           germany: "Allemagne (MwSt 19%)",
@@ -947,6 +1007,15 @@ const translations: Record<Language, Translations> = {
           sweden: "Suède (TVA 25%)",
           denmark: "Danemark (TVA 25%)",
           poland: "Pologne (TVA 23%)",
+          mexico: "Mexique (IVA 16%)",
+          argentina: "Argentine (IVA 21%)",
+          chile: "Chili (IVA 19%)",
+          colombia: "Colombie (IVA 19%)",
+          peru: "Pérou (IGV 18%)",
+          ecuador: "Équateur (IVA 12%)",
+          uruguay: "Uruguay (IVA 22%)",
+          panama: "Panama (ITBMS 7%)",
+          "dominican-republic": "République dominicaine (ITBIS 18%)",
           australia: "Australie (TPS 10%)",
           "new-zealand": "Nouvelle-Zélande (TPS 15%)",
           switzerland: "Suisse (TVA 7,7%)",
@@ -1068,9 +1137,11 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Todos los productos",
         spirits: "Licores",
-        liquor: "Bebidas alcohólicas",
+        wine: "Vino",
         beer: "Cerveza",
-        snacks: "Aperitivos",
+        soda: "Bebidas gaseosas",
+        juice: "Jugo",
+        other: "Otros",
       },
       addProductModal: {
         title: "Agregar nuevo producto",
@@ -1146,9 +1217,11 @@ const translations: Record<Language, Translations> = {
       remove: "Quitar",
       categories: {
         spirits: "Licores",
-        liquor: "Bebidas alcohólicas",
+        wine: "Vino",
         beer: "Cerveza",
-        snacks: "Aperitivos",
+        soda: "Bebidas gaseosas",
+        juice: "Jugo",
+        other: "Otros",
       },
     },
     sales: {
@@ -1186,9 +1259,12 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Todos",
         spirits: "Licores",
-        liquor: "Bebidas alcohólicas",
+        wine: "Vino",
         beer: "Cerveza",
-        snacks: "Aperitivos",
+        soda: "Refrescos",
+        juice: "Jugo",
+        other: "Otros",
+        cocktail: "Cócteles",
       },
       alerts: {
         cashPayment: "¡Pago en efectivo recibido! Total: $",
@@ -1247,6 +1323,8 @@ const translations: Record<Language, Translations> = {
       title: "Configuración",
       subtitle: "Administra la configuración y preferencias de tu bar",
       saveChanges: "Guardar cambios",
+      saveSuccess: "¡Configuración guardada con éxito!",
+      saveError: "Error al guardar la configuración.",
       general: {
         title: "Información general",
         description: "Información básica sobre tu bar o establecimiento",
@@ -1271,11 +1349,16 @@ const translations: Record<Language, Translations> = {
           "northwest-territories": "Territorios del Noroeste, Canadá (TPS 5%)",
           nunavut: "Nunavut, Canadá (TPS 5%)",
           yukon: "Yukón, Canadá (TPS 5%)",
-          california: "California, EE. UU. (7,25%)",
-          "new-york": "Nueva York, EE. UU. (8%)",
-          texas: "Texas, EE. UU. (6,25%)",
-          florida: "Florida, EE. UU. (6%)",
-          illinois: "Illinois, EE. UU. (6,25%)",
+          california: "California, EE. UU. (7,25% - 10%)",
+          "new-york": "Nueva York, EE. UU. (4% - 8,875%)",
+          texas: "Texas, EE. UU. (6,25% - 8,25%)",
+          florida: "Florida, EE. UU. (6% - 7,5%)",
+          illinois: "Illinois, EE. UU. (6,25% - 11%)",
+          nevada: "Nevada, EE. UU. (6,85% - 8,375%)",
+          washington: "Washington, EE. UU. (6,5% - 10,4%)",
+          oregon: "Oregón, EE. UU. (0%)",
+          "new-hampshire": "New Hampshire, EE. UU. (0%)",
+          montana: "Montana, EE. UU. (0%)",
           france: "Francia (IVA 20%)",
           spain: "España (IVA 21%)",
           germany: "Alemania (MwSt 19%)",
@@ -1287,6 +1370,15 @@ const translations: Record<Language, Translations> = {
           sweden: "Suecia (IVA 25%)",
           denmark: "Dinamarca (IVA 25%)",
           poland: "Polonia (IVA 23%)",
+          mexico: "México (IVA 16%)",
+          argentina: "Argentina (IVA 21%)",
+          chile: "Chile (IVA 19%)",
+          colombia: "Colombia (IVA 19%)",
+          peru: "Perú (IGV 18%)",
+          ecuador: "Ecuador (IVA 12%)",
+          uruguay: "Uruguay (IVA 22%)",
+          panama: "Panamá (ITBMS 7%)",
+          "dominican-republic": "República Dominicana (ITBIS 18%)",
           australia: "Australia (TPS 10%)",
           "new-zealand": "Nueva Zelanda (TPS 15%)",
           switzerland: "Suiza (IVA 7,7%)",
@@ -1408,9 +1500,11 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Alle Produkte",
         spirits: "Spirituosen",
-        liquor: "Alkohol",
+        wine: "Wein",
         beer: "Bier",
-        snacks: "Snacks",
+        soda: "Erfrischungsgetränke",
+        juice: "Saft",
+        other: "Andere",
       },
       addProductModal: {
         title: "Neues Produkt hinzufügen",
@@ -1486,9 +1580,11 @@ const translations: Record<Language, Translations> = {
       remove: "Entfernen",
       categories: {
         spirits: "Spirituosen",
-        liquor: "Alkohol",
+        wine: "Wein",
         beer: "Bier",
-        snacks: "Snacks",
+        soda: "Erfrischungsgetränke",
+        juice: "Saft",
+        other: "Andere",
       },
     },
     sales: {
@@ -1526,9 +1622,12 @@ const translations: Record<Language, Translations> = {
       categories: {
         all: "Alle",
         spirits: "Spirituosen",
-        liquor: "Alkohol",
+        wine: "Wein",
         beer: "Bier",
-        snacks: "Snacks",
+        soda: "Erfrischungsgetränke",
+        juice: "Saft",
+        other: "Andere",
+        cocktail: "Cocktails",
       },
       alerts: {
         cashPayment: "Barzahlung erhalten! Gesamt: $",
@@ -1587,6 +1686,8 @@ const translations: Record<Language, Translations> = {
       title: "Einstellungen",
       subtitle: "Verwalten Sie Ihre Bar-Einstellungen und Präferenzen",
       saveChanges: "Änderungen speichern",
+      saveSuccess: "Einstellungen erfolgreich gespeichert!",
+      saveError: "Fehler beim Speichern der Einstellungen.",
       general: {
         title: "Allgemeine Informationen",
         description: "Grundlegende Informationen über Ihre Bar oder Einrichtung",
@@ -1611,11 +1712,16 @@ const translations: Record<Language, Translations> = {
           "northwest-territories": "Nordwest-Territorien, Kanada (TPS 5%)",
           nunavut: "Nunavut, Kanada (TPS 5%)",
           yukon: "Yukon, Kanada (TPS 5%)",
-          california: "Kalifornien, USA (7,25%)",
-          "new-york": "New York, USA (8%)",
-          texas: "Texas, USA (6,25%)",
-          florida: "Florida, USA (6%)",
-          illinois: "Illinois, USA (6,25%)",
+          california: "Kalifornien, USA (7,25% - 10%)",
+          "new-york": "New York, USA (4% - 8,875%)",
+          texas: "Texas, USA (6,25% - 8,25%)",
+          florida: "Florida, USA (6% - 7,5%)",
+          illinois: "Illinois, USA (6,25% - 11%)",
+          nevada: "Nevada, USA (6,85% - 8,375%)",
+          washington: "Washington, USA (6,5% - 10,4%)",
+          oregon: "Oregon, USA (0%)",
+          "new-hampshire": "New Hampshire, USA (0%)",
+          montana: "Montana, USA (0%)",
           france: "Frankreich (MwSt 20%)",
           spain: "Spanien (MwSt 21%)",
           germany: "Deutschland (MwSt 19%)",
@@ -1627,6 +1733,15 @@ const translations: Record<Language, Translations> = {
           sweden: "Schweden (MwSt 25%)",
           denmark: "Dänemark (MwSt 25%)",
           poland: "Polen (MwSt 23%)",
+          mexico: "Mexiko (MwSt 16%)",
+          argentina: "Argentinien (MwSt 21%)",
+          chile: "Chile (MwSt 19%)",
+          colombia: "Kolumbien (MwSt 19%)",
+          peru: "Peru (MwSt 18%)",
+          ecuador: "Ecuador (MwSt 12%)",
+          uruguay: "Uruguay (MwSt 22%)",
+          panama: "Panama (MwSt 7%)",
+          "dominican-republic": "Dominikanische Republik (MwSt 18%)",
           australia: "Australien (MwSt 10%)",
           "new-zealand": "Neuseeland (MwSt 15%)",
           switzerland: "Schweiz (MwSt 7,7%)",

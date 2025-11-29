@@ -1,6 +1,11 @@
 /* stylelint-disable at-rule-no-unknown */
 /** @import must precede all other statements */
+/* Preload font for better LCP */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;

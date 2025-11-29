@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-interface CartItem extends Product {
+interface CartItem extends Omit<Product, 'category'> {
+  category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail";
   cartQuantity: number;
   isRecipe?: boolean;
 }
@@ -33,7 +34,7 @@ interface Recipe {
   name: string;
   price: number;
   ingredients: RecipeIngredient[];
-  category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other";
+  category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail";
   servingSize?: number; // Size of one serving in ml (optional)
 }
 
@@ -150,17 +151,18 @@ const PRODUCTS_FOR_SALE: Product[] = [
 const categoryColors = {
   spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
   wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30 hover:bg-red-200 dark:hover:bg-red-500/30",
-  beer: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/30 hover:bg-amber-200 dark:hover:bg-amber-500/30",
+  beer: "bg-red-100 dark:bg-red-900/20 text-red-900 dark:text-red-100 border-red-300 dark:border-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/30",
   soda: "bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30 hover:bg-cyan-200 dark:hover:bg-cyan-500/30",
   juice: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-500/30 hover:bg-orange-200 dark:hover:bg-orange-500/30",
   other: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30 hover:bg-green-200 dark:hover:bg-green-500/30",
+  cocktail: "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-500/30 hover:bg-purple-200 dark:hover:bg-purple-500/30",
 };
 
 export default function Sales() {
   const { t } = useI18n();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [filterCategory, setFilterCategory] = useState<
-    "all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"
+    "all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail"
   >("all");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "tab" | null>(
     null,
@@ -221,7 +223,7 @@ export default function Sales() {
     }
   }, [recipes]);
 
-  const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"> = [
+  const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail"> = [
     "all",
     "spirits",
     "wine",
@@ -229,6 +231,7 @@ export default function Sales() {
     "soda",
     "juice",
     "other",
+    "cocktail",
   ];
   const categoriesObj = t.sales.categories as Record<string, string>;
   const categoryLabels = {
@@ -239,6 +242,7 @@ export default function Sales() {
     soda: categoriesObj.soda || "Boissons gazeuses",
     juice: categoriesObj.juice || "Jus",
     other: categoriesObj.other || "Autres",
+    cocktail: categoriesObj.cocktail || "Cocktails",
   };
 
   // Translate unit
@@ -287,6 +291,7 @@ export default function Sales() {
         soda: 4,
         juice: 5,
         other: 6,
+        cocktail: 7,
       };
       const orderA = categoryOrder[a.category] || 999;
       const orderB = categoryOrder[b.category] || 999;
@@ -299,7 +304,7 @@ export default function Sales() {
 
   // Convert ounces to ml (1 oz = 29.5735 ml)
   const ozToMl = (oz: number): number => oz * 29.5735;
-  
+
   const calculateRecipeAvailability = (recipe: Recipe): number => {
     if (recipe.ingredients.length === 0) return 1;
     
@@ -446,11 +451,156 @@ export default function Sales() {
     }
   };
 
+  // Récupérer les paramètres de taxe depuis les settings
+  const getTaxSettings = () => {
+    const settingsStr = localStorage.getItem("bartender-settings");
+    if (settingsStr) {
+      try {
+        const settings = JSON.parse(settingsStr);
+        return {
+          taxRegion: settings.taxRegion || "quebec",
+          taxRate: settings.taxRate || 0.08,
+        };
+      } catch (e) {
+        console.error("Error parsing settings:", e);
+      }
+    }
+    return { taxRegion: "quebec", taxRate: 0.08 };
+  };
+
+  // Fonction pour calculer les taxes selon la région
+  const calculateTax = (subtotal: number) => {
+    const { taxRegion } = getTaxSettings();
+    
+    switch (taxRegion) {
+      case "quebec": {
+        // Québec: TPS 5% + TVQ 9,975% (TVQ sur prix + TPS)
+        const TPS = subtotal * 0.05;
+        const TVQ = (subtotal + TPS) * 0.09975;
+        return {
+          TPS,
+          TVQ,
+          PST: 0,
+          HST: 0,
+          TVD: 0,
+          total: TPS + TVQ,
+          breakdown: true,
+          labels: { primary: "TPS (5%)", secondary: "TVQ (9,975%)" },
+        };
+      }
+      case "ontario": {
+        // Ontario: TVH 13% (simple)
+        const HST = subtotal * 0.13;
+        return {
+          TPS: 0,
+          TVQ: 0,
+          PST: 0,
+          HST,
+          TVD: 0,
+          total: HST,
+          breakdown: false,
+          labels: { primary: "TVH (13%)", secondary: "" },
+        };
+      }
+      case "alberta": {
+        // Alberta: TPS 5% (simple)
+        const TPS = subtotal * 0.05;
+        return {
+          TPS,
+          TVQ: 0,
+          PST: 0,
+          HST: 0,
+          TVD: 0,
+          total: TPS,
+          breakdown: false,
+          labels: { primary: "TPS (5%)", secondary: "" },
+        };
+      }
+      case "british-columbia": {
+        // BC: TPS 5% + PST 10% (PST sur prix + TPS)
+        const TPS = subtotal * 0.05;
+        const PST = (subtotal + TPS) * 0.10;
+        return {
+          TPS,
+          TVQ: 0,
+          PST,
+          HST: 0,
+          TVD: 0,
+          total: TPS + PST,
+          breakdown: true,
+          labels: { primary: "TPS (5%)", secondary: "PST (10%)" },
+        };
+      }
+      case "manitoba": {
+        // Manitoba: TPS 5% + TVD 7% (TVD sur prix + TPS)
+        const TPS = subtotal * 0.05;
+        const TVD = (subtotal + TPS) * 0.07;
+        return {
+          TPS,
+          TVQ: 0,
+          PST: 0,
+          HST: 0,
+          TVD,
+          total: TPS + TVD,
+          breakdown: true,
+          labels: { primary: "TPS (5%)", secondary: "TVD (7%)" },
+        };
+      }
+      case "saskatchewan": {
+        // Saskatchewan: TPS 5% + PST 6% (PST sur prix + TPS)
+        const TPS = subtotal * 0.05;
+        const PST = (subtotal + TPS) * 0.06;
+        return {
+          TPS,
+          TVQ: 0,
+          PST,
+          HST: 0,
+          TVD: 0,
+          total: TPS + PST,
+          breakdown: true,
+          labels: { primary: "TPS (5%)", secondary: "PST (6%)" },
+        };
+      }
+      case "new-brunswick":
+      case "nova-scotia":
+      case "prince-edward-island":
+      case "newfoundland": {
+        // NB, NS, PEI, Terre-Neuve: HST 15% (simple)
+        const HST = subtotal * 0.15;
+        return {
+          TPS: 0,
+          TVQ: 0,
+          PST: 0,
+          HST,
+          TVD: 0,
+          total: HST,
+          breakdown: false,
+          labels: { primary: "HST (15%)", secondary: "" },
+        };
+      }
+      default: {
+        // Pour les autres régions (custom ou autres pays), utiliser le taux simple
+        const { taxRate } = getTaxSettings();
+        return {
+          TPS: 0,
+          TVQ: 0,
+          PST: 0,
+          HST: 0,
+          TVD: 0,
+          total: subtotal * taxRate,
+          breakdown: false,
+          labels: { primary: `${t.sales.tax}`, secondary: "" },
+        };
+      }
+    }
+  };
+
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.cartQuantity,
     0,
   );
-  const tax = subtotal * 0.08;
+  const taxCalculation = calculateTax(subtotal);
+  const tax = taxCalculation.total;
   const total = subtotal + tax;
 
   const handleCheckout = () => {
@@ -477,7 +627,8 @@ export default function Sales() {
                 }
               });
               const newSubtotal = mergedItems.reduce((sum, item) => sum + item.price * item.cartQuantity, 0);
-              const newTax = newSubtotal * 0.08;
+              const newTaxCalc = calculateTax(newSubtotal);
+              const newTax = newTaxCalc.total;
               const newTotal = newSubtotal + newTax;
               return {
                 ...t,
@@ -633,48 +784,48 @@ export default function Sales() {
               {t.sales.subtitle}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRecipeDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold transition-all hover:opacity-90 whitespace-nowrap"
+            >
+              <Wine className="h-5 w-5" />
+              + Produits (cocktail, au verres etc...)
+            </button>
           {openTabs.length > 0 && (
             <button
               onClick={() => setShowTabsManagement(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors font-medium"
             >
               <FileText className="h-4 w-4" />
               {t.sales.tabs} ({openTabs.length})
             </button>
           )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Products Grid */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Category Filter and Create Product Button */}
-            <div className="flex items-center justify-between gap-4 pb-2">
-              <div className="flex gap-2 overflow-x-auto flex-1">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilterCategory(cat)}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${
-                      filterCategory === cat
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {categoryLabels[cat]}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setShowRecipeDialog(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold transition-all hover:opacity-90 whitespace-nowrap flex-shrink-0"
-              >
-                <Wine className="h-5 w-5" />
-                + Produits (cocktail, au verres etc...)
-              </button>
+            {/* Category Filter */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategory(cat)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${
+                    filterCategory === cat
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {categoryLabels[cat]}
+                </button>
+              ))}
             </div>
 
-            {/* Products Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Products Grid - Optimized DOM structure */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {filteredProducts.map((product) => {
                 const isRecipe = 'ingredients' in product;
                 const availableQuantity = isRecipe 
@@ -686,24 +837,22 @@ export default function Sales() {
                     key={product.id}
                     onClick={() => addToCart(product)}
                     disabled={availableQuantity <= 0}
-                    className={`p-3 rounded-lg border transition-all text-left hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${categoryColors[product.category]}`}
+                    className={`p-3 rounded-lg border-2 border-foreground/30 transition-all text-left hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col h-full min-h-[120px] ${categoryColors[product.category]}`}
                   >
-                    <p className="font-semibold text-sm line-clamp-2">
+                    <p className="font-bold text-lg line-clamp-2 h-12 mb-2">
                       {product.name}
                     </p>
-                    <p className="text-lg font-bold mt-2">
-                      ${product.price.toFixed(2)}
-                    </p>
-                    {!isRecipe && (
-                      <p className="text-xs opacity-80 mt-1">
-                        {translateUnit((product as Product).unit)} - Stock: {availableQuantity}
+                    <div className="mt-auto">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        ${product.price.toFixed(2)}
                       </p>
-                    )}
-                    {isRecipe && (
-                      <p className="text-xs opacity-80 mt-1">
-                        Recette - Disponible: {availableQuantity > 0 ? "Oui" : "Non"}
+                      <p className="text-[10px] opacity-60 mt-0.5">
+                        {!isRecipe 
+                          ? `${translateUnit((product as Product).unit)} - Stock: ${availableQuantity}`
+                          : `Recette - Disponible: ${availableQuantity > 0 ? "Oui" : "Non"}`
+                        }
                       </p>
-                    )}
+                    </div>
                   </button>
                 );
               })}
@@ -712,7 +861,7 @@ export default function Sales() {
 
           {/* Cart Sidebar */}
           <div className="space-y-4">
-            <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+            <div className="bg-card border-2 border-foreground/20 rounded-lg p-4 space-y-4">
               <h3 className="font-bold text-lg text-foreground">
                 {t.sales.orderSummary}
               </h3>
@@ -727,7 +876,7 @@ export default function Sales() {
                   cart.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-2 bg-secondary rounded border border-border/50"
+                      className="flex items-center justify-between p-2 bg-secondary rounded border-2 border-foreground/20"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
@@ -773,24 +922,39 @@ export default function Sales() {
               </div>
 
               {/* Totals */}
-              <div className="space-y-2 border-t border-border pt-4">
+              <div className="space-y-2 border-t-2 border-foreground/20 pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t.sales.subtotal}</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
+                {taxCalculation.breakdown ? (
+                  <>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{t.sales.tax}</span>
+                      <span className="text-muted-foreground">{taxCalculation.labels.primary}</span>
+                      <span>${(taxCalculation.TPS > 0 ? taxCalculation.TPS : taxCalculation.HST || 0).toFixed(2)}</span>
+                    </div>
+                    {taxCalculation.labels.secondary && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{taxCalculation.labels.secondary}</span>
+                        <span>${(taxCalculation.TVQ || taxCalculation.PST || taxCalculation.TVD || 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{taxCalculation.labels.primary || t.sales.tax}</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
+                )}
+                <div className="flex justify-between text-lg font-bold border-t-2 border-foreground/20 pt-2">
                   <span>{t.sales.total}</span>
-                  <span className="text-primary">${total.toFixed(2)}</span>
+                  <span className="text-foreground">${total.toFixed(2)}</span>
                 </div>
               </div>
 
               {/* Payment Method */}
               {cart.length > 0 && (
-                <div className="space-y-2 border-t border-border pt-4">
+                <div className="space-y-2 border-t-2 border-foreground/20 pt-4">
                   <p className="text-xs font-medium text-muted-foreground uppercase">
                     {t.sales.paymentMethod}
                   </p>
@@ -826,7 +990,7 @@ export default function Sales() {
                       }}
                       className={`flex items-center justify-center gap-2 py-2 rounded-lg transition-colors font-medium text-sm ${
                         paymentMethod === "tab"
-                          ? "bg-amber-500 text-white"
+                          ? "bg-red-900 text-white"
                           : "bg-secondary text-foreground hover:bg-secondary/80"
                       }`}
                     >
@@ -839,13 +1003,13 @@ export default function Sales() {
                   {paymentMethod === "tab" && (
                     <div className="space-y-2 mt-2">
                       {selectedTabId ? (
-                        <div className="flex items-center justify-between p-2 bg-amber-500/10 border border-amber-500/30 rounded">
+                        <div className="flex items-center justify-between p-2 bg-red-900/10 border border-red-900/30 rounded">
                           <span className="text-sm font-medium">
                             {openTabs.find(t => t.id === selectedTabId)?.name}
                           </span>
                           <button
                             onClick={() => setSelectedTabId(null)}
-                            className="text-amber-600 hover:text-amber-700"
+                            className="text-red-900 hover:text-red-800"
                             aria-label="Clear tab selection"
                           >
                             <X className="h-4 w-4" />
@@ -854,7 +1018,7 @@ export default function Sales() {
                       ) : (
                         <button
                           onClick={() => setShowTabsList(true)}
-                          className="w-full py-2 text-sm border border-border rounded-lg hover:bg-secondary"
+                          className="w-full py-2 text-sm border-2 border-foreground/20 rounded-lg hover:bg-secondary"
                         >
                           {t.sales.selectTab}
                         </button>
@@ -874,7 +1038,7 @@ export default function Sales() {
                   setShowNewTabDialog(true);
                 }}
                 disabled={cart.length === 0}
-                className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold transition-all hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 bg-red-900 text-white rounded-lg font-bold transition-all hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <UserPlus className="h-4 w-4" />
                 {t.sales.openTab}
@@ -893,7 +1057,7 @@ export default function Sales() {
               {openTabs.length > 0 && (
                 <button
                   onClick={() => setShowPayTabDialog(true)}
-                  className="w-full py-3 bg-amber-500 text-white rounded-lg font-bold transition-all hover:bg-amber-600 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-red-900 text-white rounded-lg font-bold transition-all hover:bg-red-800 flex items-center justify-center gap-2"
                 >
                   <CreditCard className="h-4 w-4" />
                   {t.sales.payTab} ({openTabs.length})
@@ -1015,7 +1179,7 @@ export default function Sales() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-primary">
+                      <p className="font-bold text-foreground">
                         ${tab.total.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -1123,7 +1287,7 @@ export default function Sales() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">{t.sales.total}</p>
-                            <p className="font-bold text-primary text-lg">${tab.total.toFixed(2)}</p>
+                            <p className="font-bold text-foreground text-lg">${tab.total.toFixed(2)}</p>
                           </div>
                         </div>
                       </div>
@@ -1262,7 +1426,7 @@ export default function Sales() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-primary text-lg">
+                      <p className="font-bold text-foreground text-lg">
                         ${tab.total.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -1272,8 +1436,30 @@ export default function Sales() {
                   </div>
                   <div className="flex gap-2 text-xs text-muted-foreground">
                     <span>{t.sales.subtotal}: ${tab.subtotal.toFixed(2)}</span>
+                    {(() => {
+                      const taxCalc = calculateTax(tab.subtotal);
+                      if (taxCalc.breakdown) {
+                        return (
+                          <>
                     <span>•</span>
-                    <span>{t.sales.tax}: ${tab.tax.toFixed(2)}</span>
+                            <span>{taxCalc.labels.primary}: ${(taxCalc.TPS > 0 ? taxCalc.TPS : taxCalc.HST || 0).toFixed(2)}</span>
+                            {taxCalc.labels.secondary && (
+                              <>
+                                <span>•</span>
+                                <span>{taxCalc.labels.secondary}: ${(taxCalc.TVQ || taxCalc.PST || taxCalc.TVD || 0).toFixed(2)}</span>
+                              </>
+                            )}
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <span>•</span>
+                            <span>{taxCalc.labels.primary || t.sales.tax}: ${tab.tax.toFixed(2)}</span>
+                          </>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
               ))
