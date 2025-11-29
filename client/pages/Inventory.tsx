@@ -97,7 +97,7 @@ export default function Inventory() {
   const [products, setProducts] = useState<Product[]>(loadProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<
-    "all" | "spirits" | "liquor" | "beer" | "snacks"
+    "all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"
   >("all");
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -107,14 +107,33 @@ export default function Inventory() {
     localStorage.setItem("inventory-products", JSON.stringify(products));
   }, [products]);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      filterCategory === "all" || product.category === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products
+    .filter((product) => {
+      const matchesSearch = product.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        filterCategory === "all" || product.category === filterCategory;
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      // Sort by category order (same as categories array)
+      const categoryOrder: Record<string, number> = {
+        spirits: 1,
+        wine: 2,
+        beer: 3,
+        soda: 4,
+        juice: 5,
+        other: 6,
+      };
+      const orderA = categoryOrder[a.category] || 999;
+      const orderB = categoryOrder[b.category] || 999;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      // If same category, sort alphabetically by name
+      return a.name.localeCompare(b.name);
+    });
 
   const handleAddStock = (id: string, amount: number) => {
     setProducts(
@@ -167,19 +186,23 @@ export default function Inventory() {
   const totalValue = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
   const lowStockCount = products.filter((p) => p.quantity < 5).length;
 
-  const categories: Array<"all" | "spirits" | "liquor" | "beer" | "snacks"> = [
+  const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"> = [
     "all",
     "spirits",
-    "liquor",
+    "wine",
     "beer",
-    "snacks",
+    "soda",
+    "juice",
+    "other",
   ];
   const categoryLabels = {
-    all: t.inventory.categories.all,
-    spirits: t.inventory.categories.spirits,
-    liquor: t.inventory.categories.liquor,
-    beer: t.inventory.categories.beer,
-    snacks: t.inventory.categories.snacks,
+    all: t.inventory.categories.all || "Tous",
+    spirits: t.inventory.categories.spirits || "Spiritueux",
+    wine: t.inventory.categories.wine || "Vin",
+    beer: t.inventory.categories.beer || "Bière",
+    soda: t.inventory.categories.soda || "Boissons gazeuses",
+    juice: t.inventory.categories.juice || "Jus",
+    other: t.inventory.categories.other || "Autres",
   };
 
   return (

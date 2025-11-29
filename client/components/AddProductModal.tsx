@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -52,12 +52,14 @@ export default function AddProductModal({
     if (editingProduct && isOpen) {
       // Map product category back to form category
       const mapProductCategoryToFormCategory = (
-        category: "spirits" | "liquor" | "beer" | "snacks"
+        category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other"
       ): string => {
         if (category === "spirits") return "spirits";
         if (category === "beer") return "beer";
-        if (category === "liquor") return "wine"; // Default to wine for liquor
-        return "snacks";
+        if (category === "wine") return "wine";
+        if (category === "soda") return "readyToDrink";
+        if (category === "juice") return "snacks";
+        return "snacks"; // Default for "other"
       };
 
       setFormData({
@@ -99,6 +101,14 @@ export default function AddProductModal({
   const [currentPage, setCurrentPage] = useState(1);
   const PRODUCTS_PER_PAGE = 5;
   const MAX_PAGES = 3;
+  const isMountedRef = useRef(true);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Fetch product options from SAQ.com (returns multiple results)
   // MUST be defined before searchProductImage
@@ -411,11 +421,14 @@ export default function AddProductModal({
       }
     } catch (error) {
       console.error("Error searching for image:", error);
+      if (!isMountedRef.current) return;
       const errorMessage = t.inventory.addProductModal.imageSearchError || 
         "Erreur lors de la recherche d'image. Vous pouvez entrer l'URL manuellement dans le champ ci-dessous.";
       alert(errorMessage);
     } finally {
-      setIsSearchingImage(false);
+      if (isMountedRef.current) {
+        setIsSearchingImage(false);
+      }
     }
   };
 
@@ -457,6 +470,9 @@ export default function AddProductModal({
     setIsSearchingImage(true);
     try {
       const details = await fetchProductDetailsFromSAQ(result.productPageUrl);
+      
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
       
       const updates: Partial<typeof formData> = { 
         imageUrl: result.imageUrl || "" 
@@ -603,7 +619,9 @@ export default function AddProductModal({
     } catch (error) {
       console.error("Error applying product result:", error);
     } finally {
-      setIsSearchingImage(false);
+      if (isMountedRef.current) {
+        setIsSearchingImage(false);
+      }
     }
   };
 
@@ -662,11 +680,12 @@ export default function AddProductModal({
 
   const mapCategoryToProductCategory = (
     category: string,
-  ): "spirits" | "liquor" | "beer" | "snacks" => {
+  ): "spirits" | "wine" | "beer" | "soda" | "juice" | "other" => {
     if (category === "spirits") return "spirits";
     if (category === "beer") return "beer";
-    if (category === "wine" || category === "aperitif" || category === "champagne") return "liquor";
-    return "snacks";
+    if (category === "wine" || category === "aperitif" || category === "champagne") return "wine";
+    if (category === "readyToDrink") return "soda";
+    return "other";
   };
 
   const handleClose = () => {

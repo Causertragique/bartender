@@ -127,7 +127,26 @@ export interface Translations {
     paymentMethod: string;
     cash: string;
     card: string;
-    completeSale: string;
+    tab: string;
+    openTab: string;
+    openNewTab: string;
+    selectTab: string;
+      tabName: string;
+      tabNamePlaceholder: string;
+      creditCardNumber: string;
+      creditCardInfo: string;
+      tabCreated: string;
+    tabClosed: string;
+    noOpenTabs: string;
+      tabs: string;
+      closeTab: string;
+      payTab: string;
+      manageTabs: string;
+      tabsManagement: string;
+      viewDetails: string;
+      hideDetails: string;
+      allTabsTotal: string;
+      completeSale: string;
     categories: {
       all: string;
       spirits: string;
@@ -305,6 +324,8 @@ export interface Translations {
     light: string;
     dark: string;
     system: string;
+    cancel: string;
+    close: string;
     units: {
       bottles: string;
       bottle: string;
@@ -315,6 +336,30 @@ export interface Translations {
       glass: string;
       drink: string;
     };
+  };
+
+  // Home page
+  home: {
+    title: string;
+    subtitle: string;
+    username: string;
+    usernamePlaceholder: string;
+    password: string;
+    passwordPlaceholder: string;
+    login: string;
+    signUp: string;
+    createAccount: string;
+    or: string;
+    continueWithGoogle: string;
+    continueWithApple: string;
+    alreadyHaveAccount: string;
+    noAccountYet: string;
+    switchToLogin: string;
+    switchToSignUp: string;
+    fillAllFields: string;
+    signUpError: string;
+    loginError: string;
+    generalError: string;
   };
 }
 
@@ -438,6 +483,25 @@ const translations: Record<Language, Translations> = {
       paymentMethod: "Payment Method",
       cash: "Cash",
       card: "Card",
+      tab: "Tab",
+      openTab: "Open Tab",
+      openNewTab: "Open New Tab",
+      selectTab: "Select Tab",
+      tabName: "Tab Name",
+      tabNamePlaceholder: "Enter customer name or table number",
+      creditCardNumber: "Credit Card Number",
+      creditCardInfo: "The card will be charged when the tab is closed",
+      tabCreated: "Tab opened successfully",
+      tabClosed: "Tab closed and paid",
+      noOpenTabs: "No open tabs",
+      tabs: "Open Tabs",
+      closeTab: "Close Tab",
+      payTab: "Pay Tab",
+      manageTabs: "Manage Tabs",
+      tabsManagement: "Tabs Management",
+      viewDetails: "View Details",
+      hideDetails: "Hide Details",
+      allTabsTotal: "Total of all tabs",
       completeSale: "Complete Sale",
       categories: {
         all: "All",
@@ -604,6 +668,8 @@ const translations: Record<Language, Translations> = {
       light: "Light",
       dark: "Dark",
       system: "System",
+      cancel: "Cancel",
+      close: "Close",
       units: {
         bottles: "bottles",
         bottle: "bottle",
@@ -614,6 +680,28 @@ const translations: Record<Language, Translations> = {
         glass: "glass",
         drink: "drink",
       },
+    },
+    home: {
+      title: "Reserve Vault",
+      subtitle: "Manage your bar with style",
+      username: "Username",
+      usernamePlaceholder: "Enter your username",
+      password: "Password",
+      passwordPlaceholder: "Enter your password",
+      login: "Sign in",
+      signUp: "Sign up",
+      createAccount: "Create account",
+      or: "Or",
+      continueWithGoogle: "Continue with Google",
+      continueWithApple: "Continue with Apple",
+      alreadyHaveAccount: "Already have an account?",
+      noAccountYet: "Don't have an account yet?",
+      switchToLogin: "Sign in",
+      switchToSignUp: "Sign up",
+      fillAllFields: "Please fill in all fields",
+      signUpError: "Error during registration",
+      loginError: "Invalid username or password",
+      generalError: "An error occurred. Please try again.",
     },
   },
   fr: {
@@ -735,6 +823,25 @@ const translations: Record<Language, Translations> = {
       paymentMethod: "Méthode de paiement",
       cash: "Espèces",
       card: "Carte",
+      tab: "Compte",
+      openTab: "Ouvrir un compte",
+      openNewTab: "Ouvrir un nouveau compte",
+      selectTab: "Sélectionner un compte",
+      tabName: "Nom du compte",
+      tabNamePlaceholder: "Entrez le nom du client ou le numéro de table",
+      creditCardNumber: "Numéro de carte de crédit",
+      creditCardInfo: "La carte sera débitée lorsque le compte sera fermé",
+      tabCreated: "Compte ouvert avec succès",
+      tabClosed: "Compte fermé et payé",
+      noOpenTabs: "Aucun compte ouvert",
+      tabs: "Comptes ouverts",
+      closeTab: "Fermer le compte",
+      payTab: "Payer le compte",
+      manageTabs: "Gérer les comptes",
+      tabsManagement: "Gestion des comptes",
+      viewDetails: "Voir les détails",
+      hideDetails: "Masquer les détails",
+      allTabsTotal: "Total de tous les comptes",
       completeSale: "Finaliser la vente",
       categories: {
         all: "Tous",
@@ -901,6 +1008,8 @@ const translations: Record<Language, Translations> = {
       light: "Clair",
       dark: "Sombre",
       system: "Système",
+      cancel: "Annuler",
+      close: "Fermer",
       units: {
         bottles: "bouteilles",
         bottle: "bouteille",
@@ -911,6 +1020,28 @@ const translations: Record<Language, Translations> = {
         glass: "verre",
         drink: "boisson",
       },
+    },
+    home: {
+      title: "La Réserve",
+      subtitle: "Gérez votre bar avec style",
+      username: "Nom d'utilisateur",
+      usernamePlaceholder: "Entrez votre nom d'utilisateur",
+      password: "Mot de passe",
+      passwordPlaceholder: "Entrez votre mot de passe",
+      login: "Se connecter",
+      signUp: "S'inscrire",
+      createAccount: "Créer un compte",
+      or: "Ou",
+      continueWithGoogle: "Continuer avec Google",
+      continueWithApple: "Continuer avec Apple",
+      alreadyHaveAccount: "Déjà un compte ?",
+      noAccountYet: "Pas encore de compte ?",
+      switchToLogin: "Se connecter",
+      switchToSignUp: "S'inscrire",
+      fillAllFields: "Veuillez remplir tous les champs",
+      signUpError: "Erreur lors de l'inscription",
+      loginError: "Nom d'utilisateur ou mot de passe incorrect",
+      generalError: "Une erreur est survenue. Veuillez réessayer.",
     },
   },
   es: {
@@ -1032,6 +1163,25 @@ const translations: Record<Language, Translations> = {
       paymentMethod: "Método de pago",
       cash: "Efectivo",
       card: "Tarjeta",
+      tab: "Cuenta",
+      openTab: "Abrir cuenta",
+      openNewTab: "Abrir nueva cuenta",
+      selectTab: "Seleccionar cuenta",
+      tabName: "Nombre de la cuenta",
+      tabNamePlaceholder: "Ingrese el nombre del cliente o número de mesa",
+      creditCardNumber: "Número de tarjeta de crédito",
+      creditCardInfo: "La tarjeta será cargada cuando se cierre la cuenta",
+      tabCreated: "Cuenta abierta exitosamente",
+      tabClosed: "Cuenta cerrada y pagada",
+      noOpenTabs: "No hay cuentas abiertas",
+      tabs: "Cuentas abiertas",
+      closeTab: "Cerrar cuenta",
+      payTab: "Pagar cuenta",
+      manageTabs: "Gestionar cuentas",
+      tabsManagement: "Gestión de cuentas",
+      viewDetails: "Ver detalles",
+      hideDetails: "Ocultar detalles",
+      allTabsTotal: "Total de todas las cuentas",
       completeSale: "Completar venta",
       categories: {
         all: "Todos",
@@ -1198,6 +1348,8 @@ const translations: Record<Language, Translations> = {
       light: "Claro",
       dark: "Oscuro",
       system: "Sistema",
+      cancel: "Cancelar",
+      close: "Cerrar",
       units: {
         bottles: "botellas",
         bottle: "botella",
@@ -1208,6 +1360,28 @@ const translations: Record<Language, Translations> = {
         glass: "vaso",
         drink: "bebida",
       },
+    },
+    home: {
+      title: "Reserva Bóveda",
+      subtitle: "Gestiona tu bar con estilo",
+      username: "Nombre de usuario",
+      usernamePlaceholder: "Ingresa tu nombre de usuario",
+      password: "Contraseña",
+      passwordPlaceholder: "Ingresa tu contraseña",
+      login: "Iniciar sesión",
+      signUp: "Registrarse",
+      createAccount: "Crear cuenta",
+      or: "O",
+      continueWithGoogle: "Continuar con Google",
+      continueWithApple: "Continuar con Apple",
+      alreadyHaveAccount: "¿Ya tienes una cuenta?",
+      noAccountYet: "¿Aún no tienes una cuenta?",
+      switchToLogin: "Iniciar sesión",
+      switchToSignUp: "Registrarse",
+      fillAllFields: "Por favor completa todos los campos",
+      signUpError: "Error durante el registro",
+      loginError: "Nombre de usuario o contraseña incorrectos",
+      generalError: "Ocurrió un error. Por favor intenta de nuevo.",
     },
   },
   de: {
@@ -1329,6 +1503,25 @@ const translations: Record<Language, Translations> = {
       paymentMethod: "Zahlungsmethode",
       cash: "Bargeld",
       card: "Karte",
+      tab: "Rechnung",
+      openTab: "Rechnung öffnen",
+      openNewTab: "Neue Rechnung öffnen",
+      selectTab: "Rechnung auswählen",
+      tabName: "Rechnungsname",
+      tabNamePlaceholder: "Kundenname oder Tischnummer eingeben",
+      creditCardNumber: "Kreditkartennummer",
+      creditCardInfo: "Die Karte wird belastet, wenn die Rechnung geschlossen wird",
+      tabCreated: "Rechnung erfolgreich geöffnet",
+      tabClosed: "Rechnung geschlossen und bezahlt",
+      noOpenTabs: "Keine offenen Rechnungen",
+      tabs: "Offene Rechnungen",
+      closeTab: "Rechnung schließen",
+      payTab: "Rechnung bezahlen",
+      manageTabs: "Rechnungen verwalten",
+      tabsManagement: "Rechnungsverwaltung",
+      viewDetails: "Details anzeigen",
+      hideDetails: "Details ausblenden",
+      allTabsTotal: "Gesamt aller Rechnungen",
       completeSale: "Verkauf abschließen",
       categories: {
         all: "Alle",
@@ -1495,6 +1688,8 @@ const translations: Record<Language, Translations> = {
       light: "Hell",
       dark: "Dunkel",
       system: "System",
+      cancel: "Abbrechen",
+      close: "Schließen",
       units: {
         bottles: "Flaschen",
         bottle: "Flasche",
@@ -1505,6 +1700,28 @@ const translations: Record<Language, Translations> = {
         glass: "Glas",
         drink: "Getränk",
       },
+    },
+    home: {
+      title: "Lagerkammer",
+      subtitle: "Verwalten Sie Ihre Bar mit Stil",
+      username: "Benutzername",
+      usernamePlaceholder: "Geben Sie Ihren Benutzernamen ein",
+      password: "Passwort",
+      passwordPlaceholder: "Geben Sie Ihr Passwort ein",
+      login: "Anmelden",
+      signUp: "Registrieren",
+      createAccount: "Konto erstellen",
+      or: "Oder",
+      continueWithGoogle: "Mit Google fortfahren",
+      continueWithApple: "Mit Apple fortfahren",
+      alreadyHaveAccount: "Haben Sie bereits ein Konto?",
+      noAccountYet: "Noch kein Konto?",
+      switchToLogin: "Anmelden",
+      switchToSignUp: "Registrieren",
+      fillAllFields: "Bitte füllen Sie alle Felder aus",
+      signUpError: "Fehler bei der Registrierung",
+      loginError: "Ungültiger Benutzername oder Passwort",
+      generalError: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
     },
   },
 };

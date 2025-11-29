@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     {
       label: t.layout.nav.inventory,
-      path: "/",
+      path: "/inventory",
       icon: Package,
     },
     {

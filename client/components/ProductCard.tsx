@@ -7,7 +7,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 export interface Product {
   id: string;
   name: string;
-  category: "spirits" | "liquor" | "beer" | "snacks";
+  category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other";
   price: number;
   quantity: number;
   unit: string;
@@ -26,9 +26,11 @@ interface ProductCardProps {
 
 const categoryColors = {
   spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30",
-  liquor: "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-500/30",
+  wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30",
   beer: "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/30",
-  snacks: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30",
+  soda: "bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30",
+  juice: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-500/30",
+  other: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30",
 };
 
 export default function ProductCard({
@@ -44,10 +46,12 @@ export default function ProductCard({
   const [showQRCode, setShowQRCode] = useState(false);
 
   const categoryLabels = {
-    spirits: t.productCard.categories.spirits,
-    liquor: t.productCard.categories.liquor,
-    beer: t.productCard.categories.beer,
-    snacks: t.productCard.categories.snacks,
+    spirits: t.productCard.categories?.spirits || "Spiritueux",
+    wine: t.productCard.categories?.wine || "Vin",
+    beer: t.productCard.categories?.beer || "Bière",
+    soda: t.productCard.categories?.soda || "Boissons gazeuses",
+    juice: t.productCard.categories?.juice || "Jus",
+    other: t.productCard.categories?.other || "Autres",
   };
 
   // Translate unit

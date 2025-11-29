@@ -13,122 +13,125 @@
    * A different format will require also updating the theme in tailwind.config.ts.
   */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    /* Palette personnalisée: #14100b, #7c3913, #f1d6b0, #7c0a0a, #fef6e6, #f9d556 */
+    --background: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --card-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --popover-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --primary-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --secondary: 210 40% 94%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --secondary-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --muted: 210 40% 94%;
-    --muted-foreground: 215.4 16.3% 40%;
+    --muted: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --muted-foreground: 20 70% 28%; /* #7c3913 - marron foncé */
 
-    --accent: 210 40% 94%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 20 70% 28%; /* #7c3913 - marron/rouge foncé */
+    --accent-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --destructive: 0 72.2% 50.6%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 85% 27%; /* #7c0a0a - rouge foncé */
+    --destructive-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --border: 214.3 31.8% 85%;
-    --input: 214.3 31.8% 85%;
-    --ring: 38 92% 50%;
+    --border: 35 65% 75%; /* variation de #f1d6b0 pour les bordures */
+    --input: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --ring: 45 95% 66%; /* #f9d556 - jaune doré */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222.2 47.4% 11.2%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 94%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 85%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-background: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --sidebar-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --sidebar-primary-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-accent: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --sidebar-accent-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-border: 35 65% 75%; /* variation de #f1d6b0 */
+    --sidebar-ring: 45 95% 66%; /* #f9d556 - jaune doré */
   }
 
   .light {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47.4% 11.2%;
+    /* Palette personnalisée: #14100b, #7c3913, #f1d6b0, #7c0a0a, #fef6e6, #f9d556 */
+    --background: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --card-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --popover-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --primary-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --secondary: 210 40% 94%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --secondary-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --muted: 210 40% 94%;
-    --muted-foreground: 215.4 16.3% 40%;
+    --muted: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --muted-foreground: 20 70% 28%; /* #7c3913 - marron foncé */
 
-    --accent: 210 40% 94%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 20 70% 28%; /* #7c3913 - marron/rouge foncé */
+    --accent-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --destructive: 0 72.2% 50.6%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 85% 27%; /* #7c0a0a - rouge foncé */
+    --destructive-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --border: 214.3 31.8% 85%;
-    --input: 214.3 31.8% 85%;
-    --ring: 38 92% 50%;
+    --border: 35 65% 75%; /* variation de #f1d6b0 pour les bordures */
+    --input: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --ring: 45 95% 66%; /* #f9d556 - jaune doré */
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222.2 47.4% 11.2%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 94%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 85%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-background: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --sidebar-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --sidebar-primary-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-accent: 35 65% 85%; /* #f1d6b0 - beige clair */
+    --sidebar-accent-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-border: 35 65% 75%; /* variation de #f1d6b0 */
+    --sidebar-ring: 45 95% 66%; /* #f9d556 - jaune doré */
   }
 
   .dark {
-    --background: 12 20% 8%;
-    --foreground: 40 10% 95%;
+    /* Palette personnalisée adaptée pour le mode sombre */
+    --background: 30 30% 5%; /* #14100b - très sombre */
+    --foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --card: 12 20% 12%;
-    --card-foreground: 40 10% 95%;
+    --card: 30 30% 8%; /* légèrement plus clair que background */
+    --card-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --popover: 12 20% 12%;
-    --popover-foreground: 40 10% 95%;
+    --popover: 30 30% 8%;
+    --popover-foreground: 40 85% 96%;
 
-    --primary: 38 92% 50%;
-    --primary-foreground: 12 20% 8%;
+    --primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --primary-foreground: 30 30% 5%; /* #14100b - très sombre */
 
-    --secondary: 12 20% 20%;
-    --secondary-foreground: 40 10% 95%;
+    --secondary: 20 70% 28%; /* #7c3913 - marron foncé */
+    --secondary-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --muted: 12 20% 25%;
-    --muted-foreground: 40 10% 55%;
+    --muted: 20 70% 20%; /* variation plus sombre de #7c3913 */
+    --muted-foreground: 35 65% 85%; /* #f1d6b0 - beige clair */
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 12 20% 8%;
+    --accent: 20 70% 28%; /* #7c3913 - marron/rouge foncé */
+    --accent-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 40 10% 95%;
+    --destructive: 0 85% 27%; /* #7c0a0a - rouge foncé */
+    --destructive-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
 
-    --border: 12 20% 20%;
-    --input: 12 20% 18%;
-    --ring: 38 92% 50%;
+    --border: 20 70% 20%; /* variation de #7c3913 */
+    --input: 30 30% 10%;
+    --ring: 45 95% 66%; /* #f9d556 - jaune doré */
 
-    --sidebar-background: 12 20% 10%;
-    --sidebar-foreground: 40 10% 90%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 12 20% 8%;
-    --sidebar-accent: 12 20% 20%;
-    --sidebar-accent-foreground: 40 10% 95%;
-    --sidebar-border: 12 20% 18%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-background: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --sidebar-primary: 45 95% 66%; /* #f9d556 - jaune doré */
+    --sidebar-primary-foreground: 30 30% 5%; /* #14100b - très sombre */
+    --sidebar-accent: 20 70% 28%; /* #7c3913 - marron foncé */
+    --sidebar-accent-foreground: 40 85% 96%; /* #fef6e6 - beige très clair */
+    --sidebar-border: 20 70% 20%; /* variation de #7c3913 */
+    --sidebar-ring: 45 95% 66%; /* #f9d556 - jaune doré */
   }
 }
 
