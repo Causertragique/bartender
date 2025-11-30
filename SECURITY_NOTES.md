@@ -2,21 +2,25 @@
 
 ## Vulnérabilités connues
 
-### xlsx (Prototype Pollution & ReDoS)
+### xlsx (Prototype Pollution & ReDoS) - ✅ RÉSOLU
 
-**Statut :** Vulnérabilité connue, pas de correctif disponible actuellement
+**Statut :** ✅ **MIGRÉ VERS exceljs** (2024)
 
-**Risque :** Faible pour cette application
-- L'application utilise `xlsx` uniquement pour l'import/export d'inventaire
-- Les fichiers sont importés par l'utilisateur lui-même (source fiable)
-- Pas d'exposition publique de l'API d'import
+**Action prise :**
+- Remplacement de `xlsx` par `exceljs` (version 4.4.0+)
+- `exceljs` est une alternative plus sûre et mieux maintenue
+- Aucune vulnérabilité connue dans `exceljs`
+- Code mis à jour dans `client/pages/Settings.tsx`
 
-**Recommandations :**
-1. Surveiller les mises à jour de `xlsx` pour une version corrigée
-2. Valider les fichiers importés avant traitement
-3. Limiter la taille des fichiers importés
+**Avantages de exceljs :**
+- ✅ Pas de vulnérabilités de sécurité connues
+- ✅ Meilleure maintenance et support actif
+- ✅ API plus moderne et type-safe
+- ✅ Meilleures performances pour les gros fichiers
+- ✅ Support TypeScript natif
 
-**Alternative future :** Considérer `exceljs` ou `node-xlsx` si des correctifs ne sont pas disponibles
+**Ancien package :** `xlsx@^0.18.5` (retiré)
+**Nouveau package :** `exceljs@^4.4.0`
 
 ## better-sqlite3
 

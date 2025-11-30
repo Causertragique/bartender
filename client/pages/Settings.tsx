@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Product } from "@/components/ProductCard";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import Papa from "papaparse";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -421,13 +421,34 @@ export default function Settings() {
           },
         });
       } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-        // Parse Excel
+        // Parse Excel using exceljs
         const arrayBuffer = await importFile.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        products = jsonData as any[];
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+        
+        // Convert worksheet to JSON
+        const headers: string[] = [];
+        worksheet.getRow(1).eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          headers[colNumber - 1] = cell.value?.toString() || "";
+        });
+        
+        const jsonData: any[] = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header row
+          const rowData: any = {};
+          row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            if (header) {
+              rowData[header] = cell.value;
+            }
+          });
+          if (Object.keys(rowData).length > 0) {
+            jsonData.push(rowData);
+          }
+        });
+        
+        products = jsonData;
         processImportedProducts(products);
       } else {
         alert(t.settings.import.importError);
@@ -495,7 +516,7 @@ export default function Settings() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const products = getProducts();
     if (products.length === 0) {
       alert(t.settings.export.noProducts);
@@ -503,24 +524,56 @@ export default function Settings() {
     }
 
     try {
-      // Prepare data for Excel
-      const data = products.map((p) => ({
-        ID: p.id,
-        Name: p.name,
-        Category: p.category,
-        Price: p.price,
-        Quantity: p.quantity,
-        Unit: p.unit,
-        "Last Restocked": p.lastRestocked || "",
-      }));
-
       // Create workbook and worksheet
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory");
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Inventory");
+
+      // Add headers
+      worksheet.columns = [
+        { header: "ID", key: "id", width: 10 },
+        { header: "Name", key: "name", width: 30 },
+        { header: "Category", key: "category", width: 20 },
+        { header: "Price", key: "price", width: 15 },
+        { header: "Quantity", key: "quantity", width: 15 },
+        { header: "Unit", key: "unit", width: 10 },
+        { header: "Last Restocked", key: "lastRestocked", width: 20 },
+      ];
+
+      // Add data rows
+      products.forEach((p) => {
+        worksheet.addRow({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          quantity: p.quantity,
+          unit: p.unit,
+          lastRestocked: p.lastRestocked || "",
+        });
+      });
+
+      // Style header row
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFE0E0E0" },
+      };
 
       // Generate Excel file and download
-      XLSX.writeFile(workbook, `inventory-${new Date().toISOString().split("T")[0]}.xlsx`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `inventory-${new Date().toISOString().split("T")[0]}.xlsx`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       alert(t.settings.export.exportSuccess);
     } catch (error) {
       console.error("Export error:", error);

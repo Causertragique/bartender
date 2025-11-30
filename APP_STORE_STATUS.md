@@ -2,6 +2,12 @@
 
 **Date :** 2024-01-15
 
+## 📖 GUIDE COMPLET DISPONIBLE
+
+**👉 Voir le guide étape par étape :** `GUIDE_XCODE_APP_STORE.md`
+
+Ce guide vous accompagne depuis Xcode jusqu'à la publication sur l'App Store avec toutes les étapes détaillées.
+
 ## ✅ CE QUI EST FAIT
 
 ### 1. Configuration Technique ✅
