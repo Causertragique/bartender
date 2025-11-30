@@ -46,48 +46,56 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground flex flex-col">
       {/* Header */}
-      <header className="border-b-2 border-foreground/20 bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="border-b-2 border-foreground/20 bg-card w-full flex-shrink-0">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <picture>
                 <source srcSet="/tonneau.webp" type="image/webp" />
                 <source srcSet="/tonneau-optimized.png" type="image/png" />
                 <img
                   src="/tonneau.png"
                   alt={t.layout.appName}
-                  className="h-20 w-auto object-contain"
-                  width="110"
-                  height="110"
+                  className="h-20 sm:h-24 md:h-28 w-auto object-contain"
+                  width="140"
+                  height="140"
                   loading="eager"
-                  fetchPriority="high"
+                  // @ts-ignore - fetchpriority is valid HTML attribute
+                  fetchpriority="high"
                 />
               </picture>
-              <div>
-                <h1 className="text-2xl font-bold">{t.layout.appName}</h1>
-                <p className="text-xs text-muted-foreground">
+              <div className="min-w-0">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold break-words">{t.layout.appName}</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground break-words hidden sm:block">
                   {t.layout.appSubtitle}
                 </p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors flex-shrink-0"
               title="Déconnexion"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-6 w-6 sm:h-7 sm:w-7" />
               <span className="hidden sm:inline text-xs">Déconnexion</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="border-b-2 border-foreground/20 bg-secondary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1">
+      {/* Main Content */}
+      <main className="bg-background w-full max-w-full overflow-x-hidden flex-1 pb-16 sm:pb-20">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+          {children}
+        </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 border-t-2 border-foreground/20 bg-card w-full z-50 safe-area-inset-bottom">
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="flex justify-around items-center">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -96,30 +104,23 @@ export default function Layout({ children }: LayoutProps) {
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-3 font-medium text-sm transition-all relative",
+                    "flex flex-col items-center justify-center gap-1 px-2 sm:px-3 py-2 sm:py-3 font-medium text-xs transition-all relative flex-1 min-w-0",
                     active
-                      ? "text-primary-foreground bg-primary font-semibold rounded-t-lg shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-t-lg",
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
+                  <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0", active && "text-primary")} />
+                  <span className="text-[10px] sm:text-xs text-center break-words line-clamp-1">{item.label}</span>
                   {active && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-foreground/20" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
                   )}
-                  <Icon className={cn("h-4 w-4", active && "text-primary-foreground")} />
-                  {item.label}
                 </Link>
               );
             })}
           </div>
         </div>
       </nav>
-
-      {/* Main Content */}
-      <main className="bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </div>
-      </main>
     </div>
   );
 }

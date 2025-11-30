@@ -38,13 +38,37 @@ import {
   HelpCircle,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
 } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
+import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useI18n();
   const [mounted, setMounted] = useState(false);
+  
+  // Collapse state for each section (all closed by default)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    general: false,
+    notifications: false,
+    importExport: false,
+    stripe: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Save button state
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   
   // Stripe keys state
   const [stripeKeys, setStripeKeys] = useState({
@@ -160,11 +184,22 @@ export default function Settings() {
       const authToken = localStorage.getItem("bartender-auth");
       if (!authToken) return;
 
+      // Parse auth token safely - it might be a string or JSON
+      let authData: any = {};
+      try {
+        authData = typeof authToken === 'string' && authToken.startsWith('{') 
+          ? JSON.parse(authToken) 
+          : { userId: "", username: "" };
+      } catch {
+        // If it's just "authenticated" string, use empty auth data
+        authData = { userId: "", username: "" };
+      }
+
       const response = await fetch("/api/stripe-keys", {
         headers: {
           "Authorization": `Bearer ${authToken}`,
-          "x-user-id": JSON.parse(authToken).userId || "",
-          "x-username": JSON.parse(authToken).username || "",
+          "x-user-id": authData.userId || "",
+          "x-username": authData.username || "",
         },
       });
 
@@ -188,13 +223,23 @@ export default function Settings() {
         return;
       }
 
+      // Parse auth token safely - it might be a string or JSON
+      let authData: any = {};
+      try {
+        authData = typeof authToken === 'string' && authToken.startsWith('{') 
+          ? JSON.parse(authToken) 
+          : { userId: "", username: "" };
+      } catch {
+        authData = { userId: "", username: "" };
+      }
+
       const response = await fetch("/api/stripe-keys", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${authToken}`,
-          "x-user-id": JSON.parse(authToken).userId || "",
-          "x-username": JSON.parse(authToken).username || "",
+          "x-user-id": authData.userId || "",
+          "x-username": authData.username || "",
         },
         body: JSON.stringify(stripeKeys),
       });
@@ -281,14 +326,23 @@ export default function Settings() {
     setLanguage(newLanguage as "en" | "fr" | "es" | "de");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
       // Save settings to localStorage
       localStorage.setItem("bartender-settings", JSON.stringify(settings));
-      alert(t.settings.saveSuccess || "Paramètres enregistrés avec succès !");
+      // Simulate a brief delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsSaving(false);
+      setIsSaved(true);
+      // Reset to normal state after 2 seconds
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 2000);
     } catch (error) {
       console.error("Error saving settings:", error);
-      alert(t.settings.saveError || "Erreur lors de l'enregistrement des paramètres.");
+      setIsSaving(false);
+      setIsSaved(false);
     }
   };
 
@@ -485,32 +539,59 @@ export default function Settings() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              <SettingsIcon className="h-8 w-8" />
+            <h2 className="text-2xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+              <SettingsIcon className="h-6 w-6 sm:h-7 sm:w-7" />
               {t.settings.title}
             </h2>
             <p className="text-muted-foreground mt-1">
               {t.settings.subtitle}
             </p>
           </div>
-          <Button onClick={handleSave} className="gap-2">
-            <Save className="h-4 w-4" />
-            {t.settings.saveChanges}
+          <Button 
+            onClick={handleSave} 
+            size="icon" 
+            variant="ghost"
+            className={cn(
+              "h-10 w-10 transition-all",
+              isSaving && "bg-primary text-primary-foreground",
+              isSaved && "bg-green-500 text-white hover:bg-green-500",
+              !isSaving && !isSaved && "bg-transparent hover:bg-secondary/50"
+            )}
+            disabled={isSaving}
+          >
+            {isSaved ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <Save className="h-5 w-5" />
+            )}
           </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-3">
           {/* General Settings */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="h-4 w-4" />
-                {t.settings.general.title}
-              </CardTitle>
-              <CardDescription className="text-xs mt-1">
-                {t.settings.general.description}
-              </CardDescription>
+            <CardHeader 
+              className="pb-3 cursor-pointer hover:bg-secondary/50 transition-colors"
+              onClick={() => toggleSection("general")}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <User className="h-4 w-4" />
+                    {t.settings.general.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    {t.settings.general.description}
+                  </CardDescription>
+                </div>
+                {openSections.general ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
             </CardHeader>
+            {openSections.general && (
             <CardContent className="space-y-2 pt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -673,19 +754,33 @@ export default function Settings() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
 
           {/* Notifications Settings */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Bell className="h-4 w-4" />
-                {t.settings.notifications.title}
-              </CardTitle>
-              <CardDescription className="text-xs mt-1">
-                {t.settings.notifications.description}
-              </CardDescription>
+            <CardHeader 
+              className="pb-3 cursor-pointer hover:bg-secondary/50 transition-colors"
+              onClick={() => toggleSection("notifications")}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Bell className="h-4 w-4" />
+                    {t.settings.notifications.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    {t.settings.notifications.description}
+                  </CardDescription>
+                </div>
+                {openSections.notifications ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
             </CardHeader>
+            {openSections.notifications && (
             <CardContent className="space-y-2 pt-0">
               <div className="flex items-center justify-between">
                 <div className="space-y-0">
@@ -753,19 +848,33 @@ export default function Settings() {
                 />
               </div>
             </CardContent>
+            )}
           </Card>
 
           {/* Import/Export Settings */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                {t.settings.import.title}
-              </CardTitle>
-              <CardDescription>
-                {t.settings.import.description}
-              </CardDescription>
+            <CardHeader 
+              className="cursor-pointer hover:bg-secondary/50 transition-colors"
+              onClick={() => toggleSection("importExport")}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    {t.settings.import.title}
+                  </CardTitle>
+                  <CardDescription>
+                    {t.settings.import.description}
+                  </CardDescription>
+                </div>
+                {openSections.importExport ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
             </CardHeader>
+            {openSections.importExport && (
             <CardContent className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="import-file-input">{t.settings.import.selectFile}</Label>
@@ -873,11 +982,15 @@ export default function Settings() {
                 </div>
               </div>
             </CardContent>
+            )}
           </Card>
 
           {/* Stripe Configuration */}
           <Card>
-            <CardHeader>
+            <CardHeader 
+              className="cursor-pointer hover:bg-secondary/50 transition-colors"
+              onClick={() => toggleSection("stripe")}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
@@ -888,20 +1001,28 @@ export default function Settings() {
                     Configurez vos clés API Stripe pour activer les paiements en personne avec Terminal
                   </CardDescription>
                 </div>
-                {!stripeKeys.secretKey && !stripeKeys.publishableKey && (
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="text-xs font-medium">Non configuré</span>
-                  </div>
-                )}
-                {stripeKeys.secretKey && stripeKeys.publishableKey && (
-                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="text-xs font-medium">Configuré</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {!stripeKeys.secretKey && !stripeKeys.publishableKey && (
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-xs font-medium">Non configuré</span>
+                    </div>
+                  )}
+                  {stripeKeys.secretKey && stripeKeys.publishableKey && (
+                    <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="text-xs font-medium">Configuré</span>
+                    </div>
+                  )}
+                  {openSections.stripe ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
               </div>
             </CardHeader>
+            {openSections.stripe && (
             <CardContent className="space-y-3">
               {/* Guide rapide pour créer un compte Stripe */}
               {(!stripeKeys.secretKey || !stripeKeys.publishableKey) && (
@@ -1134,8 +1255,19 @@ export default function Settings() {
                 </p>
               </div>
             </CardContent>
+            )}
           </Card>
 
+        </div>
+
+        {/* Privacy Policy Link */}
+        <div className="text-center pt-6 border-t-2 border-foreground/20">
+          <Link
+            to="/privacy-policy"
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline transition-colors"
+          >
+            Politique de confidentialité
+          </Link>
         </div>
       </div>
     </Layout>

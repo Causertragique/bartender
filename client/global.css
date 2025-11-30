@@ -2,10 +2,6 @@
 /** @import must precede all other statements */
 /* Preload font for better LCP */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
-@font-face {
-  font-family: 'Inter';
-  font-display: swap;
-}
 
 @tailwind base;
 @tailwind components;
@@ -152,8 +148,23 @@
   }
 
   :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    hyphens: auto;
+  }
+  
+  /* Prevent unwanted word breaks on mobile */
+  h1, h2, h3, h4, h5, h6 {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  
+  /* Better text wrapping for labels and buttons */
+  label, button {
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   pre,
@@ -166,5 +177,15 @@
 @layer utilities {
   .progress-bar {
     width: var(--progress-width, 0%);
+  }
+
+  .scrollbar-hide {
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 }

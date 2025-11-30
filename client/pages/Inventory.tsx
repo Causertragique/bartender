@@ -3,7 +3,7 @@ import Layout from "@/components/Layout";
 import ProductCard, { Product } from "@/components/ProductCard";
 import AddProductModal from "@/components/AddProductModal";
 import QRCodeScanner from "@/components/QRCodeScanner";
-import { Plus, Search, Camera } from "lucide-react";
+import { Plus, Search, Camera, Grid3x3, List } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -106,11 +106,20 @@ export default function Inventory() {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    const saved = localStorage.getItem("inventory-view-mode");
+    return (saved === "list" || saved === "grid") ? saved : "grid";
+  });
 
   // Save products to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem("inventory-products", JSON.stringify(products));
   }, [products]);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("inventory-view-mode", viewMode);
+  }, [viewMode]);
 
   // Check for low stock notifications
   useEffect(() => {
@@ -217,53 +226,87 @@ export default function Inventory() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">{t.inventory.title}</h2>
-            <p className="text-muted-foreground mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{t.inventory.title}</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
               {t.inventory.subtitle}
             </p>
           </div>
-          <button
-            onClick={() => setIsAddProductModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-          >
-            <Plus className="h-5 w-5" />
-            {t.inventory.addProduct}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-secondary border-2 border-foreground/20 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-1.5 sm:p-2 rounded transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Mode carte"
+                aria-label="Mode carte"
+              >
+                <Grid3x3 className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 sm:p-2 rounded transition-colors ${
+                  viewMode === "list"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Mode liste"
+                aria-label="Mode liste"
+              >
+                <List className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+            </div>
+            <button
+              onClick={() => setIsAddProductModalOpen(true)}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm sm:text-base flex-shrink-0"
+            >
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+              {t.inventory.addProduct}
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
+        <div className="space-y-3">
+          {/* Total Inventory Value - Full Width */}
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {t.inventory.totalInventoryValue}
             </p>
-            <p className="text-2xl font-bold text-foreground mt-2">
+            <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
               ${totalValue.toFixed(2)}
             </p>
           </div>
-          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              {t.inventory.totalProducts}
-            </p>
-            <p className="text-2xl font-bold text-foreground mt-2">
-              {products.length}
-            </p>
-          </div>
-          <div className="bg-card border-2 border-foreground/20 rounded-lg p-4">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              {t.inventory.lowStockItems}
-            </p>
-            <p
-              className={`text-2xl font-bold mt-2 ${
-                lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-400"
-              }`}
-            >
-              {lowStockCount}
-            </p>
+          
+          {/* Total Products and Low Stock - Side by Side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                {t.inventory.totalProducts}
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
+                {products.length}
+              </p>
+            </div>
+            <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                {t.inventory.lowStockItems}
+              </p>
+              <p
+                className={`text-xl sm:text-2xl font-bold mt-1 ${
+                  lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-400"
+                }`}
+              >
+                {lowStockCount}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -290,7 +333,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -307,19 +350,36 @@ export default function Inventory() {
           </div>
         </div>
 
-        {/* Products Grid - Virtualized for performance */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onAddStock={handleAddStock}
-              onRemoveStock={handleRemoveStock}
-              onDelete={handleDelete}
-              onEdit={handleEdit}
-            />
-          ))}
-        </div>
+        {/* Products Display - Grid or List */}
+        {viewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddStock={handleAddStock}
+                onRemoveStock={handleRemoveStock}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                viewMode="grid"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2 sm:space-y-3">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddStock={handleAddStock}
+                onRemoveStock={handleRemoveStock}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                viewMode="list"
+              />
+            ))}
+          </div>
+        )}
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">

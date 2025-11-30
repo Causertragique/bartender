@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
-import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine } from "lucide-react";
+import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import {
   Dialog,
@@ -177,6 +177,10 @@ export default function Sales() {
   const [showTabsManagement, setShowTabsManagement] = useState(false);
   const [selectedTabForDetails, setSelectedTabForDetails] = useState<string | null>(null);
   const [showPayTabDialog, setShowPayTabDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    const saved = localStorage.getItem("sales-view-mode");
+    return (saved === "list" || saved === "grid") ? saved : "grid";
+  });
   const [showRecipeDialog, setShowRecipeDialog] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inventoryProducts, setInventoryProducts] = useState<Product[]>([]);
@@ -222,6 +226,11 @@ export default function Sales() {
       localStorage.setItem("sales-recipes", JSON.stringify(recipes));
     }
   }, [recipes]);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("sales-view-mode", viewMode);
+  }, [viewMode]);
 
   const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail"> = [
     "all",
@@ -777,30 +786,57 @@ export default function Sales() {
     <Layout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">{t.sales.title}</h2>
-            <p className="text-muted-foreground mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{t.sales.title}</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
               {t.sales.subtitle}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap pt-2 sm:pt-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-secondary border-2 border-foreground/20 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-1.5 sm:p-2 rounded transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Mode carte"
+                aria-label="Mode carte"
+              >
+                <Grid3x3 className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 sm:p-2 rounded transition-colors ${
+                  viewMode === "list"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Mode liste"
+                aria-label="Mode liste"
+              >
+                <List className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+            </div>
             <button
               onClick={() => setShowRecipeDialog(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold transition-all hover:opacity-90 whitespace-nowrap"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold transition-all hover:opacity-90 whitespace-nowrap text-sm sm:text-base"
             >
-              <Wine className="h-5 w-5" />
+              <Wine className="h-4 w-4 sm:h-5 sm:w-5" />
               + Produits (cocktail, au verres etc...)
             </button>
-          {openTabs.length > 0 && (
-            <button
-              onClick={() => setShowTabsManagement(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors font-medium"
-            >
-              <FileText className="h-4 w-4" />
-              {t.sales.tabs} ({openTabs.length})
-            </button>
-          )}
+            {openTabs.length > 0 && (
+              <button
+                onClick={() => setShowTabsManagement(true)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors font-medium text-sm sm:text-base"
+              >
+                <FileText className="h-4 w-4" />
+                {t.sales.tabs} ({openTabs.length})
+              </button>
+            )}
           </div>
         </div>
 
@@ -808,7 +844,7 @@ export default function Sales() {
           {/* Products Grid */}
           <div className="lg:col-span-2 space-y-4">
             {/* Category Filter */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
               {categories.map((cat) => (
                 <button
                   key={cat}
@@ -824,39 +860,76 @@ export default function Sales() {
               ))}
             </div>
 
-            {/* Products Grid - Optimized DOM structure */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {filteredProducts.map((product) => {
-                const isRecipe = 'ingredients' in product;
-                const availableQuantity = isRecipe 
-                  ? calculateRecipeAvailability(product as Recipe)
-                  : (product as Product).quantity;
-                
-                return (
-                  <button
-                    key={product.id}
-                    onClick={() => addToCart(product)}
-                    disabled={availableQuantity <= 0}
-                    className={`p-3 rounded-lg border-2 border-foreground/30 transition-all text-left hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col h-full min-h-[120px] ${categoryColors[product.category]}`}
-                  >
-                    <p className="font-bold text-lg line-clamp-2 h-12 mb-2">
-                      {product.name}
-                    </p>
-                    <div className="mt-auto">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        ${product.price.toFixed(2)}
+            {/* Products Display - Grid or List */}
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {filteredProducts.map((product) => {
+                  const isRecipe = 'ingredients' in product;
+                  const availableQuantity = isRecipe 
+                    ? calculateRecipeAvailability(product as Recipe)
+                    : (product as Product).quantity;
+                  
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      disabled={availableQuantity <= 0}
+                      className={`p-3 rounded-lg border-2 border-foreground/30 transition-all text-left hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col h-full min-h-[120px] ${categoryColors[product.category]}`}
+                    >
+                      <p className="font-bold text-lg line-clamp-2 h-12 mb-2">
+                        {product.name}
                       </p>
-                      <p className="text-[10px] opacity-60 mt-0.5">
-                        {!isRecipe 
-                          ? `${translateUnit((product as Product).unit)} - Stock: ${availableQuantity}`
-                          : `Recette - Disponible: ${availableQuantity > 0 ? "Oui" : "Non"}`
-                        }
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      <div className="mt-auto">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          ${product.price.toFixed(2)}
+                        </p>
+                        <p className="text-[10px] opacity-60 mt-0.5">
+                          {!isRecipe 
+                            ? `${translateUnit((product as Product).unit)} - Stock: ${availableQuantity}`
+                            : `Recette - Disponible: ${availableQuantity > 0 ? "Oui" : "Non"}`
+                          }
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2 sm:space-y-3">
+                {filteredProducts.map((product) => {
+                  const isRecipe = 'ingredients' in product;
+                  const availableQuantity = isRecipe 
+                    ? calculateRecipeAvailability(product as Recipe)
+                    : (product as Product).quantity;
+                  
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      disabled={availableQuantity <= 0}
+                      className={`w-full p-3 sm:p-4 rounded-lg border-2 border-foreground/30 transition-all text-left hover:border-primary/50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 sm:gap-4 ${categoryColors[product.category]}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-base sm:text-lg line-clamp-1 mb-1">
+                          {product.name}
+                        </p>
+                        <div className="flex items-center gap-3 sm:gap-4 text-sm">
+                          <p className="font-semibold text-foreground">
+                            ${product.price.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {!isRecipe 
+                              ? `${translateUnit((product as Product).unit)} - Stock: ${availableQuantity}`
+                              : `Recette - Disponible: ${availableQuantity > 0 ? "Oui" : "Non"}`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Cart Sidebar */}

@@ -1,0 +1,52 @@
+{
+  "name": "La Réserve - Gestion de bar professionnelle",
+  "short_name": "La Réserve",
+  "description": "Application de gestion de bar professionnelle avec inventaire, point de vente et analytics",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon-120x120.png",
+      "sizes": "120x120",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["business", "food"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Inventaire",
+      "short_name": "Inventaire",
+      "description": "Gérer l'inventaire",
+      "url": "/inventory",
+      "icons": [{ "src": "/apple-touch-icon.png", "sizes": "180x180" }]
+    },
+    {
+      "name": "Ventes",
+      "short_name": "Ventes",
+      "description": "Point de vente",
+      "url": "/sales",
+      "icons": [{ "src": "/apple-touch-icon.png", "sizes": "180x180" }]
+    }
+  ]
+}
+

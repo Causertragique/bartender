@@ -101,7 +101,7 @@ type AITool =
 export default function Analytics() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedTool, setSelectedTool] = useState<AITool>("insights");
   
   // Optimize sidebar toggle to avoid forced reflows
@@ -295,22 +295,22 @@ export default function Analytics() {
     return <Clock className="h-4 w-4" />;
   };
 
-  const aiTools: Array<{ id: AITool; label: string; icon: React.ReactNode }> = [
-    { id: "insights", label: "Insights généraux", icon: <Eye className="h-4 w-4" /> },
-    { id: "sales-prediction", label: "Prédiction des ventes", icon: <TrendingUp className="h-4 w-4" /> },
-    { id: "reorder", label: "Réapprovisionnement", icon: <ShoppingCart className="h-4 w-4" /> },
-    { id: "profitability", label: "Rentabilité", icon: <DollarSign className="h-4 w-4" /> },
-    { id: "price-optimization", label: "Optimisation des prix", icon: <Percent className="h-4 w-4" /> },
-    { id: "recipe-recommendations", label: "Recommandations de recettes", icon: <Wine className="h-4 w-4" /> },
-    { id: "anomaly-detection", label: "Détection d'anomalies", icon: <AlertCircle className="h-4 w-4" /> },
-    { id: "promotion-recommendations", label: "Promotions", icon: <Gift className="h-4 w-4" /> },
-    { id: "stockout-prediction", label: "Rupture de stock", icon: <AlertTriangle className="h-4 w-4" /> },
-    { id: "menu-optimization", label: "Optimisation du menu", icon: <Menu className="h-4 w-4" /> },
-    { id: "temporal-trends", label: "Tendances temporelles", icon: <Clock className="h-4 w-4" /> },
-    { id: "dynamic-pricing", label: "Prix dynamique", icon: <DollarSign className="h-4 w-4" /> },
-    { id: "revenue-forecast", label: "Prévisions de revenus", icon: <BarChart3 className="h-4 w-4" /> },
-    { id: "sales-report", label: "Rapport de ventes", icon: <FileText className="h-4 w-4" /> },
-    { id: "tax-report", label: "Rapport de taxes", icon: <Receipt className="h-4 w-4" /> },
+  const aiTools: Array<{ id: AITool; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = [
+    { id: "insights", label: "Insights généraux", icon: Eye },
+    { id: "sales-prediction", label: "Prédiction des ventes", icon: TrendingUp },
+    { id: "reorder", label: "Réapprovisionnement", icon: ShoppingCart },
+    { id: "profitability", label: "Rentabilité", icon: DollarSign },
+    { id: "price-optimization", label: "Optimisation des prix", icon: Percent },
+    { id: "recipe-recommendations", label: "Recommandations de recettes", icon: Wine },
+    { id: "anomaly-detection", label: "Détection d'anomalies", icon: AlertCircle },
+    { id: "promotion-recommendations", label: "Promotions", icon: Gift },
+    { id: "stockout-prediction", label: "Rupture de stock", icon: AlertTriangle },
+    { id: "menu-optimization", label: "Optimisation du menu", icon: Menu },
+    { id: "temporal-trends", label: "Tendances temporelles", icon: Clock },
+    { id: "dynamic-pricing", label: "Prix dynamique", icon: DollarSign },
+    { id: "revenue-forecast", label: "Prévisions de revenus", icon: BarChart3 },
+    { id: "sales-report", label: "Rapport de ventes", icon: FileText },
+    { id: "tax-report", label: "Rapport de taxes", icon: Receipt },
   ];
 
   return (
@@ -319,8 +319,9 @@ export default function Analytics() {
         {/* Sidebar */}
         <div
           className={cn(
-            "bg-card border-2 border-foreground/20 rounded-lg flex flex-col flex-shrink-0",
+            "bg-card rounded-lg flex flex-col flex-shrink-0",
             "transition-[width] duration-300 ease-in-out will-change-[width]",
+            "h-fit", // S'adapte à la hauteur du contenu
             sidebarCollapsed ? "w-16" : "w-64"
           )}
         >
@@ -336,7 +337,7 @@ export default function Analytics() {
               variant="ghost"
               size="icon"
               onClick={handleSidebarToggle}
-              className="h-8 w-8 ml-auto"
+              className="h-8 w-8 ml-auto text-red-900 hover:text-red-900 hover:bg-red-900/10 dark:text-red-200 dark:hover:text-red-200 dark:hover:bg-red-900/20"
             >
               {sidebarCollapsed ? (
                 <ChevronRight className="h-4 w-4" />
@@ -347,12 +348,15 @@ export default function Analytics() {
         </div>
 
           {/* Tools List */}
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="p-2 border-b-2 border-foreground/20">
             <div className="space-y-1">
               {aiTools.map((tool) => (
                 <button
                   key={tool.id}
-                  onClick={() => setSelectedTool(tool.id)}
+                  onClick={() => {
+                    setSelectedTool(tool.id);
+                    setSidebarCollapsed(true);
+                  }}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium",
                     selectedTool === tool.id
@@ -361,7 +365,14 @@ export default function Analytics() {
                   )}
                   title={sidebarCollapsed ? tool.label : undefined}
                 >
-                  {tool.icon}
+                  <div className={cn(
+                    "flex items-center justify-center",
+                    sidebarCollapsed ? "w-full" : ""
+                  )}>
+                    <tool.icon className={cn(
+                      sidebarCollapsed ? "h-6 w-6" : "h-4 w-4"
+                    )} />
+                  </div>
                   {!sidebarCollapsed && <span>{tool.label}</span>}
                 </button>
               ))}

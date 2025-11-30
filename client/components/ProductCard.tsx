@@ -22,6 +22,7 @@ interface ProductCardProps {
   onAddStock?: (id: string, amount: number) => void;
   onRemoveStock?: (id: string, amount: number) => void;
   onClick?: (product: Product) => void;
+  viewMode?: "grid" | "list";
 }
 
 const categoryColors = {
@@ -40,6 +41,7 @@ export default function ProductCard({
   onAddStock,
   onRemoveStock,
   onClick,
+  viewMode = "grid",
 }: ProductCardProps) {
   const { t } = useI18n();
   const isLowStock = product.quantity < 5;
@@ -108,6 +110,95 @@ export default function ProductCard({
       progressBarRef.current.style.width = `${progressWidth}%`;
     }
   }, [progressWidth]);
+
+  if (viewMode === "list") {
+    return (
+      <div
+        onClick={() => onClick?.(product)}
+        className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4 hover:border-primary/50 transition-all cursor-pointer"
+      >
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Product Image */}
+          {product.imageUrl && (
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+          
+          {/* Product Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm sm:text-base text-foreground line-clamp-1">
+              {product.name}
+            </h3>
+            <div className="flex items-center gap-3 sm:gap-4 mt-1">
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                {t.productCard.stockLevel}: <span className={cn(
+                  "font-semibold",
+                  isLowStock ? "text-red-900 dark:text-red-200" : "text-green-600 dark:text-green-400"
+                )}>
+                  {product.quantity} {translateUnit(product.unit)}
+                </span>
+              </span>
+              <span className="text-sm sm:text-base font-bold text-foreground">
+                ${product.price.toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddStock?.(product.id, 1);
+              }}
+              className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors border-2 border-green-300 dark:border-green-500/30"
+              aria-label="Add stock"
+            >
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveStock?.(product.id, 1);
+              }}
+              className="p-1.5 sm:p-2 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors border-2 border-red-300 dark:border-destructive/30"
+              aria-label="Remove stock"
+            >
+              <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.(product);
+              }}
+              className="p-1.5 sm:p-2 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground"
+              aria-label="Edit product"
+            >
+              <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(product.id);
+              }}
+              className="p-1.5 sm:p-2 hover:bg-destructive/20 rounded transition-colors text-muted-foreground hover:text-destructive"
+              aria-label="Delete product"
+            >
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

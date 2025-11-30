@@ -7,10 +7,28 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: "1rem",
+        sm: "1.5rem",
+        md: "2rem",
+        lg: "2rem",
+        xl: "2rem",
+      },
       screens: {
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
         "2xl": "1400px",
       },
+    },
+    screens: {
+      xs: "475px", // Small phones and up
+      sm: "640px", // iPhone 6/7/8 Plus
+      md: "768px", // iPad portrait
+      lg: "1024px", // iPad landscape, iPad Pro 11"
+      xl: "1280px", // iPad Pro 12.9"
+      "2xl": "1536px",
     },
     extend: {
       colors: {

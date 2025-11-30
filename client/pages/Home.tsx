@@ -127,7 +127,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-background via-primary/5 to-accent/10 overflow-hidden">
+    <div className="h-screen w-full max-w-full overflow-x-hidden flex bg-gradient-to-br from-background via-primary/5 to-accent/10">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
@@ -135,35 +135,36 @@ export default function Home() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
+      <div className="relative z-10 w-full max-w-full grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8">
         {/* Left Side - Logo and Welcome Section */}
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className="flex justify-center mb-6 overflow-hidden">
+        <div className="flex flex-col items-center justify-center text-center px-2 sm:px-4">
+          <div className="flex justify-center mb-4 sm:mb-6 overflow-hidden">
             <picture>
               <source srcSet="/Logoaccueil.webp" type="image/webp" />
               <source srcSet="/Logoaccueil-optimized.png" type="image/png" />
               <img
                 src="/Logoaccueil.png"
                 alt="La Réserve"
-                className="h-40 w-auto max-w-full object-contain"
+                className="h-32 sm:h-36 md:h-40 w-auto max-w-full object-contain"
                 width="160"
                 height="160"
                 loading="eager"
-                fetchPriority="high"
+                // @ts-ignore - fetchpriority is valid HTML attribute
+                fetchpriority="high"
               />
             </picture>
           </div>
-          <h1 className="text-5xl font-bold text-foreground mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-3 sm:mb-4 break-words hyphens-auto">
             {t.home.title}
           </h1>
-          <p className="text-muted-foreground text-xl mt-1">
+          <p className="text-muted-foreground text-base sm:text-lg md:text-xl mt-1 px-2 break-words hyphens-auto">
             {t.home.subtitle}
           </p>
         </div>
 
         {/* Right Side - Login/Sign Up Card */}
-        <div className="flex items-center justify-center">
-          <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border-2 border-foreground/20 rounded-2xl p-8 shadow-2xl">
+        <div className="flex items-center justify-center px-2 sm:px-4">
+          <div className="w-full max-w-md bg-card/80 backdrop-blur-xl border-2 border-foreground/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium flex items-center gap-2">
@@ -182,9 +183,9 @@ export default function Home() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                {t.home.password}
+              <Label htmlFor="password" className="text-sm font-medium flex items-center gap-2 break-words">
+                <Lock className="h-4 w-4 flex-shrink-0" />
+                <span className="break-words">{t.home.password}</span>
               </Label>
               <div className="relative">
                 <Input

@@ -35,7 +35,7 @@ function getAuthHeaders(): HeadersInit {
 export async function initializeStripeTerminal(): Promise<boolean> {
   try {
     // Dynamically import Stripe Terminal
-    const Terminal = (await import("@stripe/terminal-js")).Terminal;
+    const { Terminal } = await import("@stripe/terminal-js");
     
     // Get connection token from server
     const response = await fetch("/api/stripe/connection-token", {
@@ -51,9 +51,9 @@ export async function initializeStripeTerminal(): Promise<boolean> {
 
     const { secret } = await response.json();
 
-    // Create Terminal instance - using new operator if Terminal is a constructor
-    if (typeof Terminal === 'function') {
-      terminal = new Terminal({
+    // Create Terminal instance
+    // @ts-ignore - Terminal.create is available at runtime but types may be outdated
+    terminal = Terminal.create({
       onFetchConnectionToken: async () => {
         const tokenResponse = await fetch("/api/stripe/connection-token", {
           method: "POST",
