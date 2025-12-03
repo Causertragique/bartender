@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx server/dev-server.ts",
-    "dev:all": "concurrently --names api,web --prefix \"[{name}]\" --prefix-colors yellow,cyan \"pnpm dev:api\" \"pnpm dev\"",
+    "dev:all": "concurrently --names api,web --prefix \"[{name}]\" --prefix-colors yellow,cyan \"npm run dev:api\" \"npm run dev\"",
     "dev:all:ps": "pwsh -NoProfile -File scripts/dev-all.ps1",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
