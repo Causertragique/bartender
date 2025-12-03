@@ -622,7 +622,7 @@ export default function Analytics() {
 
   const aiTools: Array<{ id: AITool; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = [
     { id: "insights", label: "Insights généraux", icon: Eye },
-    { id: "sales-prediction", label: "Prédiction des ventes", icon: TrendingUp },
+    { id: "sales-prediction", label: "Meilleurs vendeurs", icon: TrendingUp },
     { id: "reorder", label: "Réapprovisionnement", icon: ShoppingCart },
     { id: "profitability", label: "Rentabilité", icon: DollarSign },
     { id: "price-optimization", label: "Optimisation des prix", icon: Wine },
@@ -757,9 +757,9 @@ export default function Analytics() {
             {!salesPrediction ? (
               <EmptyStateWithButton
                 icon={TrendingUp}
-                message="Cliquez sur le bouton pour générer des prédictions de ventes."
+                message="Cliquez sur le bouton pour analyser les meilleurs vendeurs."
                 toolId="sales-prediction"
-                buttonLabel="Générer des prédictions"
+                buttonLabel="Analyser les ventes"
               />
             ) : (
                     <>
@@ -769,7 +769,7 @@ export default function Analytics() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    Prédiction des ventes (7 prochains jours)
+                    Meilleurs vendeurs (30 derniers jours)
                             {salesPrediction.region && (
                               <span className="text-sm font-normal text-muted-foreground">
                                 • {salesPrediction.region}
