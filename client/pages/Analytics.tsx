@@ -583,6 +583,24 @@ export default function Analytics() {
     </Card>
   );
 
+  const RefreshButton = ({ toolId }: { toolId: AITool }) => (
+    <div className="flex justify-end mb-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          if (fetchFunctions[toolId]) {
+            fetchFunctions[toolId]();
+          }
+        }}
+        disabled={loadingTools[toolId]}
+      >
+        <RefreshCw className={cn("h-4 w-4 mr-2", loadingTools[toolId] && "animate-spin")} />
+        Régénérer
+      </Button>
+    </div>
+  );
+
   const getPriorityColor = (priority: number) => {
     if (priority === 3) return "text-red-600 dark:text-red-400";
     if (priority === 2) return "text-red-900 dark:text-red-400";
@@ -695,9 +713,11 @@ export default function Analytics() {
                 </CardContent>
               </Card>
             ) : insights.insights.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {insights.insights.map((insight, index) => (
-                  <Card
+              <>
+                <RefreshButton toolId="insights" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {insights.insights.map((insight, index) => (
+                    <Card
                     key={index}
                     className="border-2 border-foreground/20 hover:border-primary/50 transition-colors"
                   >
@@ -742,7 +762,9 @@ export default function Analytics() {
                 buttonLabel="Générer des prédictions"
               />
             ) : (
-                    <div className="space-y-4">
+                    <>
+                      <RefreshButton toolId="sales-prediction" />
+                      <div className="space-y-4">
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -868,7 +890,9 @@ export default function Analytics() {
                 buttonLabel="Générer des recommandations"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="reorder" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-5 w-5 text-primary" />
@@ -923,6 +947,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "profitability" ? (
@@ -936,7 +961,9 @@ export default function Analytics() {
                 buttonLabel="Analyser la rentabilité"
               />
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <>
+                <RefreshButton toolId="profitability" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="border-2 border-foreground/20">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -1009,6 +1036,7 @@ export default function Analytics() {
                   </CardContent>
                 </Card>
               </div>
+              </>
             )}
           </>
         ) : selectedTool === "price-optimization" ? (
@@ -1022,7 +1050,9 @@ export default function Analytics() {
                 buttonLabel="Optimiser les prix"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="price-optimization" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Wine className="h-5 w-5 text-primary" />
@@ -1061,6 +1091,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "food-wine-pairing" ? (
@@ -1074,7 +1105,9 @@ export default function Analytics() {
                 buttonLabel="Générer des accords"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="food-wine-pairing" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <UtensilsCrossed className="h-5 w-5 text-primary" />
@@ -1103,6 +1136,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "promotion-recommendations" ? (
@@ -1116,7 +1150,9 @@ export default function Analytics() {
                 buttonLabel="Générer des promotions"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="promotion-recommendations" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-primary" />
@@ -1148,6 +1184,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "stockout-prediction" ? (
@@ -1161,7 +1198,9 @@ export default function Analytics() {
                 buttonLabel="Prédire les ruptures"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="stockout-prediction" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-primary" />
@@ -1201,6 +1240,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "menu-optimization" ? (
@@ -1214,7 +1254,9 @@ export default function Analytics() {
                 buttonLabel="Optimiser le menu"
               />
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <>
+                <RefreshButton toolId="menu-optimization" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {menuOptimization.itemsToRemove && menuOptimization.itemsToRemove.length > 0 && (
                   <Card className="border-2 border-foreground/20">
                     <CardHeader>
@@ -1258,6 +1300,7 @@ export default function Analytics() {
                   </Card>
                 )}
               </div>
+              </>
             )}
           </>
         ) : selectedTool === "temporal-trends" ? (
@@ -1271,7 +1314,9 @@ export default function Analytics() {
                 buttonLabel="Analyser les tendances"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="temporal-trends" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-primary" />
@@ -1292,6 +1337,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "dynamic-pricing" ? (
@@ -1305,7 +1351,9 @@ export default function Analytics() {
                 buttonLabel="Générer des prix dynamiques"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="dynamic-pricing" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="h-5 w-5 text-primary" />
@@ -1333,6 +1381,7 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
           </>
         ) : selectedTool === "revenue-forecast" ? (
@@ -1346,7 +1395,9 @@ export default function Analytics() {
                 buttonLabel="Générer des prévisions"
               />
             ) : (
-              <Card className="border-2 border-foreground/20">
+              <>
+                <RefreshButton toolId="revenue-forecast" />
+                <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
