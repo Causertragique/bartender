@@ -173,8 +173,12 @@ export default function Analytics() {
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
         const username = localStorage.getItem("bartender-username");
+        const userId = localStorage.getItem("bartender-user-id");
         if (username) {
           headers["x-username"] = username;
+        }
+        if (userId) {
+          headers["x-user-id"] = userId;
         }
       }
     console.log("[Analytics] Headers:", Object.keys(headers));

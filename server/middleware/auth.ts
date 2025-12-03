@@ -69,8 +69,18 @@ export function getUserId(req: Request): string | null {
         if (username) {
           // Get user ID from database using username
           const db = require("../database").default;
-          const user = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as any;
-          console.log("[Auth] User trouvé dans DB:", user?.id || "Aucun");
+          let user = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as any;
+          
+          // If user doesn't exist, create it automatically (for dev/Firebase users)
+          if (!user) {
+            console.log("[Auth] User non trouvé, création automatique pour:", username);
+            const userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+            db.prepare("INSERT INTO users (id, username, password) VALUES (?, ?, NULL)").run(userId, username);
+            user = { id: userId };
+            console.log("[Auth] Nouvel utilisateur créé avec ID:", userId);
+          }
+          
+          console.log("[Auth] User trouvé/créé dans DB:", user?.id || "Aucun");
           return user?.id || null;
         }
       }
