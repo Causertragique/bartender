@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useI18n } from "@/contexts/I18nContext";
 import {
@@ -160,6 +160,97 @@ export default function Analytics() {
     "revenue-forecast": null,
   });
 
+  // Clé de stockage avec le userId pour isolation par utilisateur
+  const getStorageKey = (tool: AITool) => {
+    const userId = localStorage.getItem("bartender-user-id") || "default";
+    return `analytics-cache-${userId}-${tool}`;
+  };
+
+  // Sauvegarder les résultats dans localStorage
+  const saveToCache = (tool: AITool, data: any) => {
+    try {
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(getStorageKey(tool), JSON.stringify(cacheData));
+      console.log(`[Analytics] Cache sauvegardé pour ${tool}`);
+    } catch (error) {
+      console.warn(`[Analytics] Impossible de sauvegarder le cache pour ${tool}:`, error);
+    }
+  };
+
+  // Charger les résultats depuis localStorage
+  const loadFromCache = (tool: AITool) => {
+    try {
+      const cached = localStorage.getItem(getStorageKey(tool));
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        console.log(`[Analytics] Cache chargé pour ${tool}, timestamp:`, new Date(timestamp));
+        return data;
+      }
+    } catch (error) {
+      console.warn(`[Analytics] Impossible de charger le cache pour ${tool}:`, error);
+    }
+    return null;
+  };
+
+  // Nettoyer tout le cache (appelé à la déconnexion)
+  const clearAllCache = () => {
+    const userId = localStorage.getItem("bartender-user-id") || "default";
+    const tools: AITool[] = [
+      "insights", "sales-prediction", "reorder", "profitability", 
+      "price-optimization", "food-wine-pairing", "promotion-recommendations",
+      "stockout-prediction", "menu-optimization", "temporal-trends",
+      "dynamic-pricing", "revenue-forecast"
+    ];
+    tools.forEach(tool => {
+      localStorage.removeItem(`analytics-cache-${userId}-${tool}`);
+    });
+    console.log("[Analytics] Cache nettoyé pour tous les outils");
+  };
+
+  // Restaurer les données au chargement du composant
+  useEffect(() => {
+    const cachedInsights = loadFromCache("insights");
+    if (cachedInsights) setInsights(cachedInsights);
+    
+    const cachedSalesPrediction = loadFromCache("sales-prediction");
+    if (cachedSalesPrediction) setSalesPrediction(cachedSalesPrediction);
+    
+    const cachedReorder = loadFromCache("reorder");
+    if (cachedReorder) setReorderRecommendations(cachedReorder);
+    
+    const cachedProfitability = loadFromCache("profitability");
+    if (cachedProfitability) setProfitability(cachedProfitability);
+    
+    const cachedPriceOptimization = loadFromCache("price-optimization");
+    if (cachedPriceOptimization) setPriceOptimization(cachedPriceOptimization);
+    
+    const cachedFoodWine = loadFromCache("food-wine-pairing");
+    if (cachedFoodWine) setFoodWinePairing(cachedFoodWine);
+    
+    const cachedPromotions = loadFromCache("promotion-recommendations");
+    if (cachedPromotions) setPromotionRecommendations(cachedPromotions);
+    
+    const cachedStockout = loadFromCache("stockout-prediction");
+    if (cachedStockout) setStockoutPredictions(cachedStockout);
+    
+    const cachedMenu = loadFromCache("menu-optimization");
+    if (cachedMenu) setMenuOptimization(cachedMenu);
+    
+    const cachedTemporal = loadFromCache("temporal-trends");
+    if (cachedTemporal) setTemporalTrends(cachedTemporal);
+    
+    const cachedDynamic = loadFromCache("dynamic-pricing");
+    if (cachedDynamic) setDynamicPricing(cachedDynamic);
+    
+    const cachedRevenue = loadFromCache("revenue-forecast");
+    if (cachedRevenue) setRevenueForecast(cachedRevenue);
+    
+    console.log("[Analytics] Données restaurées depuis le cache");
+  }, []);
+
   const getAuthToken = () => {
     return localStorage.getItem("bartender-auth");
   };
@@ -199,6 +290,7 @@ export default function Analytics() {
         const data = await res.json();
         if (data && (data.predictions || data.averageDailyRevenue !== undefined)) {
           setSalesPrediction(data);
+          saveToCache("sales-prediction", data);
         } else {
           setErrors(prev => ({ ...prev, "sales-prediction": "Aucune donnée générée. Vérifiez que vous avez des ventes dans votre inventaire." }));
         }
@@ -222,6 +314,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setReorderRecommendations(data.recommendations || []);
+          saveToCache("reorder", data.recommendations || []);
         }
     } catch (error) {
       console.error("Error fetching reorder recommendations:", error);
@@ -241,6 +334,11 @@ export default function Analytics() {
             totalRevenue: data.totalRevenue || 0,
             totalProfit: data.totalProfit || 0,
           });
+          saveToCache("profitability", {
+            topProducts: data.topProducts || [],
+            totalRevenue: data.totalRevenue || 0,
+            totalProfit: data.totalProfit || 0,
+          });
         }
     } catch (error) {
       console.error("Error fetching profitability:", error);
@@ -256,6 +354,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setPriceOptimization(data);
+          saveToCache("price-optimization", data);
         }
     } catch (error) {
       console.error("Error fetching price optimization:", error);
@@ -276,6 +375,7 @@ export default function Analytics() {
         const data = await res.json();
         if (data && data.insights && data.insights.length > 0) {
           setInsights(data);
+          saveToCache("insights", data);
         } else {
           setErrors(prev => ({ ...prev, "insights": "Aucun insight généré. Vérifiez que vous avez des ventes et que votre clé OpenAI est configurée dans .env" }));
         }
@@ -304,6 +404,7 @@ export default function Analytics() {
         const data = await res.json();
         if (data && data.pairings && data.pairings.length > 0) {
           setFoodWinePairing(data);
+          saveToCache("food-wine-pairing", data);
         } else {
           setErrors(prev => ({ ...prev, "food-wine-pairing": "Aucun accord généré. Ajoutez des vins à votre inventaire et vérifiez que votre clé OpenAI est configurée dans .env" }));
         }
@@ -327,6 +428,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setPromotionRecommendations(data);
+          saveToCache("promotion-recommendations", data);
         }
     } catch (error) {
       console.error("Error fetching promotion recommendations:", error);
@@ -342,6 +444,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setStockoutPredictions(data);
+          saveToCache("stockout-prediction", data);
         }
     } catch (error) {
       console.error("Error fetching stockout prediction:", error);
@@ -357,6 +460,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setMenuOptimization(data);
+          saveToCache("menu-optimization", data);
         }
     } catch (error) {
       console.error("Error fetching menu optimization:", error);
@@ -372,6 +476,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setTemporalTrends(data);
+          saveToCache("temporal-trends", data);
         }
     } catch (error) {
       console.error("Error fetching temporal trends:", error);
@@ -387,6 +492,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setDynamicPricing(data);
+          saveToCache("dynamic-pricing", data);
         }
     } catch (error) {
       console.error("Error fetching dynamic pricing:", error);
@@ -402,6 +508,7 @@ export default function Analytics() {
       if (res.ok) {
         const data = await res.json();
           setRevenueForecast(data);
+          saveToCache("revenue-forecast", data);
         }
       } catch (error) {
       console.error("Error fetching revenue forecast:", error);

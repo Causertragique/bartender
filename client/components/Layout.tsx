@@ -30,6 +30,19 @@ export default function Layout({ children }: LayoutProps) {
   const isActive = (path: string) => location.pathname === path;
 
   const handleLogout = () => {
+    // Clear all analytics cache
+    const userId = localStorage.getItem("bartender-user-id");
+    if (userId) {
+      const tools = [
+        "sales-prediction", "insights", "reorder", "profitability",
+        "price-optimization", "food-wine-pairing", "promotion-recommendations",
+        "stockout-prediction", "menu-optimization", "temporal-trends",
+        "dynamic-pricing", "revenue-forecast"
+      ];
+      tools.forEach(tool => {
+        localStorage.removeItem(`analytics-cache-${userId}-${tool}`);
+      });
+    }
     // Remove authentication token
     localStorage.removeItem("bartender-auth");
     // Redirect to home page

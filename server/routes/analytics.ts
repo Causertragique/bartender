@@ -4,27 +4,25 @@ import { getUserId } from "../middleware/auth";
 import { callOpenAI, callOpenAIJSON } from "../services/openai";
 
 /**
- * GET /api/analytics/sales-prediction - Prédiction des ventes pour les prochains jours avec IA
+ * GET /api/analytics/sales-prediction - Analyse des meilleurs vendeurs avec IA
  */
 export const getSalesPrediction: RequestHandler = async (req, res) => {
   try {
-    console.log("[Sales Prediction] Requête reçue, headers:", {
+    console.log("[Best Sellers] Requête reçue, headers:", {
       authorization: !!req.headers.authorization,
       "x-username": req.headers["x-username"],
       "x-user-id": req.headers["x-user-id"],
     });
     const userId = getUserId(req);
-    console.log("[Sales Prediction] UserId extrait:", userId);
+    console.log("[Best Sellers] UserId extrait:", userId);
     if (!userId) {
-      console.warn("[Sales Prediction] Aucun userId trouvé, retour 401");
+      console.warn("[Best Sellers] Aucun userId trouvé, retour 401");
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { days = 7, region: regionParam } = req.query;
-    const daysCount = parseInt(days as string) || 7;
+    const { region: regionParam } = req.query;
 
     // Récupérer la région depuis les paramètres de la requête ou utiliser une valeur par défaut
-    // La région peut être passée depuis le frontend qui lit les paramètres depuis localStorage
     const region = (regionParam as string) || "quebec";
 
     // Récupérer les ventes des 30 derniers jours pour l'analyse
@@ -41,28 +39,21 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
     // Récupérer les produits pour analyser les meilleurs vendeurs
     const products = db.prepare("SELECT * FROM products").all() as any[];
 
-    // Calculer la moyenne quotidienne
-    const dailySales: Record<string, number> = {};
-    sales.forEach((sale) => {
-      const date = sale.createdAt.split("T")[0];
-      dailySales[date] = (dailySales[date] || 0) + sale.price * sale.quantity;
-    });
-
-    const dailyValues = Object.values(dailySales);
-    const avgDailyRevenue = dailyValues.length > 0
-      ? dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length
-      : 0;
+    // Calculer les statistiques
+    const totalRevenue = sales.reduce((sum, s) => sum + (s.price * s.quantity), 0);
+    const totalSales = sales.length;
 
     // Analyser les meilleurs produits vendus
-    const productSales: Record<string, { quantity: number; revenue: number }> = {};
+    const productSales: Record<string, { quantity: number; revenue: number; transactions: number }> = {};
     sales.forEach((sale) => {
       const productId = sale.productId || sale.recipeId;
       if (productId) {
         if (!productSales[productId]) {
-          productSales[productId] = { quantity: 0, revenue: 0 };
+          productSales[productId] = { quantity: 0, revenue: 0, transactions: 0 };
         }
         productSales[productId].quantity += sale.quantity;
         productSales[productId].revenue += sale.price * sale.quantity;
+        productSales[productId].transactions += 1;
       }
     });
 
@@ -76,18 +67,20 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
           quantity: data.quantity,
           revenue: data.revenue,
           avgPrice: data.revenue / data.quantity,
+          transactions: data.transactions,
+          currentStock: product?.quantity || 0,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
     // Préparer les détails des meilleurs vendeurs pour le prompt
-    const topProductsDetails = topProducts.map(p => 
-      `${p.name} (${p.category}) - ${p.quantity} unités vendues, $${p.revenue.toFixed(2)} CAD de revenus, prix moyen: $${p.avgPrice.toFixed(2)} CAD`
-    ).join("\n  ");
+    const topProductsDetails = topProducts.map((p, index) => 
+      `${index + 1}. ${p.name} (${p.category})\n   - ${p.quantity} unités vendues en ${p.transactions} transactions\n   - Revenus: $${p.revenue.toFixed(2)} CAD\n   - Prix moyen: $${p.avgPrice.toFixed(2)} CAD\n   - Stock actuel: ${p.currentStock} unités`
+    ).join("\n\n");
 
-    // Utiliser OpenAI pour générer des prédictions intelligentes avec contexte régional
-    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant au Québec, génère des prédictions de ventes pour les ${daysCount} prochains jours.
+    // Utiliser OpenAI pour analyser les meilleurs vendeurs
+    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant au Québec, analyse les meilleurs vendeurs et fournis des recommandations stratégiques.
 
 **CONTEXTE DE L'ÉTABLISSEMENT:**
 - Type: Bar/Restaurant québécois
@@ -95,108 +88,113 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
 - Devise: Dollar canadien (CAD)
 - Marché: Clientèle québécoise
 
-**DONNÉES HISTORIQUES:**
-- Revenu quotidien moyen actuel: $${avgDailyRevenue.toFixed(2)} CAD
-- Nombre de jours de données historiques: ${dailyValues.length}
-- Revenu total sur la période: $${dailyValues.reduce((a, b) => a + b, 0).toFixed(2)} CAD
+**PERFORMANCE GLOBALE (30 derniers jours):**
+- Revenus totaux: $${totalRevenue.toFixed(2)} CAD
+- Nombre de transactions: ${totalSales}
+- Revenu moyen par transaction: $${(totalRevenue / totalSales || 0).toFixed(2)} CAD
 
-**TOP 10 MEILLEURS VENDEURS (par revenu):**
-  ${topProductsDetails}
-
-**FACTEURS À CONSIDÉRER POUR LE QUÉBEC:**
-1. Tendances hebdomadaires québécoises (vendredis/samedis plus achalandés)
-2. Préférences locales (bières locales, vins importés, spiritueux québécois)
-3. Saisons et climat québécois (hiver rigoureux affecte la fréquentation)
-4. Événements culturels et sportifs québécois (Canadiens de Montréal, festivals)
-5. Habitudes de consommation québécoises (5 à 7, soupers tard le weekend)
+**TOP 10 MEILLEURS VENDEURS (classés par revenu):**
+${topProductsDetails}
 
 **INSTRUCTIONS:**
-Génère des prédictions réalistes basées sur les données historiques et les spécificités du marché québécois.
-Utilise des montants en dollars canadiens.
-Analyse les meilleurs vendeurs pour identifier les tendances et prédire les futurs succès.
+1. Analyse les meilleurs vendeurs en tenant compte du contexte québécois
+2. Identifie les tendances et patterns de vente
+3. Fournis des recommandations pour maximiser les ventes
+4. Suggère des stratégies de pricing ou de promotion adaptées au marché québécois
 
 Réponds en JSON:
 {
-  "predictions": [
-    {
-      "date": "YYYY-MM-DD",
-      "predictedRevenue": 123.45,
-      "confidence": 0.85,
-      "reason": "explication tenant compte du contexte québécois"
-    }
-  ],
   "topSellers": [
     {
       "product": "nom du produit",
-      "reason": "pourquoi il sera populaire au Québec"
+      "category": "catégorie",
+      "performance": "excellent|bon|moyen",
+      "insights": "analyse détaillée de la performance",
+      "recommendation": "recommandation spécifique pour ce produit"
     }
   ],
-  "trend": 5.2
+  "summary": "résumé global des tendances observées",
+  "recommendations": [
+    "recommandation stratégique 1",
+    "recommandation stratégique 2",
+    "recommandation stratégique 3"
+  ]
 }`;
 
-    console.log("[Sales Prediction] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
+    console.log("[Best Sellers] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
     const aiResponse = await callOpenAIJSON<{
-      predictions: Array<{
-        date: string;
-        predictedRevenue: number;
-        confidence: number;
-        reason?: string;
-      }>;
-      topSellers?: Array<{
+      topSellers: Array<{
         product: string;
-        reason: string;
+        category: string;
+        performance: string;
+        insights: string;
+        recommendation: string;
       }>;
-      trend: number;
-    }>(aiPrompt, "Tu es un expert en analyse de ventes et prédictions pour l'industrie de la restauration et des bars au Québec, Canada. Tu possèdes une connaissance approfondie du marché québécois, des habitudes de consommation locales, des tendances saisonnières, et du calendrier culturel et sportif du Québec. Tu fournis des prédictions réalistes adaptées au contexte économique québécois.");
+      summary: string;
+      recommendations: string[];
+    }>(aiPrompt, "Tu es un expert en analyse de ventes pour l'industrie de la restauration et des bars au Québec, Canada. Tu possèdes une connaissance approfondie du marché québécois, des habitudes de consommation locales, et des stratégies de pricing adaptées au contexte économique québécois.");
 
-    console.log("[Sales Prediction] Réponse OpenAI:", aiResponse ? "Reçue" : "Aucune réponse");
+    console.log("[Best Sellers] Réponse OpenAI:", aiResponse ? "Reçue" : "Aucune réponse");
 
-    // Utiliser les prédictions IA si disponibles, sinon fallback sur calculs basiques
-    if (aiResponse && aiResponse.predictions && aiResponse.predictions.length > 0) {
-      console.log("[Sales Prediction] Utilisation des prédictions IA:", aiResponse.predictions.length, "prédictions");
+    // Utiliser l'analyse IA si disponible, sinon fallback sur analyse basique
+    if (aiResponse && aiResponse.topSellers && aiResponse.topSellers.length > 0) {
+      console.log("[Best Sellers] Utilisation de l'analyse IA:", aiResponse.topSellers.length, "produits analysés");
       return res.json({
-        predictions: aiResponse.predictions.slice(0, daysCount),
-        averageDailyRevenue: Math.round(avgDailyRevenue * 100) / 100,
-        trend: aiResponse.trend || Math.round(((dailyValues[0] || 0) - (dailyValues[dailyValues.length - 1] || 0)) / dailyValues.length * 100) / 100,
-        dataPoints: dailyValues.length,
-        topSellers: aiResponse.topSellers || [],
-        region: region,
+        topSellers: aiResponse.topSellers,
+        summary: aiResponse.summary,
+        recommendations: aiResponse.recommendations,
+        rawData: topProducts.map(p => ({
+          name: p.name,
+          category: p.category,
+          quantity: p.quantity,
+          revenue: p.revenue,
+          avgPrice: p.avgPrice,
+          transactions: p.transactions,
+          currentStock: p.currentStock,
+        })),
+        totalRevenue,
+        totalSales,
+        region,
       });
     }
 
-    // Fallback sur les calculs basiques
-    const trend = dailyValues.length > 1
-      ? (dailyValues[0] - dailyValues[dailyValues.length - 1]) / dailyValues.length
-      : 0;
-
-    const predictions = [];
-    for (let i = 1; i <= daysCount; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      const predictedRevenue = Math.max(0, avgDailyRevenue + (trend * i));
-      predictions.push({
-        date: date.toISOString().split("T")[0],
-        predictedRevenue: Math.round(predictedRevenue * 100) / 100,
-        confidence: dailyValues.length > 7 ? 0.85 : 0.65,
-      });
-    }
+    // Fallback sur analyse basique
+    const basicTopSellers = topProducts.map(p => ({
+      product: p.name,
+      category: p.category,
+      performance: p.revenue > totalRevenue * 0.2 ? "excellent" : p.revenue > totalRevenue * 0.1 ? "bon" : "moyen",
+      insights: `${p.quantity} unités vendues pour $${p.revenue.toFixed(2)} CAD de revenus`,
+      recommendation: p.currentStock < p.quantity / 30 * 7 
+        ? `Stock faible (${p.currentStock} unités), réapprovisionnement recommandé`
+        : `Stock suffisant (${p.currentStock} unités)`,
+    }));
 
     res.json({
-      predictions,
-      averageDailyRevenue: Math.round(avgDailyRevenue * 100) / 100,
-      trend: Math.round(trend * 100) / 100,
-      dataPoints: dailyValues.length,
-      topSellers: topProducts.slice(0, 3).map(p => ({
-        product: p.name,
-        reason: `Produit populaire dans la catégorie ${p.category}`,
+      topSellers: basicTopSellers,
+      summary: `Analyse de ${topProducts.length} meilleurs produits sur les 30 derniers jours`,
+      recommendations: [
+        "Surveillez les stocks des meilleurs vendeurs",
+        "Considérez des promotions sur les produits à forte marge",
+        "Analysez les tendances par catégorie pour optimiser l'offre"
+      ],
+      rawData: topProducts.map(p => ({
+        name: p.name,
+        category: p.category,
+        quantity: p.quantity,
+        revenue: p.revenue,
+        avgPrice: p.avgPrice,
+        transactions: p.transactions,
+        currentStock: p.currentStock,
       })),
-      region: region,
+      totalRevenue,
+      totalSales,
+      region,
     });
   } catch (error: any) {
-    console.error("[Sales Prediction] Erreur complète:", error);
-    console.error("[Sales Prediction] Stack trace:", error.stack);
+    console.error("[Best Sellers] Erreur complète:", error);
+    console.error("[Best Sellers] Stack trace:", error.stack);
     res.status(500).json({
-      error: "Failed to get sales prediction",
+      error: "Failed to get best sellers analysis",
       message: error.message || "Erreur inconnue",
       details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
