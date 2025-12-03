@@ -70,14 +70,21 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
       .map(([id, data]) => {
         const product = products.find(p => p.id === id);
         return {
+          id,
           name: product?.name || "Produit inconnu",
           category: product?.category || "other",
           quantity: data.quantity,
           revenue: data.revenue,
+          avgPrice: data.revenue / data.quantity,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+      .slice(0, 10);
+
+    // Préparer les détails des meilleurs vendeurs pour le prompt
+    const topProductsDetails = topProducts.map(p => 
+      `${p.name} (${p.category}) - ${p.quantity} unités vendues, $${p.revenue.toFixed(2)} CAD de revenus, prix moyen: $${p.avgPrice.toFixed(2)} CAD`
+    ).join("\n  ");
 
     // Utiliser OpenAI pour générer des prédictions intelligentes avec contexte régional
     const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant au Québec, génère des prédictions de ventes pour les ${daysCount} prochains jours.
@@ -91,7 +98,10 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
 **DONNÉES HISTORIQUES:**
 - Revenu quotidien moyen actuel: $${avgDailyRevenue.toFixed(2)} CAD
 - Nombre de jours de données historiques: ${dailyValues.length}
-- Meilleurs produits vendus: ${topProducts.map(p => `${p.name} (${p.category})`).join(", ")}
+- Revenu total sur la période: $${dailyValues.reduce((a, b) => a + b, 0).toFixed(2)} CAD
+
+**TOP 10 MEILLEURS VENDEURS (par revenu):**
+  ${topProductsDetails}
 
 **FACTEURS À CONSIDÉRER POUR LE QUÉBEC:**
 1. Tendances hebdomadaires québécoises (vendredis/samedis plus achalandés)
@@ -103,6 +113,7 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
 **INSTRUCTIONS:**
 Génère des prédictions réalistes basées sur les données historiques et les spécificités du marché québécois.
 Utilise des montants en dollars canadiens.
+Analyse les meilleurs vendeurs pour identifier les tendances et prédire les futurs succès.
 
 Réponds en JSON:
 {
@@ -553,18 +564,41 @@ export const getInsights: RequestHandler = async (req, res) => {
     const totalSales = sales.length;
     const avgSaleValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
-    // Produits les plus vendus
-    const productSales: Record<string, number> = {};
+    // Produits les plus vendus avec détails
+    const productSalesDetails: Record<string, { quantity: number; revenue: number }> = {};
     sales.forEach((sale) => {
       const productId = sale.productId || sale.recipeId;
       if (productId) {
-        productSales[productId] = (productSales[productId] || 0) + sale.quantity;
+        if (!productSalesDetails[productId]) {
+          productSalesDetails[productId] = { quantity: 0, revenue: 0 };
+        }
+        productSalesDetails[productId].quantity += sale.quantity;
+        productSalesDetails[productId].revenue += sale.price * sale.quantity;
       }
     });
 
-    const topProductId = Object.entries(productSales)
-      .sort(([, a], [, b]) => b - a)[0]?.[0];
-    const topProduct = products.find((p) => p.id === topProductId);
+    const topProductsAnalysis = Object.entries(productSalesDetails)
+      .map(([id, data]) => {
+        const product = products.find(p => p.id === id);
+        return {
+          id,
+          name: product?.name || "Produit inconnu",
+          category: product?.category || "other",
+          quantity: data.quantity,
+          revenue: data.revenue,
+          avgPrice: data.revenue / data.quantity,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const topProductId = topProductsAnalysis[0]?.id;
+    const topProduct = topProductsAnalysis[0];
+
+    // Préparer les détails des meilleurs vendeurs pour le prompt
+    const topProductsText = topProductsAnalysis.map((p, index) => 
+      `${index + 1}. ${p.name} (${p.category})\n   - Quantité vendue: ${p.quantity} unités\n   - Revenus générés: $${p.revenue.toFixed(2)} CAD\n   - Prix moyen: $${p.avgPrice.toFixed(2)} CAD`
+    ).join("\n");
 
     // Produits en rupture de stock
     const outOfStock = products.filter((p) => p.quantity === 0);
@@ -576,7 +610,7 @@ export const getInsights: RequestHandler = async (req, res) => {
       totalSales,
       avgSaleValue,
       topProduct: topProduct?.name || "Aucun",
-      topProductSales: topProductId ? productSales[topProductId] : 0,
+      topProductSales: topProduct?.quantity || 0,
       outOfStockCount: outOfStock.length,
       lowStockCount: lowStock.length,
       productCount: products.length,
@@ -595,7 +629,11 @@ export const getInsights: RequestHandler = async (req, res) => {
 - Revenus totaux: $${dataSummary.totalRevenue.toFixed(2)} CAD
 - Nombre de ventes: ${dataSummary.totalSales}
 - Valeur moyenne par transaction: $${dataSummary.avgSaleValue.toFixed(2)} CAD
-- Produit le plus vendu: ${dataSummary.topProduct} (${dataSummary.topProductSales} unités)
+
+**TOP 5 MEILLEURS VENDEURS (détails complets):**
+${topProductsText}
+
+**ÉTAT DES STOCKS:**
 - Produits en rupture: ${dataSummary.outOfStockCount}
 - Produits à stock faible: ${dataSummary.lowStockCount}
 - Total produits en inventaire: ${dataSummary.productCount}
