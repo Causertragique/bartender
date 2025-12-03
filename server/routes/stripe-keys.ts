@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import db from "../database";
-import { getUserId } from "../middleware/auth";
+import { getUserId } from "../middleware/auth.ts";
 
 /**
  * GET /api/stripe-keys - Get Stripe keys for current user

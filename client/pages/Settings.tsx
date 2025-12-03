@@ -912,11 +912,11 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <Upload className="h-5 w-5" />
                     {t.settings.import.title}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-xs mt-1">
                     {t.settings.import.description}
                   </CardDescription>
                 </div>
@@ -996,7 +996,7 @@ export default function Settings() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Palette className="h-5 w-5" />
-                  <h3 className="text-2xl font-semibold leading-none tracking-tight">{t.settings.appearance.title}</h3>
+                  <h3 className="text-lg font-semibold leading-none tracking-tight">{t.settings.appearance.title}</h3>
                 </div>
                 <div className="space-y-3 pt-1">
                   <div className="space-y-2">
@@ -1046,11 +1046,11 @@ export default function Settings() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <CreditCard className="h-5 w-5" />
                     Configuration Stripe
                   </CardTitle>
-                  <CardDescription className="mt-1">
+                  <CardDescription className="text-xs mt-1">
                     Configurez vos clés API Stripe pour activer les paiements en personne avec Terminal
                   </CardDescription>
                 </div>

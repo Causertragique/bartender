@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/contexts/I18nContext";
+import { signInWithGoogle } from "@/services/auth";
 
 export default function Home() {
   const { t } = useI18n();
@@ -24,6 +25,7 @@ export default function Home() {
     password: "",
   });
   const [error, setError] = useState("");
+  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -149,8 +151,6 @@ export default function Home() {
                 width="160"
                 height="160"
                 loading="eager"
-                // @ts-ignore - fetchpriority is valid HTML attribute
-                fetchpriority="high"
               />
             </picture>
           </div>
@@ -212,8 +212,23 @@ export default function Home() {
             </div>
 
             {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <p className="text-sm text-destructive">{error}</p>
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive whitespace-pre-line">{error}</p>
+                {error.includes("DOMAINE NON AUTORISÉ") && (
+                  <div className="mt-3 pt-3 border-t border-destructive/20">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Domaine actuel : <code className="bg-background px-1 rounded">{window.location.hostname}</code>
+                    </p>
+                    <a
+                      href="https://console.firebase.google.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      Ouvrir Firebase Console →
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -238,10 +253,24 @@ export default function Home() {
                 type="button"
                 variant="outline"
                 className="w-full h-12 bg-background border-border hover:bg-secondary font-medium flex items-center justify-center gap-3"
-                onClick={() => {
-                  // TODO: Implement Google authentication
-                  alert("Connexion Google - À implémenter");
+                onClick={async () => {
+                  try {
+                    setError("");
+                    setIsLoadingGoogle(true);
+                    console.log("Tentative de connexion Google...");
+                    const user = await signInWithGoogle();
+                    console.log("Connexion Google réussie:", user);
+                    setIsAuthenticated(true);
+                    navigate("/inventory");
+                  } catch (err: any) {
+                    console.error("Erreur complète:", err);
+                    const errorMessage = err?.message || err?.toString() || "Erreur lors de la connexion avec Google";
+                    setError(errorMessage);
+                  } finally {
+                    setIsLoadingGoogle(false);
+                  }
                 }}
+                disabled={isLoadingGoogle}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -249,7 +278,7 @@ export default function Home() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                {t.home.continueWithGoogle}
+                {isLoadingGoogle ? "Connexion..." : t.home.continueWithGoogle}
               </Button>
 
               <Button

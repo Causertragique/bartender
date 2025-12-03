@@ -1,19 +1,31 @@
 import { RequestHandler } from "express";
 import db from "../database";
-import { getUserId } from "../middleware/auth";
+import { getUserId } from "../middleware/auth.ts";
+import { callOpenAI, callOpenAIJSON } from "../services/openai";
 
 /**
- * GET /api/analytics/sales-prediction - Prédiction des ventes pour les prochains jours
+ * GET /api/analytics/sales-prediction - Prédiction des ventes pour les prochains jours avec IA
  */
 export const getSalesPrediction: RequestHandler = async (req, res) => {
   try {
+    console.log("[Sales Prediction] Requête reçue, headers:", {
+      authorization: !!req.headers.authorization,
+      "x-username": req.headers["x-username"],
+      "x-user-id": req.headers["x-user-id"],
+    });
     const userId = getUserId(req);
+    console.log("[Sales Prediction] UserId extrait:", userId);
     if (!userId) {
+      console.warn("[Sales Prediction] Aucun userId trouvé, retour 401");
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { days = 7 } = req.query;
+    const { days = 7, region: regionParam } = req.query;
     const daysCount = parseInt(days as string) || 7;
+
+    // Récupérer la région depuis les paramètres de la requête ou utiliser une valeur par défaut
+    // La région peut être passée depuis le frontend qui lit les paramètres depuis localStorage
+    const region = (regionParam as string) || "quebec";
 
     // Récupérer les ventes des 30 derniers jours pour l'analyse
     const thirtyDaysAgo = new Date();
@@ -25,6 +37,9 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
         "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
       )
       .all(dateStr) as any[];
+
+    // Récupérer les produits pour analyser les meilleurs vendeurs
+    const products = db.prepare("SELECT * FROM products").all() as any[];
 
     // Calculer la moyenne quotidienne
     const dailySales: Record<string, number> = {};
@@ -38,7 +53,97 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
       ? dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length
       : 0;
 
-    // Prédiction simple basée sur la moyenne avec tendance
+    // Analyser les meilleurs produits vendus
+    const productSales: Record<string, { quantity: number; revenue: number }> = {};
+    sales.forEach((sale) => {
+      const productId = sale.productId || sale.recipeId;
+      if (productId) {
+        if (!productSales[productId]) {
+          productSales[productId] = { quantity: 0, revenue: 0 };
+        }
+        productSales[productId].quantity += sale.quantity;
+        productSales[productId].revenue += sale.price * sale.quantity;
+      }
+    });
+
+    const topProducts = Object.entries(productSales)
+      .map(([id, data]) => {
+        const product = products.find(p => p.id === id);
+        return {
+          name: product?.name || "Produit inconnu",
+          category: product?.category || "other",
+          quantity: data.quantity,
+          revenue: data.revenue,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Utiliser OpenAI pour générer des prédictions intelligentes avec contexte régional
+    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant, génère des prédictions de ventes pour les ${daysCount} prochains jours.
+
+Contexte:
+- Région: ${region}
+- Revenu quotidien moyen actuel: $${avgDailyRevenue.toFixed(2)}
+- Nombre de jours de données: ${dailyValues.length}
+- Meilleurs produits vendus: ${topProducts.map(p => `${p.name} (${p.category})`).join(", ")}
+
+Génère des prédictions réalistes en tenant compte:
+1. Les tendances régionales (ex: vendredis/samedis plus chargés au Québec)
+2. Les meilleurs produits identifiés
+3. Les saisons et événements locaux
+4. Les habitudes de consommation régionales
+
+Réponds en JSON:
+{
+  "predictions": [
+    {
+      "date": "YYYY-MM-DD",
+      "predictedRevenue": 123.45,
+      "confidence": 0.85,
+      "reason": "explication courte"
+    }
+  ],
+  "topSellers": [
+    {
+      "product": "nom du produit",
+      "reason": "pourquoi il sera populaire"
+    }
+  ],
+  "trend": 5.2
+}`;
+
+    console.log("[Sales Prediction] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
+    const aiResponse = await callOpenAIJSON<{
+      predictions: Array<{
+        date: string;
+        predictedRevenue: number;
+        confidence: number;
+        reason?: string;
+      }>;
+      topSellers?: Array<{
+        product: string;
+        reason: string;
+      }>;
+      trend: number;
+    }>(aiPrompt, "Tu es un expert en analyse de ventes et prédictions pour l'industrie de la restauration et des bars, avec une connaissance approfondie des tendances régionales au Canada.");
+
+    console.log("[Sales Prediction] Réponse OpenAI:", aiResponse ? "Reçue" : "Aucune réponse");
+
+    // Utiliser les prédictions IA si disponibles, sinon fallback sur calculs basiques
+    if (aiResponse && aiResponse.predictions && aiResponse.predictions.length > 0) {
+      console.log("[Sales Prediction] Utilisation des prédictions IA:", aiResponse.predictions.length, "prédictions");
+      return res.json({
+        predictions: aiResponse.predictions.slice(0, daysCount),
+        averageDailyRevenue: Math.round(avgDailyRevenue * 100) / 100,
+        trend: aiResponse.trend || Math.round(((dailyValues[0] || 0) - (dailyValues[dailyValues.length - 1] || 0)) / dailyValues.length * 100) / 100,
+        dataPoints: dailyValues.length,
+        topSellers: aiResponse.topSellers || [],
+        region: region,
+      });
+    }
+
+    // Fallback sur les calculs basiques
     const trend = dailyValues.length > 1
       ? (dailyValues[0] - dailyValues[dailyValues.length - 1]) / dailyValues.length
       : 0;
@@ -51,7 +156,7 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
       predictions.push({
         date: date.toISOString().split("T")[0],
         predictedRevenue: Math.round(predictedRevenue * 100) / 100,
-        confidence: dailyValues.length > 7 ? 0.85 : 0.65, // Plus de confiance avec plus de données
+        confidence: dailyValues.length > 7 ? 0.85 : 0.65,
       });
     }
 
@@ -60,12 +165,19 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
       averageDailyRevenue: Math.round(avgDailyRevenue * 100) / 100,
       trend: Math.round(trend * 100) / 100,
       dataPoints: dailyValues.length,
+      topSellers: topProducts.slice(0, 3).map(p => ({
+        product: p.name,
+        reason: `Produit populaire dans la catégorie ${p.category}`,
+      })),
+      region: region,
     });
   } catch (error: any) {
-    console.error("Error getting sales prediction:", error);
+    console.error("[Sales Prediction] Erreur complète:", error);
+    console.error("[Sales Prediction] Stack trace:", error.stack);
     res.status(500).json({
       error: "Failed to get sales prediction",
-      message: error.message,
+      message: error.message || "Erreur inconnue",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -401,8 +513,15 @@ export const getPriceOptimization: RequestHandler = async (req, res) => {
  */
 export const getInsights: RequestHandler = async (req, res) => {
   try {
+    console.log("[Insights] Requête reçue, headers:", {
+      authorization: !!req.headers.authorization,
+      "x-username": req.headers["x-username"],
+      "x-user-id": req.headers["x-user-id"],
+    });
     const userId = getUserId(req);
+    console.log("[Insights] UserId extrait:", userId);
     if (!userId) {
+      console.warn("[Insights] Aucun userId trouvé, retour 401");
       return res.status(401).json({ error: "Authentication required" });
     }
 
@@ -441,9 +560,60 @@ export const getInsights: RequestHandler = async (req, res) => {
     const outOfStock = products.filter((p) => p.quantity === 0);
     const lowStock = products.filter((p) => p.quantity > 0 && p.quantity <= 5);
 
-    // Générer des recommandations intelligentes
-    const insights = [];
+    // Générer des recommandations intelligentes avec OpenAI si disponible
+    const dataSummary = {
+      totalRevenue,
+      totalSales,
+      avgSaleValue,
+      topProduct: topProduct?.name || "Aucun",
+      topProductSales: topProductId ? productSales[topProductId] : 0,
+      outOfStockCount: outOfStock.length,
+      lowStockCount: lowStock.length,
+      productCount: products.length,
+    };
 
+    // Essayer d'obtenir des insights IA
+    const aiPrompt = `En tant qu'expert en analyse de données pour bar/restaurant, génère 4 insights pertinents basés sur ces données:
+
+Revenus totaux (30 jours): $${dataSummary.totalRevenue.toFixed(2)}
+Nombre de ventes: ${dataSummary.totalSales}
+Valeur moyenne par transaction: $${dataSummary.avgSaleValue.toFixed(2)}
+Produit le plus vendu: ${dataSummary.topProduct} (${dataSummary.topProductSales} unités)
+Produits en rupture: ${dataSummary.outOfStockCount}
+Produits à stock faible: ${dataSummary.lowStockCount}
+Total produits: ${dataSummary.productCount}
+
+Génère des insights actionnables et pertinents. Réponds en JSON:
+{
+  "insights": [
+    {
+      "type": "revenue|product|alert|warning",
+      "title": "Titre court",
+      "value": "Valeur ou chiffre",
+      "trend": "positive|negative|warning|neutral",
+      "description": "Description détaillée et actionnable"
+    }
+  ]
+}`;
+
+    console.log("[Insights] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
+    const aiInsights = await callOpenAIJSON<{ insights: Array<{
+      type: string;
+      title: string;
+      value: string;
+      trend: string;
+      description: string;
+    }> }>(aiPrompt, "Tu es un expert en analyse de données pour l'industrie de la restauration et des bars.");
+
+    console.log("[Insights] Réponse OpenAI:", aiInsights ? `${aiInsights.insights?.length || 0} insights` : "Aucune réponse");
+
+    // Utiliser les insights IA si disponibles, sinon fallback sur les insights basiques
+    let insights = [];
+    if (aiInsights && aiInsights.insights && aiInsights.insights.length > 0) {
+      console.log("[Insights] Utilisation des insights IA");
+      insights = aiInsights.insights;
+    } else {
+      // Fallback sur les insights basiques
     if (totalRevenue > 0) {
       insights.push({
         type: "revenue",
@@ -453,7 +623,6 @@ export const getInsights: RequestHandler = async (req, res) => {
         description: `Moyenne de $${Math.round(avgSaleValue * 100) / 100} par transaction`,
       });
     }
-
 
     if (topProduct) {
       insights.push({
@@ -483,6 +652,7 @@ export const getInsights: RequestHandler = async (req, res) => {
         trend: "warning",
         description: "Surveillez ces produits de près",
       });
+      }
     }
 
     res.json({
@@ -496,10 +666,12 @@ export const getInsights: RequestHandler = async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error("Error getting insights:", error);
+    console.error("[Insights] Erreur complète:", error);
+    console.error("[Insights] Stack trace:", error.stack);
     res.status(500).json({
       error: "Failed to get insights",
-      message: error.message,
+      message: error.message || "Erreur inconnue",
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -1574,3 +1746,103 @@ function getTaxRateForRegion(region: string): number {
   };
   return taxRates[region] || 0;
 }
+
+/**
+ * GET /api/analytics/food-wine-pairing - Recommandations d'accords mets-vin avec IA
+ */
+export const getFoodWinePairing: RequestHandler = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    // Récupérer les produits depuis SQLite
+    const products = db.prepare("SELECT * FROM products").all() as any[];
+    
+    // Filtrer les vins
+    const wines = products.filter(p => 
+      p.category === "wine" || 
+      (p.name && p.name.toLowerCase().includes("vin"))
+    );
+
+    // Si pas de vins, retourner des suggestions génériques
+    if (wines.length === 0) {
+      return res.json({
+        pairings: [
+          {
+            food: "Steak grillé",
+            wine: "Cabernet Sauvignon",
+            reason: "Le tannin du Cabernet Sauvignon complète parfaitement la richesse du steak",
+            description: "Un accord classique et intemporel"
+          },
+          {
+            food: "Saumon",
+            wine: "Pinot Grigio",
+            reason: "La fraîcheur du Pinot Grigio équilibre la texture du saumon",
+            description: "Accord délicat et raffiné"
+          }
+        ]
+      });
+    }
+
+    // Utiliser OpenAI pour générer des accords personnalisés
+    const wineList = wines.map(w => w.name).join(", ");
+    const prompt = `En tant que sommelier expert, recommande 5 accords mets-vin pour un bar/restaurant. 
+    
+Vins disponibles: ${wineList}
+
+Pour chaque accord, fournis:
+- Le plat (ex: steak, saumon, fromage, etc.)
+- Le vin recommandé (choisis parmi la liste)
+- La raison de l'accord
+- Une brève description
+
+Réponds en JSON avec ce format:
+{
+  "pairings": [
+    {
+      "food": "nom du plat",
+      "wine": "nom du vin",
+      "reason": "explication de l'accord",
+      "description": "description courte"
+    }
+  ]
+}`;
+
+    console.log("[Food-Wine Pairing] Appel OpenAI avec prompt:", prompt.substring(0, 200) + "...");
+    const aiResponse = await callOpenAIJSON<{ pairings: Array<{
+      food: string;
+      wine: string;
+      reason: string;
+      description: string;
+    }> }>(prompt, "Tu es un sommelier expert avec une connaissance approfondie des accords mets-vin.");
+
+    console.log("[Food-Wine Pairing] Réponse OpenAI:", aiResponse ? `${aiResponse.pairings?.length || 0} accords` : "Aucune réponse");
+
+    if (aiResponse && aiResponse.pairings) {
+      console.log("[Food-Wine Pairing] Utilisation des accords IA");
+      return res.json({
+        pairings: aiResponse.pairings.slice(0, 5)
+      });
+    }
+
+    // Fallback si OpenAI ne répond pas
+    return res.json({
+      pairings: [
+        {
+          food: "Steak grillé",
+          wine: wines[0]?.name || "Vin rouge",
+          reason: "Le tannin du vin rouge complète la richesse du steak",
+          description: "Accord classique"
+        }
+      ]
+    });
+  } catch (error: any) {
+    console.error("Error getting food-wine pairing:", error);
+    res.status(500).json({
+      error: "Failed to get food-wine pairing",
+      message: error.message,
+    });
+  }
+};

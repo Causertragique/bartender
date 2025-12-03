@@ -788,7 +788,7 @@ export default function Sales() {
         {/* Page Header */}
         <div className="space-y-3 sm:space-y-4">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{t.sales.title}</h2>
+            <h2 className="text-2xl sm:text-2xl font-bold text-foreground">{t.sales.title}</h2>
             <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
               {t.sales.subtitle}
             </p>

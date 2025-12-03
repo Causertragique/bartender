@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/contexts/I18nContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import NotificationBanner from "./components/NotificationBanner";
 
 // Lazy load pages for code splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -40,6 +41,7 @@ export default function App() {
                 v7_relativeSplatPath: true,
               }}
             >
+              <NotificationBanner />
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/" element={<Home />} />

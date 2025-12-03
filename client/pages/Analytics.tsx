@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useI18n } from "@/contexts/I18nContext";
 import {
@@ -16,20 +16,15 @@ import {
   Target,
   Zap,
   Wine,
-  ChevronLeft,
-  ChevronRight,
   Brain,
   ShoppingCart,
   TrendingDown as TrendingDownIcon,
-  Percent,
   Eye,
   Gift,
-  AlertCircle,
+  UtensilsCrossed,
   Menu,
   Calendar,
-  DollarSign as DollarSignIcon,
-  FileText,
-  Receipt,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,34 +82,27 @@ type AITool =
   | "reorder"
   | "profitability"
   | "price-optimization"
-  | "recipe-recommendations"
-  | "anomaly-detection"
+  | "food-wine-pairing"
   | "promotion-recommendations"
   | "stockout-prediction"
   | "menu-optimization"
   | "temporal-trends"
   | "dynamic-pricing"
-  | "revenue-forecast"
-  | "sales-report"
-  | "tax-report";
+  | "revenue-forecast";
 
 export default function Analytics() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedTool, setSelectedTool] = useState<AITool>("insights");
-  
-  // Optimize sidebar toggle to avoid forced reflows
-  const handleSidebarToggle = () => {
-    // Use requestAnimationFrame to batch DOM updates
-    requestAnimationFrame(() => {
-      setSidebarCollapsed(prev => !prev);
-    });
-  };
   const [salesPrediction, setSalesPrediction] = useState<{
     predictions: SalesPrediction[];
     averageDailyRevenue: number;
     trend: number;
+    topSellers?: Array<{
+      product: string;
+      reason: string;
+    }>;
+    region?: string;
   } | null>(null);
   const [reorderRecommendations, setReorderRecommendations] = useState<
     ReorderRecommendation[]
@@ -132,28 +120,56 @@ export default function Analytics() {
     insights: Insight[];
     summary: any;
   } | null>(null);
-  const [recipeRecommendations, setRecipeRecommendations] = useState<any>(null);
-  const [anomalies, setAnomalies] = useState<any>(null);
+  const [foodWinePairing, setFoodWinePairing] = useState<any>(null);
   const [promotionRecommendations, setPromotionRecommendations] = useState<any>(null);
   const [stockoutPredictions, setStockoutPredictions] = useState<any>(null);
   const [menuOptimization, setMenuOptimization] = useState<any>(null);
   const [temporalTrends, setTemporalTrends] = useState<any>(null);
   const [dynamicPricing, setDynamicPricing] = useState<any>(null);
   const [revenueForecast, setRevenueForecast] = useState<any>(null);
-  const [salesReport, setSalesReport] = useState<any>(null);
-  const [taxReport, setTaxReport] = useState<any>(null);
+  
+  // États de chargement individuels pour chaque outil
+  const [loadingTools, setLoadingTools] = useState<Record<AITool, boolean>>({
+    "insights": false,
+    "sales-prediction": false,
+    "reorder": false,
+    "profitability": false,
+    "price-optimization": false,
+    "food-wine-pairing": false,
+    "promotion-recommendations": false,
+    "stockout-prediction": false,
+    "menu-optimization": false,
+    "temporal-trends": false,
+    "dynamic-pricing": false,
+    "revenue-forecast": false,
+  });
+
+  // États d'erreur pour chaque outil
+  const [errors, setErrors] = useState<Record<AITool, string | null>>({
+    "insights": null,
+    "sales-prediction": null,
+    "reorder": null,
+    "profitability": null,
+    "price-optimization": null,
+    "food-wine-pairing": null,
+    "promotion-recommendations": null,
+    "stockout-prediction": null,
+    "menu-optimization": null,
+    "temporal-trends": null,
+    "dynamic-pricing": null,
+    "revenue-forecast": null,
+  });
 
   const getAuthToken = () => {
     return localStorage.getItem("bartender-auth");
   };
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      const token = getAuthToken();
+  const getHeaders = (): HeadersInit => {
       const headers: HeadersInit = {
         "Content-Type": "application/json",
       };
+    const token = getAuthToken();
+    console.log("[Analytics] Token présent:", !!token);
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
         const username = localStorage.getItem("bartender-username");
@@ -161,120 +177,300 @@ export default function Analytics() {
           headers["x-username"] = username;
         }
       }
+    console.log("[Analytics] Headers:", Object.keys(headers));
+    return headers;
+  };
 
-      try {
-        // Fetch all analytics data in parallel
-        const [
-          predictionRes,
-          reorderRes,
-          profitabilityRes,
-          priceRes,
-          insightsRes,
-          recipeRes,
-          anomalyRes,
-          promotionRes,
-          stockoutRes,
-          menuRes,
-          temporalRes,
-          dynamicRes,
-          forecastRes,
-          salesReportRes,
-          taxReportRes,
-        ] = await Promise.all([
-          fetch("/api/analytics/sales-prediction?days=7", { headers }),
-          fetch("/api/analytics/reorder-recommendations", { headers }),
-          fetch("/api/analytics/profitability", { headers }),
-          fetch("/api/analytics/price-optimization", { headers }),
-          fetch("/api/analytics/insights", { headers }),
-          fetch("/api/analytics/recipe-recommendations", { headers }),
-          fetch("/api/analytics/anomaly-detection", { headers }),
-          fetch("/api/analytics/promotion-recommendations", { headers }),
-          fetch("/api/analytics/stockout-prediction", { headers }),
-          fetch("/api/analytics/menu-optimization", { headers }),
-          fetch("/api/analytics/temporal-trends", { headers }),
-          fetch("/api/analytics/dynamic-pricing", { headers }),
-          fetch("/api/analytics/revenue-forecast", { headers }),
-          fetch("/api/analytics/sales-report", { headers }),
-          fetch("/api/analytics/tax-report", { headers }),
-        ]);
-
-        if (predictionRes.ok) {
-          const data = await predictionRes.json();
+  // Fonctions pour déclencher chaque appel API
+  const fetchSalesPrediction = async () => {
+    console.log("[Analytics] fetchSalesPrediction appelé");
+    setLoadingTools(prev => ({ ...prev, "sales-prediction": true }));
+    setErrors(prev => ({ ...prev, "sales-prediction": null }));
+    try {
+      const region = (localStorage.getItem("bartender-settings") ? JSON.parse(localStorage.getItem("bartender-settings")!).taxRegion : "quebec") || "quebec";
+      console.log("[Analytics] Envoi requête à /api/analytics/sales-prediction avec région:", region);
+      const res = await fetch(`/api/analytics/sales-prediction?days=7&region=${encodeURIComponent(region)}`, { headers: getHeaders() });
+      console.log("[Analytics] Réponse reçue:", res.status, res.ok);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.predictions || data.averageDailyRevenue !== undefined)) {
           setSalesPrediction(data);
+        } else {
+          setErrors(prev => ({ ...prev, "sales-prediction": "Aucune donnée générée. Vérifiez que vous avez des ventes dans votre inventaire." }));
         }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: `Erreur ${res.status} du serveur` }));
+        console.error("[Analytics] Erreur serveur:", errorData);
+        setErrors(prev => ({ ...prev, "sales-prediction": errorData.error || errorData.message || `Erreur ${res.status} lors de la génération` }));
+      }
+    } catch (error: any) {
+      console.error("Error fetching sales prediction:", error);
+      setErrors(prev => ({ ...prev, "sales-prediction": error.message || "Erreur de connexion" }));
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "sales-prediction": false }));
+    }
+  };
 
-        if (reorderRes.ok) {
-          const data = await reorderRes.json();
+  const fetchReorderRecommendations = async () => {
+    setLoadingTools(prev => ({ ...prev, "reorder": true }));
+    try {
+      const res = await fetch("/api/analytics/reorder-recommendations", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setReorderRecommendations(data.recommendations || []);
         }
+    } catch (error) {
+      console.error("Error fetching reorder recommendations:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "reorder": false }));
+    }
+  };
 
-        if (profitabilityRes.ok) {
-          const data = await profitabilityRes.json();
+  const fetchProfitability = async () => {
+    setLoadingTools(prev => ({ ...prev, "profitability": true }));
+    try {
+      const res = await fetch("/api/analytics/profitability", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setProfitability({
             topProducts: data.topProducts || [],
             totalRevenue: data.totalRevenue || 0,
             totalProfit: data.totalProfit || 0,
           });
         }
+    } catch (error) {
+      console.error("Error fetching profitability:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "profitability": false }));
+    }
+  };
 
-        if (priceRes.ok) {
-          const data = await priceRes.json();
+  const fetchPriceOptimization = async () => {
+    setLoadingTools(prev => ({ ...prev, "price-optimization": true }));
+    try {
+      const res = await fetch("/api/analytics/price-optimization", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setPriceOptimization(data);
         }
+    } catch (error) {
+      console.error("Error fetching price optimization:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "price-optimization": false }));
+    }
+  };
 
-        if (insightsRes.ok) {
-          const data = await insightsRes.json();
+  const fetchInsights = async () => {
+    console.log("[Analytics] fetchInsights appelé");
+    setLoadingTools(prev => ({ ...prev, "insights": true }));
+    setErrors(prev => ({ ...prev, "insights": null }));
+    try {
+      console.log("[Analytics] Envoi requête à /api/analytics/insights");
+      const res = await fetch("/api/analytics/insights", { headers: getHeaders() });
+      console.log("[Analytics] Réponse reçue:", res.status, res.ok);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.insights && data.insights.length > 0) {
           setInsights(data);
+        } else {
+          setErrors(prev => ({ ...prev, "insights": "Aucun insight généré. Vérifiez que vous avez des ventes et que votre clé OpenAI est configurée dans .env" }));
         }
+      } else {
+        const errorData = await res.json().catch(() => ({ error: `Erreur ${res.status} du serveur` }));
+        console.error("[Analytics] Erreur serveur:", errorData);
+        setErrors(prev => ({ ...prev, "insights": errorData.error || errorData.message || `Erreur ${res.status} lors de la génération` }));
+      }
+    } catch (error: any) {
+      console.error("Error fetching insights:", error);
+      setErrors(prev => ({ ...prev, "insights": error.message || "Erreur de connexion" }));
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "insights": false }));
+    }
+  };
 
-        if (recipeRes.ok) {
-          const data = await recipeRes.json();
-          setRecipeRecommendations(data);
+  const fetchFoodWinePairing = async () => {
+    console.log("[Analytics] fetchFoodWinePairing appelé");
+    setLoadingTools(prev => ({ ...prev, "food-wine-pairing": true }));
+    setErrors(prev => ({ ...prev, "food-wine-pairing": null }));
+    try {
+      console.log("[Analytics] Envoi requête à /api/analytics/food-wine-pairing");
+      const res = await fetch("/api/analytics/food-wine-pairing", { headers: getHeaders() });
+      console.log("[Analytics] Réponse reçue:", res.status, res.ok);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.pairings && data.pairings.length > 0) {
+          setFoodWinePairing(data);
+        } else {
+          setErrors(prev => ({ ...prev, "food-wine-pairing": "Aucun accord généré. Ajoutez des vins à votre inventaire et vérifiez que votre clé OpenAI est configurée dans .env" }));
         }
-
-        if (anomalyRes.ok) {
-          const data = await anomalyRes.json();
-          setAnomalies(data);
+      } else {
+        const errorData = await res.json().catch(() => ({ error: `Erreur ${res.status} du serveur` }));
+        console.error("[Analytics] Erreur serveur:", errorData);
+        setErrors(prev => ({ ...prev, "food-wine-pairing": errorData.error || errorData.message || `Erreur ${res.status} lors de la génération` }));
         }
+    } catch (error: any) {
+      console.error("Error fetching food-wine pairing:", error);
+      setErrors(prev => ({ ...prev, "food-wine-pairing": error.message || "Erreur de connexion" }));
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "food-wine-pairing": false }));
+    }
+  };
 
-        if (promotionRes.ok) {
-          const data = await promotionRes.json();
+  const fetchPromotionRecommendations = async () => {
+    setLoadingTools(prev => ({ ...prev, "promotion-recommendations": true }));
+    try {
+      const res = await fetch("/api/analytics/promotion-recommendations", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setPromotionRecommendations(data);
         }
+    } catch (error) {
+      console.error("Error fetching promotion recommendations:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "promotion-recommendations": false }));
+    }
+  };
 
-        if (stockoutRes.ok) {
-          const data = await stockoutRes.json();
+  const fetchStockoutPrediction = async () => {
+    setLoadingTools(prev => ({ ...prev, "stockout-prediction": true }));
+    try {
+      const res = await fetch("/api/analytics/stockout-prediction", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setStockoutPredictions(data);
         }
+    } catch (error) {
+      console.error("Error fetching stockout prediction:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "stockout-prediction": false }));
+    }
+  };
 
-        if (menuRes.ok) {
-          const data = await menuRes.json();
+  const fetchMenuOptimization = async () => {
+    setLoadingTools(prev => ({ ...prev, "menu-optimization": true }));
+    try {
+      const res = await fetch("/api/analytics/menu-optimization", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setMenuOptimization(data);
         }
+    } catch (error) {
+      console.error("Error fetching menu optimization:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "menu-optimization": false }));
+    }
+  };
 
-        if (temporalRes.ok) {
-          const data = await temporalRes.json();
+  const fetchTemporalTrends = async () => {
+    setLoadingTools(prev => ({ ...prev, "temporal-trends": true }));
+    try {
+      const res = await fetch("/api/analytics/temporal-trends", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setTemporalTrends(data);
         }
+    } catch (error) {
+      console.error("Error fetching temporal trends:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "temporal-trends": false }));
+    }
+  };
 
-        if (dynamicRes.ok) {
-          const data = await dynamicRes.json();
+  const fetchDynamicPricing = async () => {
+    setLoadingTools(prev => ({ ...prev, "dynamic-pricing": true }));
+    try {
+      const res = await fetch("/api/analytics/dynamic-pricing", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setDynamicPricing(data);
         }
+    } catch (error) {
+      console.error("Error fetching dynamic pricing:", error);
+    } finally {
+      setLoadingTools(prev => ({ ...prev, "dynamic-pricing": false }));
+    }
+  };
 
-        if (forecastRes.ok) {
-          const data = await forecastRes.json();
+  const fetchRevenueForecast = async () => {
+    setLoadingTools(prev => ({ ...prev, "revenue-forecast": true }));
+    try {
+      const res = await fetch("/api/analytics/revenue-forecast", { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
           setRevenueForecast(data);
         }
       } catch (error) {
-        console.error("Error fetching analytics:", error);
+      console.error("Error fetching revenue forecast:", error);
       } finally {
-        setLoading(false);
+      setLoadingTools(prev => ({ ...prev, "revenue-forecast": false }));
       }
     };
 
-    fetchAnalytics();
-  }, []);
+  // Mapping des fonctions de fetch par outil
+  const fetchFunctions: Record<AITool, () => Promise<void>> = {
+    "insights": fetchInsights,
+    "sales-prediction": fetchSalesPrediction,
+    "reorder": fetchReorderRecommendations,
+    "profitability": fetchProfitability,
+    "price-optimization": fetchPriceOptimization,
+    "food-wine-pairing": fetchFoodWinePairing,
+    "promotion-recommendations": fetchPromotionRecommendations,
+    "stockout-prediction": fetchStockoutPrediction,
+    "menu-optimization": fetchMenuOptimization,
+    "temporal-trends": fetchTemporalTrends,
+    "dynamic-pricing": fetchDynamicPricing,
+    "revenue-forecast": fetchRevenueForecast,
+  };
+
+  // Vérifier que toutes les fonctions sont définies
+  console.log("[Analytics] Fonctions disponibles:", Object.keys(fetchFunctions));
+
+  // Composant helper pour afficher un état vide avec bouton
+  const EmptyStateWithButton = ({ 
+    icon: Icon, 
+    message, 
+    toolId, 
+    buttonLabel 
+  }: { 
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; 
+    message: string; 
+    toolId: AITool; 
+    buttonLabel: string;
+  }) => (
+    <Card className="border-2 border-foreground/20">
+      <CardContent className="py-12 text-center">
+        <Icon className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+        <p className="text-muted-foreground mb-4">{message}</p>
+        <Button onClick={() => {
+          console.log("[Analytics] Bouton cliqué pour:", toolId);
+          console.log("[Analytics] Fonction disponible:", !!fetchFunctions[toolId]);
+          if (fetchFunctions[toolId]) {
+            try {
+              fetchFunctions[toolId]();
+            } catch (error) {
+              console.error("[Analytics] Erreur lors de l'appel de la fonction:", error);
+              setErrors(prev => ({ ...prev, [toolId]: "Erreur lors de l'appel de la fonction" }));
+            }
+          } else {
+            console.error("[Analytics] Fonction non trouvée pour:", toolId);
+            setErrors(prev => ({ ...prev, [toolId]: "Fonction non disponible" }));
+          }
+        }} disabled={loadingTools[toolId]}>
+          {loadingTools[toolId] ? (
+            <>
+              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+              Génération...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4 mr-2" />
+              {buttonLabel}
+            </>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
   const getPriorityColor = (priority: number) => {
     if (priority === 3) return "text-red-600 dark:text-red-400";
@@ -300,17 +496,14 @@ export default function Analytics() {
     { id: "sales-prediction", label: "Prédiction des ventes", icon: TrendingUp },
     { id: "reorder", label: "Réapprovisionnement", icon: ShoppingCart },
     { id: "profitability", label: "Rentabilité", icon: DollarSign },
-    { id: "price-optimization", label: "Optimisation des prix", icon: Percent },
-    { id: "recipe-recommendations", label: "Recommandations de recettes", icon: Wine },
-    { id: "anomaly-detection", label: "Détection d'anomalies", icon: AlertCircle },
+    { id: "price-optimization", label: "Optimisation des prix", icon: Wine },
+    { id: "food-wine-pairing", label: "Accord mets-vin", icon: UtensilsCrossed },
     { id: "promotion-recommendations", label: "Promotions", icon: Gift },
     { id: "stockout-prediction", label: "Rupture de stock", icon: AlertTriangle },
     { id: "menu-optimization", label: "Optimisation du menu", icon: Menu },
     { id: "temporal-trends", label: "Tendances temporelles", icon: Clock },
     { id: "dynamic-pricing", label: "Prix dynamique", icon: DollarSign },
     { id: "revenue-forecast", label: "Prévisions de revenus", icon: BarChart3 },
-    { id: "sales-report", label: "Rapport de ventes", icon: FileText },
-    { id: "tax-report", label: "Rapport de taxes", icon: Receipt },
   ];
 
   return (
@@ -320,31 +513,16 @@ export default function Analytics() {
         <div
           className={cn(
             "bg-card rounded-lg flex flex-col flex-shrink-0",
-            "transition-[width] duration-300 ease-in-out will-change-[width]",
             "h-fit", // S'adapte à la hauteur du contenu
-            sidebarCollapsed ? "w-16" : "w-64"
+            "w-64"
           )}
         >
           {/* Sidebar Header */}
-          <div className="p-4 border-b-2 border-foreground/20 flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-foreground">Outils IA</span>
+          <div className="p-4 border-b-2 border-foreground/20">
+            <div className="flex items-center gap-2 mt-2">
+              <Brain className="h-7 w-7 text-primary" />
+              <h2 className="text-2xl sm:text-2xl font-bold text-foreground">Outils IA</h2>
               </div>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSidebarToggle}
-              className="h-8 w-8 ml-auto text-red-900 hover:text-red-900 hover:bg-red-900/10 dark:text-red-200 dark:hover:text-red-200 dark:hover:bg-red-900/20"
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )}
-            </Button>
         </div>
 
           {/* Tools List */}
@@ -355,7 +533,6 @@ export default function Analytics() {
                   key={tool.id}
                   onClick={() => {
                     setSelectedTool(tool.id);
-                    setSidebarCollapsed(true);
                   }}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium",
@@ -363,17 +540,9 @@ export default function Analytics() {
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground hover:bg-secondary"
                   )}
-                  title={sidebarCollapsed ? tool.label : undefined}
                 >
-                  <div className={cn(
-                    "flex items-center justify-center",
-                    sidebarCollapsed ? "w-full" : ""
-                  )}>
-                    <tool.icon className={cn(
-                      sidebarCollapsed ? "h-6 w-6" : "h-4 w-4"
-                    )} />
-                  </div>
-                  {!sidebarCollapsed && <span>{tool.label}</span>}
+                  <tool.icon className="h-4 w-4" />
+                  <span>{tool.label}</span>
                 </button>
               ))}
             </div>
@@ -381,29 +550,40 @@ export default function Analytics() {
           </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-6 pt-16">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                <Sparkles className="h-8 w-8 text-primary" />
-                {t.analytics.title}
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                {t.analytics.subtitle} • Insights IA pour maximiser vos profits
-            </p>
-          </div>
         </div>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground mt-4">Chargement des analyses...</p>
-          </div>
-        ) : selectedTool === "insights" ? (
+        {selectedTool === "insights" ? (
           <>
             {/* Insights Cards */}
-            {insights && insights.insights.length > 0 ? (
+            {!insights ? (
+              <Card className="border-2 border-foreground/20">
+                <CardContent className="py-12 text-center">
+                  <Lightbulb className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground mb-4">
+                    Cliquez sur le bouton pour générer des insights IA.
+                  </p>
+                  <Button onClick={() => {
+                    console.log("[Analytics] Bouton insights cliqué directement");
+                    fetchInsights();
+                  }} disabled={loadingTools["insights"]}>
+                    {loadingTools["insights"] ? (
+                      <>
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                        Génération...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Générer des insights
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : insights.insights.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {insights.insights.map((insight, index) => (
                   <Card
@@ -443,12 +623,25 @@ export default function Analytics() {
         ) : selectedTool === "sales-prediction" ? (
           <>
             {/* Sales Prediction */}
-            {salesPrediction ? (
+            {!salesPrediction ? (
+              <EmptyStateWithButton
+                icon={TrendingUp}
+                message="Cliquez sur le bouton pour générer des prédictions de ventes."
+                toolId="sales-prediction"
+                buttonLabel="Générer des prédictions"
+              />
+            ) : (
+                    <div className="space-y-4">
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
                     Prédiction des ventes (7 prochains jours)
+                            {salesPrediction.region && (
+                              <span className="text-sm font-normal text-muted-foreground">
+                                • {salesPrediction.region}
+                              </span>
+                            )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -519,21 +712,51 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
+
+                      {/* Meilleurs vendeurs prédits */}
+                      {salesPrediction.topSellers && salesPrediction.topSellers.length > 0 && (
               <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Pas encore de données de prédiction disponibles.
-                  </p>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Package className="h-5 w-5 text-primary" />
+                              Meilleurs vendeurs prédits dans la région
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {salesPrediction.topSellers.map((seller, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-start justify-between p-3 bg-secondary/30 rounded-lg"
+                                >
+                                  <div className="flex-1">
+                                    <div className="font-semibold text-foreground mb-1">
+                                      {seller.product}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {seller.reason}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                 </CardContent>
               </Card>
+                      )}
+                    </div>
             )}
           </>
         ) : selectedTool === "reorder" ? (
           <>
             {/* Reorder Recommendations */}
-            {reorderRecommendations.length > 0 ? (
+            {reorderRecommendations.length === 0 ? (
+              <EmptyStateWithButton
+                icon={ShoppingCart}
+                message="Cliquez sur le bouton pour générer des recommandations de réapprovisionnement."
+                toolId="reorder"
+                buttonLabel="Générer des recommandations"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -589,21 +812,19 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune recommandation de réapprovisionnement pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "profitability" ? (
           <>
             {/* Profitability Analysis */}
-            {profitability && profitability.topProducts.length > 0 ? (
+            {!profitability || profitability.topProducts.length === 0 ? (
+              <EmptyStateWithButton
+                icon={DollarSign}
+                message="Cliquez sur le bouton pour analyser la rentabilité des produits."
+                toolId="profitability"
+                buttonLabel="Analyser la rentabilité"
+              />
+            ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="border-2 border-foreground/20">
                   <CardHeader>
@@ -677,128 +898,98 @@ export default function Analytics() {
                   </CardContent>
                 </Card>
               </div>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Pas encore de données de rentabilité disponibles.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "price-optimization" ? (
           <>
             {/* Price Optimization */}
-            {priceOptimization && priceOptimization.recommendations.length > 0 ? (
+            {!priceOptimization || !priceOptimization.recommendations || priceOptimization.recommendations.length === 0 ? (
+              <EmptyStateWithButton
+                icon={Wine}
+                message="Cliquez sur le bouton pour générer des recommandations d'optimisation des prix."
+                toolId="price-optimization"
+                buttonLabel="Optimiser les prix"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Wine className="h-5 w-5 text-primary" />
-                    Recommandations de recettes/cocktails
+                    Optimisation des prix
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {recipeRecommendations.recommendations.slice(0, 5).map((rec: any, index: number) => (
+                    {priceOptimization.recommendations.slice(0, 5).map((rec: any, index: number) => (
                       <div
                         key={index}
                         className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border-2 border-foreground/10"
                       >
                         <div className="flex-1">
-                          <div className="font-semibold text-foreground mb-1">{rec.recipeName}</div>
+                          <div className="font-semibold text-foreground mb-1">{rec.productName}</div>
                           <div className="text-sm text-muted-foreground">{rec.reason}</div>
-                          {rec.dailySales && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {rec.dailySales} ventes/jour • Profit: ${rec.profit?.toFixed(2) || "N/A"}
+                          <div className="flex items-center gap-4 mt-2">
+                            <div>
+                              <div className="text-xs text-muted-foreground">Prix actuel</div>
+                              <div className="text-sm font-medium line-through">${rec.currentPrice?.toFixed(2) || "0.00"}</div>
                             </div>
-                          )}
+                            <div>
+                              <div className="text-xs text-muted-foreground">Prix suggéré</div>
+                              <div className="text-lg font-bold text-primary">${rec.suggestedPrice?.toFixed(2) || "0.00"}</div>
+                            </div>
+                          </div>
                         </div>
                         <div className="text-right ml-4">
-                          <div className={cn("text-sm font-medium px-2 py-1 rounded", getPriorityColor(rec.priority))}>
-                            {rec.recommendation}
+                          <div className="text-sm font-medium text-primary">
+                            {rec.priceChange > 0 ? "+" : ""}{rec.priceChange?.toFixed(2) || "0.00"}%
                           </div>
+                          <div className="text-xs text-muted-foreground">Changement</div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <Wine className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune recommandation de recette pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
-        ) : selectedTool === "anomaly-detection" ? (
+        ) : selectedTool === "food-wine-pairing" ? (
           <>
-            {/* Anomaly Detection */}
-            {anomalies ? (
+            {/* Food-Wine Pairing */}
+            {!foodWinePairing || !foodWinePairing.pairings || foodWinePairing.pairings.length === 0 ? (
+              <EmptyStateWithButton
+                icon={UtensilsCrossed}
+                message="Cliquez sur le bouton pour générer des accords mets-vin."
+                toolId="food-wine-pairing"
+                buttonLabel="Générer des accords"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-primary" />
-                    Détection d'anomalies
+                    <UtensilsCrossed className="h-5 w-5 text-primary" />
+                    Accord mets-vin
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {anomalies.anomalies && anomalies.anomalies.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold mb-2">Anomalies détectées</h4>
-                        <div className="space-y-2">
-                          {anomalies.anomalies.slice(0, 5).map((anomaly: any, index: number) => (
+                  <div className="space-y-3">
+                    {foodWinePairing.pairings.slice(0, 5).map((pairing: any, index: number) => (
                             <div
                               key={index}
-                              className="p-3 bg-secondary/30 rounded-lg border-2 border-foreground/10"
+                        className="p-4 bg-secondary/30 rounded-lg border-2 border-foreground/10"
                             >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <div className="font-medium">{anomaly.type}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {new Date(anomaly.date).toLocaleDateString("fr-FR")} • ${anomaly.revenue}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="font-semibold text-foreground">{pairing.food || pairing.dish}</div>
+                          <div className="text-sm text-primary font-medium">{pairing.wine || pairing.recommendedWine}</div>
                                   </div>
-                                </div>
-                                <div className={cn(
-                                  "text-xs px-2 py-1 rounded",
-                                  anomaly.severity === "Élevée" ? "bg-red-500/20 text-red-600" : "bg-red-900/20 text-red-900"
-                                )}>
-                                  {anomaly.severity}
-                                </div>
-                              </div>
+                        {pairing.reason && (
+                          <div className="text-sm text-muted-foreground">{pairing.reason}</div>
+                    )}
+                        {pairing.description && (
+                          <div className="text-xs text-muted-foreground mt-1">{pairing.description}</div>
+                        )}
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    )}
-                    {anomalies.suspiciousTransactions && anomalies.suspiciousTransactions.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold mb-2">Transactions suspectes</h4>
-                        <div className="space-y-2">
-                          {anomalies.suspiciousTransactions.slice(0, 3).map((tx: any, index: number) => (
-                            <div key={index} className="p-2 bg-red-900/10 rounded text-sm">
-                              ${tx.amount} • {new Date(tx.date).toLocaleDateString("fr-FR")} • {tx.paymentMethod}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune anomalie détectée pour le moment.
-                  </p>
                 </CardContent>
               </Card>
             )}
@@ -806,7 +997,14 @@ export default function Analytics() {
         ) : selectedTool === "promotion-recommendations" ? (
           <>
             {/* Promotion Recommendations */}
-            {promotionRecommendations && promotionRecommendations.recommendations && promotionRecommendations.recommendations.length > 0 ? (
+            {!promotionRecommendations || !promotionRecommendations.recommendations || promotionRecommendations.recommendations.length === 0 ? (
+              <EmptyStateWithButton
+                icon={Gift}
+                message="Cliquez sur le bouton pour générer des recommandations de promotions."
+                toolId="promotion-recommendations"
+                buttonLabel="Générer des promotions"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -839,21 +1037,19 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune recommandation de promotion pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "stockout-prediction" ? (
           <>
             {/* Stockout Predictions */}
-            {stockoutPredictions && stockoutPredictions.predictions && stockoutPredictions.predictions.length > 0 ? (
+            {!stockoutPredictions || !stockoutPredictions.predictions || stockoutPredictions.predictions.length === 0 ? (
+              <EmptyStateWithButton
+                icon={AlertTriangle}
+                message="Cliquez sur le bouton pour générer des prédictions de rupture de stock."
+                toolId="stockout-prediction"
+                buttonLabel="Prédire les ruptures"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -894,21 +1090,19 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune prédiction de rupture de stock pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "menu-optimization" ? (
           <>
             {/* Menu Optimization */}
-            {menuOptimization ? (
+            {!menuOptimization ? (
+              <EmptyStateWithButton
+                icon={Menu}
+                message="Cliquez sur le bouton pour optimiser votre menu."
+                toolId="menu-optimization"
+                buttonLabel="Optimiser le menu"
+              />
+            ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {menuOptimization.itemsToRemove && menuOptimization.itemsToRemove.length > 0 && (
                   <Card className="border-2 border-foreground/20">
@@ -953,21 +1147,19 @@ export default function Analytics() {
                   </Card>
                 )}
               </div>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <Menu className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune recommandation d'optimisation de menu pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "temporal-trends" ? (
           <>
             {/* Temporal Trends */}
-            {temporalTrends ? (
+            {!temporalTrends ? (
+              <EmptyStateWithButton
+                icon={Clock}
+                message="Cliquez sur le bouton pour analyser les tendances temporelles."
+                toolId="temporal-trends"
+                buttonLabel="Analyser les tendances"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -989,21 +1181,19 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune donnée de tendances temporelles pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "dynamic-pricing" ? (
           <>
             {/* Dynamic Pricing */}
-            {dynamicPricing && dynamicPricing.recommendations && dynamicPricing.recommendations.length > 0 ? (
+            {!dynamicPricing || !dynamicPricing.recommendations || dynamicPricing.recommendations.length === 0 ? (
+              <EmptyStateWithButton
+                icon={Target}
+                message="Cliquez sur le bouton pour générer des recommandations de prix dynamiques."
+                toolId="dynamic-pricing"
+                buttonLabel="Générer des prix dynamiques"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1032,21 +1222,19 @@ export default function Analytics() {
                   </div>
                 </CardContent>
               </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">
-                    Aucune recommandation de prix dynamique pour le moment.
-                  </p>
-                </CardContent>
-              </Card>
             )}
           </>
         ) : selectedTool === "revenue-forecast" ? (
           <>
             {/* Revenue Forecast */}
-            {revenueForecast ? (
+            {!revenueForecast ? (
+              <EmptyStateWithButton
+                icon={BarChart3}
+                message="Cliquez sur le bouton pour générer des prévisions de revenus."
+                toolId="revenue-forecast"
+                buttonLabel="Générer des prévisions"
+              />
+            ) : (
               <Card className="border-2 border-foreground/20">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1094,15 +1282,6 @@ export default function Analytics() {
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border-2 border-foreground/20">
-                <CardContent className="py-12 text-center">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <p className="text-muted-foreground">
-                    Aucune prévision de revenus disponible pour le moment.
-                  </p>
                 </CardContent>
               </Card>
             )}

@@ -214,3 +214,96 @@ export const disable2FA: RequestHandler = (req, res) => {
   }
 };
 
+// POST /api/auth/firebase-sync - Synchroniser un utilisateur Firebase avec SQLite
+export const syncFirebaseUser: RequestHandler = async (req, res) => {
+  console.log("[Auth] Firebase sync request received:", { uid: req.body?.uid, email: req.body?.email });
+  console.log("[Auth] Using SQLite database:", db.prepare ? "✅ better-sqlite3" : "❌ Mock database");
+  try {
+    const { uid, email, displayName, photoURL } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ error: "L'UID Firebase est requis" });
+    }
+
+    // Utiliser l'email comme username, ou l'uid si pas d'email
+    const username = email || `firebase_${uid}`;
+
+    // Vérifier si l'utilisateur existe déjà (par uid ou par email)
+    const existingByUid = db.prepare("SELECT * FROM users WHERE id = ?").get(uid) as any;
+    const existingByEmail = email ? db.prepare("SELECT * FROM users WHERE username = ?").get(email) as any : null;
+
+    if (existingByUid) {
+      // Mettre à jour l'utilisateur existant
+      db.prepare(`
+        UPDATE users 
+        SET username = ?, updatedAt = datetime('now')
+        WHERE id = ?
+      `).run(username, uid);
+      
+      console.log("Utilisateur Firebase mis à jour:", uid);
+      res.json({ 
+        success: true, 
+        userId: uid,
+        username,
+        isNewUser: false 
+      });
+    } else if (existingByEmail) {
+      // Un utilisateur avec cet email existe déjà mais avec un autre ID
+      // On met à jour son ID pour utiliser l'UID Firebase
+      db.prepare(`
+        UPDATE users 
+        SET id = ?, updatedAt = datetime('now')
+        WHERE username = ?
+      `).run(uid, email);
+      
+      console.log("Utilisateur existant lié à Firebase:", uid);
+      return res.json({ 
+        success: true, 
+        userId: uid,
+        username,
+        isNewUser: false 
+      });
+    } else {
+      // Créer un nouvel utilisateur
+      // Pour les utilisateurs Firebase, on met password à NULL ou chaîne vide selon le schéma
+      // (SQLite peut avoir des contraintes différentes selon la version)
+      try {
+        db.prepare(`
+          INSERT INTO users (id, username, password, createdAt, updatedAt)
+          VALUES (?, ?, NULL, datetime('now'), datetime('now'))
+        `).run(uid, username);
+      } catch (error: any) {
+        // Si NULL n'est pas accepté (colonne NOT NULL), utiliser une chaîne vide
+        if (error.message?.includes("NOT NULL") || error.code === "SQLITE_CONSTRAINT_NOTNULL") {
+          db.prepare(`
+            INSERT INTO users (id, username, password, createdAt, updatedAt)
+            VALUES (?, ?, '', datetime('now'), datetime('now'))
+          `).run(uid, username);
+        } else {
+          throw error;
+        }
+      }
+      
+      console.log("Nouvel utilisateur Firebase créé:", uid);
+      return res.json({ 
+        success: true, 
+        userId: uid,
+        username,
+        isNewUser: true 
+      });
+    }
+  } catch (error: any) {
+    console.error("Error syncing Firebase user:", error);
+    
+    // Gérer l'erreur de contrainte unique (username déjà utilisé)
+    if (error.code === "SQLITE_CONSTRAINT_UNIQUE" || error.message?.includes("UNIQUE constraint")) {
+      return res.status(400).json({ 
+        error: "Un utilisateur avec cet email existe déjà" 
+      });
+    }
+    
+    const errorMessage = error?.message || "Erreur lors de la synchronisation de l'utilisateur Firebase";
+    res.status(500).json({ error: errorMessage });
+  }
+};
+

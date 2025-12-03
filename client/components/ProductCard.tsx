@@ -1,7 +1,6 @@
-import { Edit2, Trash2, Plus, Minus } from "lucide-react";
+import { Edit2, Trash2, Plus, Minus, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
-import { QRCodeSVG } from "qrcode.react";
 import { useState, useMemo, useRef, useEffect } from "react";
 
 export interface Product {
@@ -13,6 +12,8 @@ export interface Product {
   unit: string;
   lastRestocked?: string;
   imageUrl?: string;
+  subcategory?: string;
+  origin?: string;
 }
 
 interface ProductCardProps {
@@ -45,7 +46,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { t } = useI18n();
   const isLowStock = product.quantity < 5;
-  const [showQRCode, setShowQRCode] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
 
   const categoryLabels = {
     spirits: t.productCard.categories?.spirits || "Spiritueux",
@@ -85,17 +86,36 @@ export default function ProductCard({
     return unit; // Fallback to original if not found
   };
 
-  // Generate QR code data for the product
-  const qrCodeValue = useMemo(() => {
-    return JSON.stringify({
-      id: product.id,
-      name: product.name,
-      code: product.id,
-      category: product.category,
-      price: product.price,
-      quantity: product.quantity,
-    });
-  }, [product]);
+  // Origin labels mapping
+  const originLabels: Record<string, string> = {
+    imported: t.inventory?.addProductModal?.origins?.imported || "Importé",
+    canadian: t.inventory?.addProductModal?.origins?.canadian || "Canadien",
+    quebec: t.inventory?.addProductModal?.origins?.quebec || "Québec",
+    spain: t.inventory?.addProductModal?.origins?.spain || "Espagne",
+    france: t.inventory?.addProductModal?.origins?.france || "France",
+    italy: t.inventory?.addProductModal?.origins?.italy || "Italie",
+    usa: t.inventory?.addProductModal?.origins?.usa || "États-Unis",
+    australia: t.inventory?.addProductModal?.origins?.australia || "Australie",
+    southAfrica: t.inventory?.addProductModal?.origins?.southAfrica || "Afrique du Sud",
+    newZealand: t.inventory?.addProductModal?.origins?.newZealand || "Nouvelle-Zélande",
+    portugal: t.inventory?.addProductModal?.origins?.portugal || "Portugal",
+    chile: t.inventory?.addProductModal?.origins?.chile || "Chili",
+    uk: t.inventory?.addProductModal?.origins?.uk || "Royaume-Uni",
+  };
+
+  // Subcategory labels mapping
+  const subcategoryLabels: Record<string, string> = {
+    redWine: t.inventory?.addProductModal?.subcategories?.redWine || "Vin rouge",
+    whiteWine: t.inventory?.addProductModal?.subcategories?.whiteWine || "Vin blanc",
+    roseWine: t.inventory?.addProductModal?.subcategories?.roseWine || "Vin rosé",
+    scotchWhisky: t.inventory?.addProductModal?.subcategories?.scotchWhisky || "Scotch Whisky",
+    liqueurCream: t.inventory?.addProductModal?.subcategories?.liqueurCream || "Liqueur/Crème",
+    gin: t.inventory?.addProductModal?.subcategories?.gin || "Gin",
+    rum: t.inventory?.addProductModal?.subcategories?.rum || "Rhum",
+    vodka: t.inventory?.addProductModal?.subcategories?.vodka || "Vodka",
+    tequila: t.inventory?.addProductModal?.subcategories?.tequila || "Tequila",
+    cognacBrandy: t.inventory?.addProductModal?.subcategories?.cognacBrandy || "Cognac/Brandy",
+  };
 
   // Calculate progress bar width
   const progressWidth = useMemo(
@@ -201,17 +221,24 @@ export default function ProductCard({
   }
 
   return (
-    <div
+    <div className="bg-card border-2 border-foreground/20 rounded-lg cursor-pointer overflow-hidden [perspective:1000px]">
+      <div
+        className={cn(
+          "relative transition-transform duration-500 [transform-style:preserve-3d]",
+          isFlipped ? "[transform:rotateY(180deg)]" : "[transform:rotateY(0deg)]"
+        )}
+      >
+        {/* Front of card */}
+        <div
+          className="p-3 hover:border-primary/50 transition-all relative [backface-visibility:hidden]"
       onClick={() => onClick?.(product)}
-      className="bg-card border-2 border-foreground/20 rounded-lg p-4 hover:border-primary/50 transition-all cursor-pointer"
     >
-      <div className="space-y-3">
+          <div className="space-y-2">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="flex items-start gap-3">
             {/* Product Image */}
-            {product.imageUrl && (
-              <div className="w-[100px] h-[100px] rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
+              <div className="w-20 h-20 rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
+                {product.imageUrl ? (
                 <img
                   src={product.imageUrl}
                   alt={product.name}
@@ -220,56 +247,31 @@ export default function ProductCard({
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
+                ) : (
+                  <div className="w-full h-full bg-transparent" />
+                )}
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base text-foreground line-clamp-2">
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-sm text-foreground line-clamp-2 flex-1">
                 {product.name}
               </h3>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <p className="text-lg font-bold text-foreground">
-              ${product.price.toFixed(2)}
-            </p>
-            {/* QR Code */}
-            <div className="relative">
+                  {/* Flip button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowQRCode(!showQRCode);
+                      setIsFlipped(!isFlipped);
                 }}
-                className="p-1 hover:bg-secondary rounded transition-colors"
-                aria-label="Toggle QR code"
-                title="Show/Hide QR Code"
+                    className="p-1.5 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
+                    aria-label="Retourner la carte"
+                    title="Voir les détails"
               >
-                <QRCodeSVG
-                  value={qrCodeValue}
-                  size={60}
-                  level="M"
-                  includeMargin={false}
-                />
+                    <RotateCw className="h-4 w-4" />
               </button>
-              {/* Expanded QR Code on hover/click */}
-              {showQRCode && (
-                <div className="absolute top-full right-0 mt-2 z-10 p-3 bg-card border-2 border-foreground/20 rounded-lg shadow-lg">
-                  <div className="flex flex-col items-center gap-2">
-                    <QRCodeSVG
-                      value={qrCodeValue}
-                      size={120}
-                      level="H"
-                      includeMargin={true}
-                    />
-                    <p className="text-xs text-muted-foreground text-center max-w-[120px] break-words">
-                      {product.name}
-                    </p>
-                    <p className="text-xs font-mono text-muted-foreground">
-                      {product.id}
-                    </p>
-                  </div>
                 </div>
-              )}
-            </div>
+                <p className="text-base font-bold text-foreground">
+                  ${product.price.toFixed(2)}
+                    </p>
           </div>
         </div>
 
@@ -300,28 +302,9 @@ export default function ProductCard({
           )}
         </div>
 
+          </div>
         {/* Actions */}
-        <div className="flex gap-2 pt-2 border-t-2 border-foreground/20">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddStock?.(product.id, 1);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border-2 border-green-300 dark:border-green-500/30"
-          >
-            <Plus className="h-3 w-3" />
-            {t.productCard.add}
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveStock?.(product.id, 1);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border-2 border-red-300 dark:border-destructive/30"
-          >
-            <Minus className="h-3 w-3" />
-            {t.productCard.remove}
-          </button>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t-2 border-foreground/20">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -332,6 +315,28 @@ export default function ProductCard({
           >
             <Edit2 className="h-4 w-4" />
           </button>
+              <div className="flex gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveStock?.(product.id, 1);
+                    }}
+                    className="flex items-center justify-center w-7 h-7 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border border-red-300 dark:border-destructive/30"
+                    aria-label={t.productCard.remove}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddStock?.(product.id, 1);
+                    }}
+                    className="flex items-center justify-center w-7 h-7 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border border-green-300 dark:border-green-500/30"
+                    aria-label={t.productCard.add}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+              </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -342,6 +347,61 @@ export default function ProductCard({
           >
             <Trash2 className="h-4 w-4" />
           </button>
+          </div>
+        </div>
+
+        {/* Back of card - Category and Origin */}
+        <div
+          className="absolute inset-0 p-4 [backface-visibility:hidden] [transform:rotateY(180deg)]"
+          onClick={() => setIsFlipped(false)}
+        >
+          <div className="w-full space-y-2">
+            <div className="text-center">
+              <h3 className="font-semibold text-base text-foreground mb-1 line-clamp-2">
+                {product.name}
+              </h3>
+            </div>
+
+            {/* Category */}
+            <div className="space-y-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground font-medium">Catégorie</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {categoryLabels[product.category]}
+                </span>
+              </div>
+              {product.subcategory && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground font-medium">Sous-catégorie</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {subcategoryLabels[product.subcategory] || product.subcategory}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Origin */}
+            {product.origin && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground font-medium">Provenance</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {originLabels[product.origin] || product.origin}
+                </span>
+              </div>
+            )}
+
+            {/* Flip back button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFlipped(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium mt-2"
+            >
+              <RotateCw className="h-4 w-4" />
+              Retourner
+            </button>
+          </div>
         </div>
       </div>
     </div>

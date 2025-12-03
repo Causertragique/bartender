@@ -91,12 +91,14 @@ export default function AddProductModal({
 
   const [qrCodeValue, setQrCodeValue] = useState("");
   const [isSearchingImage, setIsSearchingImage] = useState(false);
-  const [searchResults, setSearchResults] = useState<Array<{
+  const [searchResults, setSearchResults] = useState<
+    Array<{
     imageUrl: string;
     productPageUrl: string;
     title: string;
     snippet?: string;
-  }>>([]);
+    }>
+  >([]);
   const [showProductSelection, setShowProductSelection] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PRODUCTS_PER_PAGE = 5;
@@ -112,172 +114,250 @@ export default function AddProductModal({
 
   // Fetch product options from SAQ.com (returns multiple results)
   // MUST be defined before searchProductImage
-  // Simple search: each word in product name becomes a keyword
   const fetchProductOptions = async (
-    searchQuery: string,
+    _searchQuery: string,
     productName: string
-  ): Promise<Array<{
+  ): Promise<
+    Array<{
     imageUrl: string;
     productPageUrl: string;
     title: string;
     snippet?: string;
-  }>> => {
+    }>
+  > => {
     try {
-      // Note: API keys are now stored server-side only for security
-      // Image search is done via /api/image-search endpoint
-      // Web search still uses direct API calls (can be moved to server later if needed)
-      
-      // For web search, we still need API keys (temporary - should be moved to server)
-      const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || localStorage.getItem('google_api_key');
-      const GOOGLE_CX = import.meta.env.VITE_GOOGLE_CX || localStorage.getItem('google_cx');
+      const GOOGLE_API_KEY =
+        import.meta.env.VITE_GOOGLE_API_KEY ||
+        localStorage.getItem("google_api_key");
+      const GOOGLE_CX =
+        import.meta.env.VITE_GOOGLE_CX ||
+        localStorage.getItem("google_cx") ||
+        "2604700cf916145eb"; // CX par défaut
 
-      if (GOOGLE_API_KEY && GOOGLE_CX && GOOGLE_API_KEY !== 'YOUR_GOOGLE_API_KEY') {
-        try {
-          // Simple search: split product name into words and use each as keyword
-          // Example: "Vodka Smirnoff" -> "Vodka Smirnoff" (all words as keywords)
-          const keywords = productName.trim().split(/\s+/).filter(word => word.length > 0);
-          const searchQuery = keywords.join(' '); // Simple space-separated keywords
+      if (
+        !GOOGLE_API_KEY ||
+        !GOOGLE_CX ||
+        GOOGLE_API_KEY === "YOUR_GOOGLE_API_KEY"
+      ) {
+        console.warn(
+          "[Image search] Google API key or CX missing / invalid. Check VITE_GOOGLE_API_KEY and VITE_GOOGLE_CX."
+        );
+        return [];
+      }
+
+      const keywords = productName
+        .trim()
+        .split(/\s+/)
+        .filter((word) => word.length > 0);
+      if (!keywords.length) {
+        return [];
+      }
+
+      // Recherche ciblée SAQ
+      const googleQuery = `${keywords.join(" ")} site:saq.com`;
+      console.log("[Image search] Google query:", googleQuery);
+
+      const webSearchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(
+        googleQuery
+      )}&num=10&safe=active`;
+
+      const webResponse = await fetch(webSearchUrl);
+      if (!webResponse.ok) {
+        const errorText = await webResponse.text().catch(() => "");
+        console.error(
+          "[Image search] Google API error:",
+          webResponse.status,
+          errorText.slice(0, 200)
+        );
+        return [];
+      }
+
+      const webData = await webResponse.json();
+      const allItems: any[] = webData.items || [];
+      console.log(
+        "[Image search] Google items:",
+        allItems.length,
+        webData.searchInformation?.totalResults
+      );
+      
+      // Log des URLs pour déboguer
+      if (allItems.length > 0) {
+        console.log("[Image search] All URLs from Google:", allItems.map((item: any) => ({
+          link: item.link,
+          displayLink: item.displayLink,
+          title: item.title?.substring(0, 50),
+          pagemap: item.pagemap ? "Has pagemap" : "No pagemap"
+        })));
+      }
+      
+      // Extraire les images depuis les résultats web si disponibles (pagemap)
+      const webImages: any[] = [];
+      allItems.forEach((item: any) => {
+        // Vérifier pagemap pour les images
+        if (item.pagemap) {
+          // Essayer différents formats d'images dans pagemap
+          const imageSources = [
+            item.pagemap.cse_image,
+            item.pagemap.image,
+            item.pagemap.metatags?.find((tag: any) => tag["og:image"] || tag["twitter:image"]),
+          ].filter(Boolean);
           
-          console.log("Search keywords:", keywords);
-          console.log("Search query:", searchQuery);
-          
-          // First, do a web search to find product pages (up to 15 results = 3 pages of 5)
-          // Google API limits to 10 results per request, so we need 2 requests to get 15
-          console.log("Fetching product pages from Google API...");
-          
-          let allItems: any[] = [];
-          
-          // First request: get first 10 results
-          const webSearchUrl1 = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(searchQuery)}&num=10&safe=active`;
-          const webResponse1 = await fetch(webSearchUrl1);
-          
-          if (webResponse1.ok) {
-            const webData1 = await webResponse1.json();
-            if (webData1.items) {
-              allItems.push(...webData1.items);
-            }
-            
-            // Second request: get next 5 results (if we have more pages)
-            if (webData1.queries?.nextPage && allItems.length >= 10) {
-              const startIndex = 11; // Start from result 11
-              const webSearchUrl2 = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(searchQuery)}&num=10&start=${startIndex}&safe=active`;
-              const webResponse2 = await fetch(webSearchUrl2);
-              
-              if (webResponse2.ok) {
-                const webData2 = await webResponse2.json();
-                if (webData2.items) {
-                  allItems.push(...webData2.items);
+          imageSources.forEach((images: any) => {
+            const imgArray = Array.isArray(images) ? images : [images];
+            imgArray.forEach((img: any) => {
+              const imageUrl = img.src || img.url || img;
+              if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+                webImages.push({
+                  imageUrl: imageUrl,
+                  contextUrl: item.link,
+                  thumbnailUrl: imageUrl,
+                });
                 }
-              }
-            }
+            });
+          });
+        }
+      });
+      console.log("[Image search] Images extracted from web results:", webImages.length);
+
+      // Filtrer SAQ - accepter toutes les pages SAQ (plus flexible)
+            const saqProducts = allItems
+        .filter((item: any) => {
+          const link = (item.link || "").toLowerCase();
+          const displayLink = (item.displayLink || "").toLowerCase();
+          // Accepter toutes les pages SAQ
+          const isSAQ = link.includes("saq.com") || displayLink.includes("saq.com");
+          
+          if (!isSAQ) {
+            return false;
           }
           
-          console.log(`Total items found: ${allItems.length}`);
+          // Exclure seulement les pages vraiment non-produits (recherche, accueil)
+          // Accepter les pages de catégories et sous-catégories SAQ qui peuvent contenir des produits
+          const isNotProductPage = 
+            link.includes("/recherche") ||
+            link.includes("/search") ||
+            link.includes("/accueil") ||
+            link.includes("/home");
           
-          if (allItems.length > 0) {
-            // Filter to get SAQ product pages (up to 15)
-            const saqProducts = allItems
-              .filter((item: any) => item.link && item.link.includes('saq.com'))
-              .slice(0, 15) // Limit to 15 products max (3 pages of 5)
+          return !isNotProductPage;
+        })
+        .slice(0, 15)
               .map((item: any) => ({
                 productPageUrl: item.link,
-                title: item.title || '',
-                snippet: item.snippet || '',
+          title: item.title || "",
+          snippet: item.snippet || item.htmlSnippet || "", // Utiliser htmlSnippet si snippet n'existe pas
+          imageUrl: "",
               }));
             
-            console.log(`SAQ products found: ${saqProducts.length}`);
+      console.log(
+        "[Image search] SAQ product pages filtered:",
+        saqProducts.length
+      );
             
             if (saqProducts.length > 0) {
-              // Now get images for each product page
-              const results: Array<{
-                imageUrl: string;
-                productPageUrl: string;
-                title: string;
-                snippet?: string;
-              }> = [];
-              
-              // Search for images via server API (secure, API key stays on server)
-              let allImageItems: any[] = [];
-              
+        console.log("[Image search] Sample SAQ product:", {
+          title: saqProducts[0].title,
+          snippet: saqProducts[0].snippet?.substring(0, 100),
+          url: saqProducts[0].productPageUrl,
+        });
+      }
+
+      if (!saqProducts.length) {
+        console.warn("[Image search] No SAQ products found after filtering");
+        return [];
+      }
+
+      // Chercher des images via l'API backend (fallback si pas d'images dans web results)
+      let allImageItems: any[] = [...webImages]; // Commencer avec les images extraites des résultats web
+      
+      // Si on n'a pas assez d'images, essayer l'API backend
+      if (allImageItems.length === 0) {
               try {
                 const imageResponse = await fetch("/api/image-search", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ productName: searchQuery }),
+            body: JSON.stringify({ productName }),
                 });
                 
                 if (imageResponse.ok) {
-                  const imageData = await imageResponse.json();
+            const imageData = await imageResponse
+              .json()
+              .catch(() => ({ images: [] }));
+            console.log("[Image search] backend /api/image-search response:", imageData);
+
                   if (imageData.images && imageData.images.length > 0) {
-                    // Convert server response format to expected format
                     allImageItems = imageData.images.map((img: any) => ({
-                      link: img.imageUrl,
-                      image: {
-                        contextLink: img.contextUrl,
-                        thumbnailLink: img.thumbnailUrl,
-                      },
-                      displayLink: img.contextUrl ? new URL(img.contextUrl).hostname : '',
+                imageUrl: img.imageUrl,
+                contextUrl: img.contextUrl,
+                thumbnailUrl: img.thumbnailUrl,
                     }));
                   }
                 } else {
-                  console.warn("Image search API returned error:", imageResponse.status);
+            console.warn(
+              "[Image search] /api/image-search HTTP error:",
+              imageResponse.status,
+              "- Using web results images only"
+            );
                 }
-              } catch (e) {
-                console.error("Error calling image search API:", e);
-              }
-              
-              const saqImages = allImageItems.filter((item: any) => 
-                item.link && (item.link.includes('saq.com') || item.displayLink?.includes('saq.com'))
-              );
-              
-              // Match images with product pages (up to 15 products)
-              for (const product of saqProducts.slice(0, 15)) {
-                const matchingImage = saqImages.find((img: any) => {
-                  const contextLink = img.image?.contextLink || '';
-                  return contextLink.includes(product.productPageUrl) || 
-                         product.productPageUrl.includes(contextLink.split('/').slice(-2).join('/'));
-                }) || saqImages[0]; // Fallback to first image if no match
-                
-                if (matchingImage) {
-                  results.push({
-                    imageUrl: matchingImage.link,
-                    productPageUrl: product.productPageUrl,
-                    title: product.title,
-                    snippet: product.snippet,
-                  });
-                }
-              }
-              
-              // If we have results, return them
-              if (results.length > 0) {
-                console.log(`Found ${results.length} product options`);
-                const typedResults: Array<{
+        } catch (e: any) {
+          console.warn(
+            "[Image search] /api/image-search failed:",
+            e?.message || e,
+            "- Using web results images only"
+          );
+        }
+      }
+
+      console.log(
+        "[Image search] Total images available:",
+        allImageItems.length,
+        "(from web:", webImages.length,
+        "from API:", allImageItems.length - webImages.length + ")"
+      );
+
+      // Associer les images aux produits
+      const results: Array<{
                   imageUrl: string;
                   productPageUrl: string;
                   title: string;
                   snippet?: string;
-                }> = results;
-                return typedResults;
-              }
-              
-              // If no images found, return products without images (up to 15)
-              return saqProducts.slice(0, 15).map(product => ({
-                imageUrl: '',
+      }> = saqProducts.map((product, index) => {
+        // Essayer de trouver une image correspondante
+        let match = allImageItems.find((img: any) => {
+          if (!img.contextUrl) return false;
+          const contextUrl = img.contextUrl.toLowerCase();
+          const productUrl = product.productPageUrl.toLowerCase();
+          // Correspondance exacte ou partielle
+          return contextUrl === productUrl || 
+                 contextUrl.includes(productUrl) || 
+                 productUrl.includes(contextUrl) ||
+                 // Extraire l'ID produit de l'URL SAQ (ex: /en/308155 ou /fr/308155)
+                 (productUrl.match(/\/(en|fr)\/(\d+)/) && contextUrl.includes(productUrl.match(/\/(en|fr)\/(\d+)/)?.[2] || ""));
+        });
+        
+        // Si pas de match exact, utiliser l'image à la même position ou la première disponible
+        if (!match && allImageItems.length > 0) {
+          match = allImageItems[index] || allImageItems[0];
+        }
+
+        return {
+          imageUrl: match?.imageUrl || "",
                 productPageUrl: product.productPageUrl,
                 title: product.title,
                 snippet: product.snippet,
-              }));
-            }
-          }
-        } catch (e) {
-          console.error("Google Custom Search API failed:", e);
-        }
-      } else {
-        console.log("API keys not configured or invalid");
-      }
+        };
+      });
 
-      // If no results found, return empty array
-      return [];
+      console.log("[Image search] final product options:", results.length);
+      if (results.length > 0) {
+        console.log("[Image search] Sample result:", {
+          title: results[0].title,
+          snippet: results[0].snippet?.substring(0, 100),
+          imageUrl: results[0].imageUrl ? "Found" : "Missing",
+          url: results[0].productPageUrl,
+        });
+      }
+      return results;
     } catch (error) {
       console.error("Error fetching product options:", error);
       return [];
@@ -298,18 +378,20 @@ export default function AddProductModal({
     } else if (!formData.inventoryCode) {
       setQrCodeValue("");
     }
-  }, [formData.inventoryCode, formData.name, formData.category, formData.pricePerBottle]);
+  }, [
+    formData.inventoryCode,
+    formData.name,
+    formData.category,
+    formData.pricePerBottle,
+  ]);
 
   // Auto-generate inventory code if empty (only when name changes and code is still empty)
   const [wasCodeManuallySet, setWasCodeManuallySet] = useState(false);
   
   useEffect(() => {
-    // Only auto-generate if:
-    // 1. The code is empty
-    // 2. There's a product name
-    // 3. The user hasn't manually set a code
     if (!formData.inventoryCode && formData.name && !wasCodeManuallySet) {
-      const code = formData.name
+      const code =
+        formData.name
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, "")
         .substring(0, 8) + Date.now().toString().slice(-6);
@@ -333,19 +415,49 @@ export default function AddProductModal({
     const category = formData.category;
     if (category === "wine") {
       return [
-        { value: "redWine", label: t.inventory.addProductModal.subcategories.redWine },
-        { value: "whiteWine", label: t.inventory.addProductModal.subcategories.whiteWine },
-        { value: "roseWine", label: t.inventory.addProductModal.subcategories.roseWine },
+        {
+          value: "redWine",
+          label: t.inventory.addProductModal.subcategories.redWine,
+        },
+        {
+          value: "whiteWine",
+          label: t.inventory.addProductModal.subcategories.whiteWine,
+        },
+        {
+          value: "roseWine",
+          label: t.inventory.addProductModal.subcategories.roseWine,
+        },
       ];
     } else if (category === "spirits") {
       return [
-        { value: "scotchWhisky", label: t.inventory.addProductModal.subcategories.scotchWhisky },
-        { value: "liqueurCream", label: t.inventory.addProductModal.subcategories.liqueurCream },
-        { value: "gin", label: t.inventory.addProductModal.subcategories.gin },
-        { value: "rum", label: t.inventory.addProductModal.subcategories.rum },
-        { value: "vodka", label: t.inventory.addProductModal.subcategories.vodka },
-        { value: "tequila", label: t.inventory.addProductModal.subcategories.tequila },
-        { value: "cognacBrandy", label: t.inventory.addProductModal.subcategories.cognacBrandy },
+        {
+          value: "scotchWhisky",
+          label: t.inventory.addProductModal.subcategories.scotchWhisky,
+        },
+        {
+          value: "liqueurCream",
+          label: t.inventory.addProductModal.subcategories.liqueurCream,
+        },
+        {
+          value: "gin",
+          label: t.inventory.addProductModal.subcategories.gin,
+        },
+        {
+          value: "rum",
+          label: t.inventory.addProductModal.subcategories.rum,
+        },
+        {
+          value: "vodka",
+          label: t.inventory.addProductModal.subcategories.vodka,
+        },
+        {
+          value: "tequila",
+          label: t.inventory.addProductModal.subcategories.tequila,
+        },
+        {
+          value: "cognacBrandy",
+          label: t.inventory.addProductModal.subcategories.cognacBrandy,
+        },
       ];
     }
     return [];
@@ -371,43 +483,49 @@ export default function AddProductModal({
   // Search for product image intelligently
   const searchProductImage = async () => {
     if (!formData.name.trim()) {
-      alert(t.inventory.addProductModal.fillRequiredFields || "Veuillez d'abord entrer le nom du produit");
+      alert(
+        t.inventory.addProductModal.fillRequiredFields ||
+          "Veuillez d'abord entrer le nom du produit"
+      );
       return;
     }
 
     setIsSearchingImage(true);
     try {
-      // Simple search: use product name as-is, each word becomes a keyword
       const productName = formData.name.trim();
       
       console.log("Searching for products on SAQ.com:", productName);
-      console.log("Search limited to: https://www.saq.com/fr/produits");
-      console.log("Each word in product name becomes a search keyword");
       
-      // Search for multiple product options (each word is a keyword)
       const results = await fetchProductOptions(productName, productName);
       
       if (results && results.length > 0) {
         if (results.length === 1) {
-          // If only one result, use it directly
+          // Si un seul résultat, appliquer directement
+          // Ne pas remettre isSearchingImage à false ici car applyProductResult le gère
           const result = results[0];
+          setIsSearchingImage(false); // Remettre à false avant d'appeler applyProductResult
           await applyProductResult(result);
+          return; // Sortir pour éviter le finally qui remettrait isSearchingImage à false
         } else {
-          // If multiple results, show selection modal
           setSearchResults(results);
           setCurrentPage(1); // Reset to first page
           setShowProductSelection(true);
         }
       } else {
-        // Provide helpful feedback when no image is found
-        const message = t.inventory.addProductModal.imageNotFound || 
+        console.log(
+          "No product options found for:",
+          formData.name
+        );
+        const message =
+          t.inventory.addProductModal.imageNotFound ||
           "Aucune image trouvée automatiquement. Vous pouvez entrer l'URL de l'image manuellement dans le champ ci-dessous.";
         alert(message);
       }
     } catch (error) {
       console.error("Error searching for image:", error);
       if (!isMountedRef.current) return;
-      const errorMessage = t.inventory.addProductModal.imageSearchError || 
+      const errorMessage =
+        t.inventory.addProductModal.imageSearchError ||
         "Erreur lors de la recherche d'image. Vous pouvez entrer l'URL manuellement dans le champ ci-dessous.";
       alert(errorMessage);
     } finally {
@@ -418,19 +536,28 @@ export default function AddProductModal({
   };
 
   // Fetch product details from SAQ.com page via backend
-  const fetchProductDetailsFromSAQ = async (productPageUrl: string): Promise<{
+  const fetchProductDetailsFromSAQ = async (
+    productPageUrl: string
+  ): Promise<{
     category?: string;
     subcategory?: string;
     origin?: string;
     price?: number;
   } | null> => {
     try {
-      if (!productPageUrl || !productPageUrl.includes('saq.com')) {
+      // Accept both saq.com and www.saq.com
+      if (
+        !productPageUrl ||
+        (!productPageUrl.includes("saq.com") &&
+          !productPageUrl.includes("www.saq.com"))
+      ) {
         return null;
       }
       
       // Use backend endpoint to scrape SAQ page (avoids CORS issues)
-      const response = await fetch(`/api/saq-scrape?url=${encodeURIComponent(productPageUrl)}`);
+      const response = await fetch(
+        `/api/saq-scrape?url=${encodeURIComponent(productPageUrl)}`
+      );
       
       if (response.ok) {
         const details = await response.json();
@@ -457,10 +584,13 @@ export default function AddProductModal({
       const details = await fetchProductDetailsFromSAQ(result.productPageUrl);
       
       // Check if component is still mounted before updating state
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        setIsSearchingImage(false);
+        return;
+      }
       
       const updates: Partial<typeof formData> = { 
-        imageUrl: result.imageUrl || "" 
+        imageUrl: result.imageUrl || "",
       };
       
       // Fill product name from title if available and name field is empty
@@ -471,8 +601,8 @@ export default function AddProductModal({
           // Clean up the title (remove common prefixes/suffixes from SAQ)
           let cleanTitle = result.title.trim();
           // Remove common SAQ prefixes
-          cleanTitle = cleanTitle.replace(/^SAQ\s*-\s*/i, '');
-          cleanTitle = cleanTitle.replace(/\s*-\s*SAQ$/i, '');
+          cleanTitle = cleanTitle.replace(/^SAQ\s*-\s*/i, "");
+          cleanTitle = cleanTitle.replace(/\s*-\s*SAQ$/i, "");
           updates.name = cleanTitle;
         }
       }
@@ -481,24 +611,30 @@ export default function AddProductModal({
         // Map category
         if (details.category) {
           const categoryMap: Record<string, string> = {
-            'spiritueux': 'spirits',
-            'spirits': 'spirits',
-            'vin': 'wine',
-            'wine': 'wine',
-            'bière': 'beer',
-            'beer': 'beer',
-            'cidre': 'beer',
-            'champagne': 'wine',
-            'aperitif': 'wine',
-            'aperitifs': 'wine',
-            'ready-to-drink': 'readyToDrink',
-            'ready to drink': 'readyToDrink',
+            spiritueux: "spirits",
+            spirits: "spirits",
+            vin: "wine",
+            wine: "wine",
+            bière: "beer",
+            beer: "beer",
+            cidre: "beer",
+            champagne: "wine",
+            aperitif: "wine",
+            aperitifs: "wine",
+            "ready-to-drink": "readyToDrink",
+            "ready to drink": "readyToDrink",
           };
           const categoryLower = details.category.toLowerCase().trim();
-          const mappedCategory = categoryMap[categoryLower] || (categoryLower in categoryMap ? categoryMap[categoryLower] : details.category);
+          const mappedCategory =
+            categoryMap[categoryLower] ||
+            (categoryLower in categoryMap
+              ? categoryMap[categoryLower]
+              : details.category);
           if (mappedCategory) {
             updates.category = mappedCategory;
-            console.log(`Category mapped: ${details.category} -> ${mappedCategory}`);
+            console.log(
+              `Category mapped: ${details.category} -> ${mappedCategory}`
+            );
           }
         }
         
@@ -506,28 +642,29 @@ export default function AddProductModal({
         if (details.subcategory) {
           const subcategoryLower = details.subcategory.toLowerCase().trim();
           const subcategoryMap: Record<string, string> = {
-            'vodka': 'vodka',
-            'gin': 'gin',
-            'rum': 'rum',
-            'rhum': 'rum',
-            'tequila': 'tequila',
-            'whisky': 'scotchWhisky',
-            'whiskey': 'scotchWhisky',
-            'scotch': 'scotchWhisky',
-            'cognac': 'cognacBrandy',
-            'brandy': 'cognacBrandy',
-            'liqueur': 'liqueurCream',
-            'cream': 'liqueurCream',
-            'crème': 'liqueurCream',
-            'red wine': 'redWine',
-            'vin rouge': 'redWine',
-            'white wine': 'whiteWine',
-            'vin blanc': 'whiteWine',
-            'rosé': 'roseWine',
-            'rose wine': 'roseWine',
-            'vin rosé': 'roseWine',
+            vodka: "vodka",
+            gin: "gin",
+            rum: "rum",
+            rhum: "rum",
+            tequila: "tequila",
+            whisky: "scotchWhisky",
+            whiskey: "scotchWhisky",
+            scotch: "scotchWhisky",
+            cognac: "cognacBrandy",
+            brandy: "cognacBrandy",
+            liqueur: "liqueurCream",
+            cream: "liqueurCream",
+            crème: "liqueurCream",
+            "red wine": "redWine",
+            "vin rouge": "redWine",
+            "white wine": "whiteWine",
+            "vin blanc": "whiteWine",
+            rosé: "roseWine",
+            "rose wine": "roseWine",
+            "vin rosé": "roseWine",
           };
-          const mappedSubcategory = subcategoryMap[subcategoryLower] || details.subcategory;
+          const mappedSubcategory =
+            subcategoryMap[subcategoryLower] || details.subcategory;
           updates.subcategory = mappedSubcategory;
         }
         
@@ -535,41 +672,44 @@ export default function AddProductModal({
         if (details.origin && details.origin.trim()) {
           const originLower = details.origin.toLowerCase().trim();
           const originMap: Record<string, string> = {
-            'canada': 'canadian',
-            'canadien': 'canadian',
-            'canadienne': 'canadian',
-            'québec': 'quebec',
-            'quebec': 'quebec',
-            'québécois': 'quebec',
-            'québécoise': 'quebec',
-            'espagne': 'spain',
-            'spain': 'spain',
-            'france': 'france',
-            'français': 'france',
-            'française': 'france',
-            'italie': 'italy',
-            'italy': 'italy',
-            'italien': 'italy',
-            'italienne': 'italy',
-            'états-unis': 'usa',
-            'usa': 'usa',
-            'united states': 'usa',
-            'australie': 'australia',
-            'australia': 'australia',
-            'afrique du sud': 'southAfrica',
-            'south africa': 'southAfrica',
-            'nouvelle-zélande': 'newZealand',
-            'new zealand': 'newZealand',
-            'portugal': 'portugal',
-            'chili': 'chile',
-            'chile': 'chile',
-            'royaume-uni': 'uk',
-            'united kingdom': 'uk',
-            'uk': 'uk',
+            canada: "canadian",
+            canadien: "canadian",
+            canadienne: "canadian",
+            québec: "quebec",
+            quebec: "quebec",
+            québécois: "quebec",
+            québécoise: "quebec",
+            espagne: "spain",
+            spain: "spain",
+            france: "france",
+            français: "france",
+            française: "france",
+            italie: "italy",
+            italy: "italy",
+            italien: "italy",
+            italienne: "italy",
+            "états-unis": "usa",
+            usa: "usa",
+            "united states": "usa",
+            australie: "australia",
+            australia: "australia",
+            "afrique du sud": "southAfrica",
+            "south africa": "southAfrica",
+            "nouvelle-zélande": "newZealand",
+            "new zealand": "newZealand",
+            portugal: "portugal",
+            chili: "chile",
+            chile: "chile",
+            "royaume-uni": "uk",
+            "united kingdom": "uk",
+            uk: "uk",
           };
-          const mappedOrigin = originMap[originLower] || details.origin.trim();
+          const mappedOrigin =
+            originMap[originLower] || details.origin.trim();
           updates.origin = mappedOrigin;
-          console.log(`Origin mapped: ${details.origin} -> ${mappedOrigin}`);
+          console.log(
+            `Origin mapped: ${details.origin} -> ${mappedOrigin}`
+          );
         }
         
         // Fill price
@@ -590,17 +730,6 @@ export default function AddProductModal({
       }));
       
       setShowProductSelection(false);
-      
-      if (details) {
-        console.log("Product details applied automatically:", {
-          name: updates.name || formData.name,
-          category: updates.category,
-          subcategory: updates.subcategory,
-          origin: updates.origin,
-          price: updates.pricePerBottle,
-          imageUrl: updates.imageUrl,
-        });
-      }
     } catch (error) {
       console.error("Error applying product result:", error);
     } finally {
@@ -627,17 +756,26 @@ export default function AddProductModal({
       ctx?.drawImage(img, 0, 0);
       const pngFile = canvas.toDataURL("image/png");
       const downloadLink = document.createElement("a");
-      const fileName = `${formData.inventoryCode || "product"}-qr-code.png`;
+      const fileName = `${
+        formData.inventoryCode || "product"
+      }-qr-code.png`;
       downloadLink.download = fileName;
       downloadLink.href = pngFile;
       downloadLink.click();
     };
 
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    img.src =
+      "data:image/svg+xml;base64," +
+      btoa(unescape(encodeURIComponent(svgData)));
   };
 
   const handleSave = () => {
-    if (!formData.name || !formData.category || !formData.quantity || !formData.pricePerBottle) {
+    if (
+      !formData.name ||
+      !formData.category ||
+      !formData.quantity ||
+      !formData.pricePerBottle
+    ) {
       alert(t.inventory.addProductModal.fillRequiredFields);
       return;
     }
@@ -655,8 +793,12 @@ export default function AddProductModal({
       price: parseFloat(formData.pricePerBottle) || 0,
       quantity: parseInt(formData.quantity) || 0,
       unit: editingProduct?.unit || "bottles",
-      lastRestocked: editingProduct?.lastRestocked || new Date().toISOString().split("T")[0],
+      lastRestocked:
+        editingProduct?.lastRestocked ||
+        new Date().toISOString().split("T")[0],
       imageUrl: formData.imageUrl || undefined,
+      subcategory: formData.subcategory || undefined,
+      origin: formData.origin || undefined,
     };
 
     onSave(product);
@@ -664,11 +806,16 @@ export default function AddProductModal({
   };
 
   const mapCategoryToProductCategory = (
-    category: string,
+    category: string
   ): "spirits" | "wine" | "beer" | "soda" | "juice" | "other" => {
     if (category === "spirits") return "spirits";
     if (category === "beer") return "beer";
-    if (category === "wine" || category === "aperitif" || category === "champagne") return "wine";
+    if (
+      category === "wine" ||
+      category === "aperitif" ||
+      category === "champagne"
+    )
+      return "wine";
     if (category === "readyToDrink") return "soda";
     return "other";
   };
@@ -686,8 +833,19 @@ export default function AddProductModal({
     });
     setQrCodeValue("");
     setWasCodeManuallySet(false);
+    setSearchResults([]);
+    setShowProductSelection(false);
+    setCurrentPage(1);
     onClose();
   };
+
+  const totalPages = Math.min(
+    Math.ceil(searchResults.length / PRODUCTS_PER_PAGE),
+    MAX_PAGES
+  );
+  const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+  const endIndex = startIndex + PRODUCTS_PER_PAGE;
+  const currentPageResults = searchResults.slice(startIndex, endIndex);
 
   return (
     <>
@@ -695,10 +853,16 @@ export default function AddProductModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {editingProduct ? t.inventory.addProductModal.editTitle || "Modifier le produit" : t.inventory.addProductModal.title}
+              {editingProduct
+                ? t.inventory.addProductModal.editTitle ||
+                  "Modifier le produit"
+                : t.inventory.addProductModal.title}
           </DialogTitle>
           <DialogDescription>
-            {editingProduct ? t.inventory.addProductModal.editDescription || "Modifiez les informations du produit" : t.inventory.addProductModal.description}
+              {editingProduct
+                ? t.inventory.addProductModal.editDescription ||
+                  "Modifiez les informations du produit"
+                : t.inventory.addProductModal.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -706,7 +870,9 @@ export default function AddProductModal({
           {/* Product Name */}
           <div className="space-y-2 md:col-span-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="name">{t.inventory.addProductModal.name} *</Label>
+                <Label htmlFor="name">
+                  {t.inventory.addProductModal.name} *
+                </Label>
               <Button
                 type="button"
                 variant="outline"
@@ -718,32 +884,44 @@ export default function AddProductModal({
                 {isSearchingImage ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    {t.inventory.addProductModal.searchingImage || "Recherche..."}
+                      {t.inventory.addProductModal.searchingImage ||
+                        "Recherche..."}
                   </>
                 ) : (
                   <>
                     <Search className="h-4 w-4" />
-                    {t.inventory.addProductModal.searchImage || "Rechercher image"}
+                      {t.inventory.addProductModal.searchImage ||
+                        "Rechercher image"}
                   </>
                 )}
               </Button>
             </div>
             <Input
               id="name"
+                name="name"
+                autoComplete="name"
               value={formData.name || ""}
-              onChange={(e) => handleInputChange("name", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("name", e.target.value)
+                }
               placeholder={t.inventory.addProductModal.name}
             />
           </div>
 
           {/* Product Image URL */}
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="imageUrl">{t.inventory.addProductModal.imageUrl || "URL de l'image"}</Label>
+              <Label htmlFor="imageUrl">
+                {t.inventory.addProductModal.imageUrl || "URL de l'image"}
+              </Label>
             <div className="flex gap-4 items-start">
               <Input
                 id="imageUrl"
+                  name="imageUrl"
+                  autoComplete="url"
                 value={formData.imageUrl || ""}
-                onChange={(e) => handleInputChange("imageUrl", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("imageUrl", e.target.value)
+                  }
                 placeholder="https://example.com/image.jpg"
                 className="flex-1"
               />
@@ -754,7 +932,8 @@ export default function AddProductModal({
                     alt={formData.name || "Product image"}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://via.placeholder.com/200?text=Image+not+found";
+                        (e.target as HTMLImageElement).src =
+                          "https://via.placeholder.com/200?text=Image+not+found";
                     }}
                   />
                 </div>
@@ -770,13 +949,18 @@ export default function AddProductModal({
 
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category">{t.inventory.addProductModal.category} *</Label>
+              <Label htmlFor="category">
+                {t.inventory.addProductModal.category} *
+              </Label>
             <Select
+                name="category"
               value={formData.category || ""}
               onValueChange={handleCategoryChange}
             >
               <SelectTrigger id="category">
-                <SelectValue placeholder={t.inventory.addProductModal.category} />
+                  <SelectValue
+                    placeholder={t.inventory.addProductModal.category}
+                  />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="spirits">
@@ -807,13 +991,20 @@ export default function AddProductModal({
           {/* Subcategory */}
           {getSubcategories().length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="subcategory">{t.inventory.addProductModal.subcategory}</Label>
+                <Label htmlFor="subcategory">
+                  {t.inventory.addProductModal.subcategory}
+                </Label>
               <Select
+                  name="subcategory"
                 value={formData.subcategory || ""}
-                onValueChange={(value) => handleInputChange("subcategory", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("subcategory", value)
+                  }
               >
                 <SelectTrigger id="subcategory">
-                  <SelectValue placeholder={t.inventory.addProductModal.subcategory} />
+                    <SelectValue
+                      placeholder={t.inventory.addProductModal.subcategory}
+                    />
                 </SelectTrigger>
                 <SelectContent>
                   {getSubcategories().map((sub) => (
@@ -828,13 +1019,20 @@ export default function AddProductModal({
 
           {/* Origin */}
           <div className="space-y-2">
-            <Label htmlFor="origin">{t.inventory.addProductModal.origin}</Label>
+              <Label htmlFor="origin">
+                {t.inventory.addProductModal.origin}
+              </Label>
             <Select
+                name="origin"
               value={formData.origin || ""}
-              onValueChange={(value) => handleInputChange("origin", value)}
+                onValueChange={(value) =>
+                  handleInputChange("origin", value)
+                }
             >
               <SelectTrigger id="origin">
-                <SelectValue placeholder={t.inventory.addProductModal.origin} />
+                  <SelectValue
+                    placeholder={t.inventory.addProductModal.origin}
+                  />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="imported">
@@ -882,27 +1080,39 @@ export default function AddProductModal({
 
           {/* Quantity */}
           <div className="space-y-2">
-            <Label htmlFor="quantity">{t.inventory.addProductModal.quantity} *</Label>
+              <Label htmlFor="quantity">
+                {t.inventory.addProductModal.quantity} *
+              </Label>
             <Input
               id="quantity"
+                name="quantity"
               type="number"
+                autoComplete="off"
               min="0"
               value={formData.quantity || ""}
-              onChange={(e) => handleInputChange("quantity", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("quantity", e.target.value)
+                }
               placeholder="0"
             />
           </div>
 
           {/* Price per Bottle */}
           <div className="space-y-2">
-            <Label htmlFor="pricePerBottle">{t.inventory.addProductModal.pricePerBottle} *</Label>
+              <Label htmlFor="pricePerBottle">
+                {t.inventory.addProductModal.pricePerBottle} *
+              </Label>
             <Input
               id="pricePerBottle"
+                name="pricePerBottle"
               type="number"
+                autoComplete="transaction-amount"
               step="0.01"
               min="0"
               value={formData.pricePerBottle || ""}
-              onChange={(e) => handleInputChange("pricePerBottle", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("pricePerBottle", e.target.value)
+                }
               placeholder="0.00"
             />
           </div>
@@ -917,23 +1127,33 @@ export default function AddProductModal({
             </Label>
             <Input
               id="inventoryCode"
+                name="inventoryCode"
+                autoComplete="off"
               value={formData.inventoryCode || ""}
-              onChange={(e) => handleInputChange("inventoryCode", e.target.value)}
-              placeholder={t.inventory.addProductModal.inventoryCodePlaceholder}
+                onChange={(e) =>
+                  handleInputChange("inventoryCode", e.target.value)
+                }
+                placeholder={
+                  t.inventory.addProductModal.inventoryCodePlaceholder
+                }
             />
           </div>
 
           {/* QR Code Generator */}
           <div className="space-y-2 md:col-span-2">
             <div className="flex items-center justify-between">
-              <Label>{t.inventory.addProductModal.qrCode}</Label>
+                <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  {t.inventory.addProductModal.qrCode}
+                </span>
               <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={generateQRCode}
-                  disabled={!formData.name || !formData.inventoryCode}
+                    disabled={
+                      !formData.name || !formData.inventoryCode
+                    }
                   className="gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -963,7 +1183,8 @@ export default function AddProductModal({
                   includeMargin={true}
                 />
                 <p className="text-xs text-muted-foreground text-center">
-                  {t.inventory.addProductModal.codeLabel}: {formData.inventoryCode}
+                    {t.inventory.addProductModal.codeLabel}:{" "}
+                    {formData.inventoryCode}
                 </p>
               </div>
             ) : (
@@ -1001,18 +1222,13 @@ export default function AddProductModal({
         <DialogHeader>
           <DialogTitle>Sélectionner un produit</DialogTitle>
           <DialogDescription>
-            Plusieurs produits correspondent à votre recherche. Sélectionnez celui que vous souhaitez ajouter, ou continuez sans sélectionner si aucun ne correspond.
+              Plusieurs produits correspondent à votre recherche.
+              Sélectionnez celui que vous souhaitez ajouter, ou
+              continuez sans sélectionner si aucun ne correspond.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-4">
-          {(() => {
-            const totalPages = Math.min(Math.ceil(searchResults.length / PRODUCTS_PER_PAGE), MAX_PAGES);
-            const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
-            const endIndex = startIndex + PRODUCTS_PER_PAGE;
-            const currentPageResults = searchResults.slice(startIndex, endIndex);
-            
-            return (
               <>
                 {currentPageResults.map((result, index) => (
                   <div
@@ -1029,7 +1245,8 @@ export default function AddProductModal({
                           alt={result.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).style.display =
+                            "none";
                           }}
                         />
                       </div>
@@ -1065,18 +1282,26 @@ export default function AddProductModal({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
                       disabled={currentPage === 1}
                     >
                       Précédent
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      Page {currentPage} sur {totalPages} ({searchResults.length} produit{searchResults.length > 1 ? 's' : ''})
+                    Page {currentPage} sur {totalPages} (
+                    {searchResults.length} produit
+                    {searchResults.length > 1 ? "s" : ""})
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(totalPages, prev + 1)
+                      )
+                    }
                       disabled={currentPage >= totalPages}
                     >
                       Suivant
@@ -1084,8 +1309,6 @@ export default function AddProductModal({
                   </div>
                 )}
               </>
-            );
-          })()}
         </div>
 
         <DialogFooter className="flex gap-2">
@@ -1114,4 +1337,3 @@ export default function AddProductModal({
     </>
   );
 }
-

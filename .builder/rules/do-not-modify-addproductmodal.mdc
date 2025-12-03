@@ -1,0 +1,30 @@
+---
+description: Do not modify AddProductModal.tsx - file is working correctly
+globs:
+  - "client/components/AddProductModal.tsx"
+alwaysApply: true
+---
+
+# DO NOT MODIFY AddProductModal.tsx
+
+**CRITICAL RULE**: The file `client/components/AddProductModal.tsx` is **FUNCTIONAL** and **WORKING CORRECTLY**. 
+
+## Restrictions:
+- **DO NOT** modify, refactor, or change this file
+- **DO NOT** add features to this file
+- **DO NOT** fix "issues" in this file unless explicitly requested by the user
+- **DO NOT** optimize or improve this file
+
+## If user requests changes:
+- Only make changes if the user **explicitly** asks for modifications
+- Always confirm with the user before making any changes
+- If the user reports a bug, investigate first before modifying
+
+## Current Status:
+- ✅ File is functional
+- ✅ Product search works correctly
+- ✅ Image extraction works correctly  
+- ✅ Product selection modal works correctly
+- ✅ All features are working as expected
+
+**This file should remain untouched unless explicitly requested by the user.**

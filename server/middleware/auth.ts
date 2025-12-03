@@ -1,38 +1,47 @@
 import { Request, Response, NextFunction } from "express";
 
-/**
- * Middleware to extract user ID from request
- * In a real app, this would verify JWT tokens or session cookies
- * For now, we'll use a simple header-based approach
- */
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  // Get user ID from header (in production, use JWT or session)
-  const userId = req.headers["x-user-id"] as string;
-  const username = req.headers["x-username"] as string;
+// Middleware d'auth simplifié compatible avec ton frontend
+export default function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers["authorization"];
+    const username = req.headers["x-username"] as string | undefined;
 
-  if (!userId && !username) {
-    // Try to get from localStorage token (sent as Authorization header)
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-      try {
-        // In a real app, verify JWT token here
-        // For now, we'll use a simple approach with localStorage token
-        const token = authHeader.replace("Bearer ", "");
-        // Decode token or verify session
-        // For simplicity, we'll expect the client to send userId in header
-      } catch (error) {
-        return res.status(401).json({ error: "Invalid authentication token" });
-      }
-    } else {
-      return res.status(401).json({ error: "Authentication required" });
+    // Log debug
+    console.log("[AuthMiddleware] Checking auth…");
+    console.log("  Authorization:", authHeader);
+    console.log("  Username:", username);
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        error: "Missing or invalid Authorization header",
+        hint: "Send 'Authorization: Bearer <token>'",
+      });
     }
+
+    const token = authHeader.split(" ")[1];
+
+    // Dans ta version actuelle, le token n'est pas réellement vérifié
+    // (tu n'as pas encore implémenté JWT ou autre)
+    if (!token || token.length < 10) {
+      return res.status(401).json({
+        error: "Invalid token format",
+      });
+    }
+
+    // On attache l'utilisateur au request pour la suite
+    (req as any).user = {
+      username: username || "unknown",
+      token,
+    };
+
+    next();
+  } catch (err: any) {
+    console.error("[AuthMiddleware] Unexpected error:", err.message);
+    return res.status(500).json({
+      error: "Internal auth middleware error",
+      details: err.message,
+    });
   }
-
-  // Attach user info to request
-  (req as any).userId = userId;
-  (req as any).username = username;
-
-  next();
 }
 
 /**
@@ -40,37 +49,51 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
  */
 export function getUserId(req: Request): string | null {
   const userId = req.headers["x-user-id"] as string;
-  if (userId) return userId;
+  if (userId) {
+    console.log("[Auth] UserId trouvé dans header x-user-id:", userId);
+    return userId;
+  }
 
   // Try to get from auth token
   const authHeader = req.headers.authorization;
   if (authHeader) {
     try {
       const token = authHeader.replace("Bearer ", "").trim();
+      console.log("[Auth] Token extrait (premiers 20 caractères):", token.substring(0, 20));
+
       // For now, if token is "authenticated", we need to get username from header
       // In production, this would be a JWT token with userId embedded
       if (token === "authenticated") {
         const username = req.headers["x-username"] as string;
+        console.log("[Auth] Token est 'authenticated', username:", username);
         if (username) {
           // Get user ID from database using username
           const db = require("../database").default;
           const user = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as any;
+          console.log("[Auth] User trouvé dans DB:", user?.id || "Aucun");
           return user?.id || null;
         }
       }
       // Decode simple token (format: userId:username or just userId)
       if (token.includes(":")) {
-        return token.split(":")[0];
+        const extractedUserId = token.split(":")[0];
+        console.log("[Auth] UserId extrait du token (format userId:username):", extractedUserId);
+        return extractedUserId;
       }
       // If token is just userId
       if (token && token !== "authenticated") {
+        console.log("[Auth] Token utilisé directement comme userId:", token);
         return token;
       }
-    } catch (error) {
-      console.error("Error decoding token:", error);
+    } catch (error: any) {
+      console.error("[Auth] Erreur lors du décodage du token:", error.message);
+      console.error("[Auth] Stack:", error.stack);
     }
+  } else {
+    console.log("[Auth] Aucun header Authorization trouvé");
   }
 
+  console.log("[Auth] Aucun userId trouvé, retour null");
   return null;
 }
 
@@ -104,4 +127,3 @@ export function getUsername(req: Request): string | null {
 
   return null;
 }
-

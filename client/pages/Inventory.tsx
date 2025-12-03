@@ -203,7 +203,7 @@ export default function Inventory() {
   };
 
   const totalValue = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
-  const lowStockCount = products.filter((p) => p.quantity < 5).length;
+  const totalArticles = products.reduce((sum, p) => sum + p.quantity, 0);
 
   const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"> = [
     "all",
@@ -230,7 +230,7 @@ export default function Inventory() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{t.inventory.title}</h2>
+            <h2 className="text-2xl sm:text-2xl font-bold text-foreground">{t.inventory.title}</h2>
             <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
               {t.inventory.subtitle}
             </p>
@@ -274,8 +274,8 @@ export default function Inventory() {
         </div>
 
         {/* Stats Cards */}
-        <div className="space-y-3">
-          {/* Total Inventory Value - Full Width */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Total Inventory Value */}
           <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {t.inventory.totalInventoryValue}
@@ -285,28 +285,24 @@ export default function Inventory() {
             </p>
           </div>
           
-          {/* Total Products and Low Stock - Side by Side */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                {t.inventory.totalProducts}
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
-                {products.length}
-              </p>
-            </div>
-            <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                {t.inventory.lowStockItems}
-              </p>
-              <p
-                className={`text-xl sm:text-2xl font-bold mt-1 ${
-                  lowStockCount > 0 ? "text-red-600 dark:text-red-400" : "text-green-400"
-                }`}
-              >
-                {lowStockCount}
-              </p>
-            </div>
+          {/* Total Products */}
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+              {t.inventory.totalProducts}
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
+              {products.length}
+            </p>
+          </div>
+          
+          {/* Total Articles */}
+          <div className="bg-card border-2 border-foreground/20 rounded-lg p-3 sm:p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+              Articles
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-foreground mt-1">
+              {totalArticles}
+            </p>
           </div>
         </div>
 
