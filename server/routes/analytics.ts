@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import db from "../database";
-import { getUserId } from "../middleware/auth.ts";
+import { getUserId } from "../middleware/auth";
 import { callOpenAI, callOpenAIJSON } from "../services/openai";
 
 /**

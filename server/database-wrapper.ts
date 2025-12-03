@@ -159,23 +159,23 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_recipeId ON recipe_ingredients(recipeId);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_stripe_keys_userId ON stripe_keys(userId);
-
-    // Migration: Permettre password NULL pour les utilisateurs Firebase
-    // SQLite ne supporte pas ALTER COLUMN, donc on vérifie si la colonne existe et on la modifie si nécessaire
-    try {
-      const tableInfo = db.prepare("PRAGMA table_info(users)").all() as any[];
-      const passwordColumn = tableInfo.find(col => col.name === "password");
-      if (passwordColumn && passwordColumn.notnull === 1) {
-        // La colonne existe et est NOT NULL, on doit la modifier
-        // SQLite ne supporte pas ALTER COLUMN, donc on doit recréer la table
-        // Pour l'instant, on laisse comme ça car c'est complexe
-        // Les nouvelles installations auront password NULL par défaut
-        console.log("Note: La colonne password est NOT NULL. Les utilisateurs Firebase utiliseront une chaîne vide.");
-      }
-    } catch (error) {
-      // Ignorer les erreurs de migration
-    }
   `);
+
+  // Migration: Permettre password NULL pour les utilisateurs Firebase
+  // SQLite ne supporte pas ALTER COLUMN, donc on vérifie si la colonne existe et on la modifie si nécessaire
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(users)").all() as any[];
+    const passwordColumn = tableInfo.find(col => col.name === "password");
+    if (passwordColumn && passwordColumn.notnull === 1) {
+      // La colonne existe et est NOT NULL, on doit la modifier
+      // SQLite ne supporte pas ALTER COLUMN, donc on doit recréer la table
+      // Pour l'instant, on laisse comme ça car c'est complexe
+      // Les nouvelles installations auront password NULL par défaut
+      console.log("Note: La colonne password est NOT NULL. Les utilisateurs Firebase utiliseront une chaîne vide.");
+    }
+  } catch (error) {
+    // Ignorer les erreurs de migration
+  }
 
   return db;
 }

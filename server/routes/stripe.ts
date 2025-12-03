@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import Stripe from "stripe";
 import db from "../database";
-import { getUserId } from "../middleware/auth.ts";
+import { getUserId } from "../middleware/auth";
 
 /**
  * Get Stripe instance for the current user

@@ -9,7 +9,7 @@ import {
   enable2FA,
   disable2FA,
   syncFirebaseUser,
-} from "./routes/auth.ts";
+} from "./routes/auth";
 import {
   getSalesPrediction,
   getReorderRecommendations,
@@ -25,7 +25,7 @@ import {
   getSalesReport,
   getTaxReport,
   getFoodWinePairing,
-} from "./routes/analytics.ts";
+} from "./routes/analytics";
 import {
   getProducts,
   getProduct,
@@ -33,28 +33,28 @@ import {
   updateProduct,
   deleteProduct,
   updateProductQuantity,
-} from "./routes/products.ts";
+} from "./routes/products";
 import {
   getRecipes,
   getRecipe,
   createRecipe,
   updateRecipe,
   deleteRecipe,
-} from "./routes/recipes.ts";
-import { searchImages } from "./routes/image-search.ts";
-import { handleSAQScrape } from "./routes/saq-scraper.ts";
+} from "./routes/recipes";
+import { searchImages } from "./routes/image-search";
+import { handleSAQScrape } from "./routes/saq-scraper";
 import {
   createConnectionToken,
   createPaymentIntent,
   confirmPayment,
   cancelPayment,
-} from "./routes/stripe.ts";
+} from "./routes/stripe";
 import {
   getStripeKeys,
   saveStripeKeys,
   deleteStripeKeys,
-} from "./routes/stripe-keys.ts";
-import { authenticateToken } from "./middleware/auth.ts";
+} from "./routes/stripe-keys";
+import { authenticateToken } from "./middleware/auth";
 
 export function createServer() {
   console.log("[Express] createServer() appelé");
@@ -137,7 +137,7 @@ export function createServer() {
   app.post("/api/analytics/food-wine-pairing", authenticateToken, getFoodWinePairing);
 
   // 404 handler for API routes
-  app.use("/api/*", (req, res) => {
+  app.use("/api", (req, res) => {
     console.log(`[Express] 404 - Route not found: ${req.method} ${req.url}`);
     res.status(404).json({ error: "Route not found" });
   });
