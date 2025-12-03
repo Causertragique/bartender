@@ -80,19 +80,29 @@ export const getSalesPrediction: RequestHandler = async (req, res) => {
       .slice(0, 5);
 
     // Utiliser OpenAI pour générer des prédictions intelligentes avec contexte régional
-    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant, génère des prédictions de ventes pour les ${daysCount} prochains jours.
+    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant au Québec, génère des prédictions de ventes pour les ${daysCount} prochains jours.
 
-Contexte:
-- Région: ${region}
-- Revenu quotidien moyen actuel: $${avgDailyRevenue.toFixed(2)}
-- Nombre de jours de données: ${dailyValues.length}
+**CONTEXTE DE L'ÉTABLISSEMENT:**
+- Type: Bar/Restaurant québécois
+- Région: ${region}, Québec, Canada
+- Devise: Dollar canadien (CAD)
+- Marché: Clientèle québécoise
+
+**DONNÉES HISTORIQUES:**
+- Revenu quotidien moyen actuel: $${avgDailyRevenue.toFixed(2)} CAD
+- Nombre de jours de données historiques: ${dailyValues.length}
 - Meilleurs produits vendus: ${topProducts.map(p => `${p.name} (${p.category})`).join(", ")}
 
-Génère des prédictions réalistes en tenant compte:
-1. Les tendances régionales (ex: vendredis/samedis plus chargés au Québec)
-2. Les meilleurs produits identifiés
-3. Les saisons et événements locaux
-4. Les habitudes de consommation régionales
+**FACTEURS À CONSIDÉRER POUR LE QUÉBEC:**
+1. Tendances hebdomadaires québécoises (vendredis/samedis plus achalandés)
+2. Préférences locales (bières locales, vins importés, spiritueux québécois)
+3. Saisons et climat québécois (hiver rigoureux affecte la fréquentation)
+4. Événements culturels et sportifs québécois (Canadiens de Montréal, festivals)
+5. Habitudes de consommation québécoises (5 à 7, soupers tard le weekend)
+
+**INSTRUCTIONS:**
+Génère des prédictions réalistes basées sur les données historiques et les spécificités du marché québécois.
+Utilise des montants en dollars canadiens.
 
 Réponds en JSON:
 {
@@ -101,13 +111,13 @@ Réponds en JSON:
       "date": "YYYY-MM-DD",
       "predictedRevenue": 123.45,
       "confidence": 0.85,
-      "reason": "explication courte"
+      "reason": "explication tenant compte du contexte québécois"
     }
   ],
   "topSellers": [
     {
       "product": "nom du produit",
-      "reason": "pourquoi il sera populaire"
+      "reason": "pourquoi il sera populaire au Québec"
     }
   ],
   "trend": 5.2
@@ -126,7 +136,7 @@ Réponds en JSON:
         reason: string;
       }>;
       trend: number;
-    }>(aiPrompt, "Tu es un expert en analyse de ventes et prédictions pour l'industrie de la restauration et des bars, avec une connaissance approfondie des tendances régionales au Canada.");
+    }>(aiPrompt, "Tu es un expert en analyse de ventes et prédictions pour l'industrie de la restauration et des bars au Québec, Canada. Tu possèdes une connaissance approfondie du marché québécois, des habitudes de consommation locales, des tendances saisonnières, et du calendrier culturel et sportif du Québec. Tu fournis des prédictions réalistes adaptées au contexte économique québécois.");
 
     console.log("[Sales Prediction] Réponse OpenAI:", aiResponse ? "Reçue" : "Aucune réponse");
 
@@ -573,17 +583,29 @@ export const getInsights: RequestHandler = async (req, res) => {
     };
 
     // Essayer d'obtenir des insights IA
-    const aiPrompt = `En tant qu'expert en analyse de données pour bar/restaurant, génère 4 insights pertinents basés sur ces données:
+    const aiPrompt = `En tant qu'expert en analyse de données pour bar/restaurant au Québec, génère 4 insights pertinents basés sur ces données:
 
-Revenus totaux (30 jours): $${dataSummary.totalRevenue.toFixed(2)}
-Nombre de ventes: ${dataSummary.totalSales}
-Valeur moyenne par transaction: $${dataSummary.avgSaleValue.toFixed(2)}
-Produit le plus vendu: ${dataSummary.topProduct} (${dataSummary.topProductSales} unités)
-Produits en rupture: ${dataSummary.outOfStockCount}
-Produits à stock faible: ${dataSummary.lowStockCount}
-Total produits: ${dataSummary.productCount}
+**CONTEXTE DE L'ÉTABLISSEMENT:**
+- Type: Bar/Restaurant au Québec, Canada
+- Devise: Dollar canadien (CAD)
+- Marché: Clientèle québécoise avec habitudes de consommation locales
+- Réglementation: Lois québécoises sur l'alcool et la restauration
 
-Génère des insights actionnables et pertinents. Réponds en JSON:
+**DONNÉES DE PERFORMANCE (30 derniers jours):**
+- Revenus totaux: $${dataSummary.totalRevenue.toFixed(2)} CAD
+- Nombre de ventes: ${dataSummary.totalSales}
+- Valeur moyenne par transaction: $${dataSummary.avgSaleValue.toFixed(2)} CAD
+- Produit le plus vendu: ${dataSummary.topProduct} (${dataSummary.topProductSales} unités)
+- Produits en rupture: ${dataSummary.outOfStockCount}
+- Produits à stock faible: ${dataSummary.lowStockCount}
+- Total produits en inventaire: ${dataSummary.productCount}
+
+**INSTRUCTIONS:**
+Génère 4 insights actionnables et pertinents pour un bar/restaurant québécois.
+Tiens compte des spécificités locales (ex: popularité du vin, bière locale, spiritueux québécois).
+Utilise des montants en dollars canadiens.
+
+Réponds en JSON:
 {
   "insights": [
     {
@@ -591,7 +613,7 @@ Génère des insights actionnables et pertinents. Réponds en JSON:
       "title": "Titre court",
       "value": "Valeur ou chiffre",
       "trend": "positive|negative|warning|neutral",
-      "description": "Description détaillée et actionnable"
+      "description": "Description détaillée et actionnable adaptée au contexte québécois"
     }
   ]
 }`;
@@ -603,7 +625,7 @@ Génère des insights actionnables et pertinents. Réponds en JSON:
       value: string;
       trend: string;
       description: string;
-    }> }>(aiPrompt, "Tu es un expert en analyse de données pour l'industrie de la restauration et des bars.");
+    }> }>(aiPrompt, "Tu es un expert en analyse de données spécialisé dans l'industrie de la restauration et des bars au Québec, Canada. Tu comprends les tendances du marché québécois, les habitudes de consommation locales, et les réglementations en vigueur. Tu fournis des conseils pratiques adaptés au contexte québécois.");
 
     console.log("[Insights] Réponse OpenAI:", aiInsights ? `${aiInsights.insights?.length || 0} insights` : "Aucune réponse");
 
