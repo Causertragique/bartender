@@ -37,12 +37,12 @@
 </head>
 <body>
     <h1>Politique de Confidentialité</h1>
-    <p class="last-updated">Dernière mise à jour : <span id="last-updated">2024-01-15</span></p>
+    <p class="last-updated">Dernière mise à jour : <span id="last-updated">5 décembre 2025</span></p>
 
     <h2>1. Introduction</h2>
     <p>
         La Réserve ("nous", "notre", "l'application") s'engage à protéger votre vie privée. 
-        Cette politique de confidentialité explique comment nous collectons, utilisons, stockons et protégeons 
+        Cette politique de confidentialité explique comment nous collectons, utilisons, stockons et protégons 
         vos informations personnelles lorsque vous utilisez notre application de gestion de bar.
     </p>
 
@@ -50,45 +50,63 @@
     
     <h3>2.1 Informations que vous nous fournissez</h3>
     <ul>
-        <li><strong>Informations de compte :</strong> Nom d'utilisateur, mot de passe (haché de manière sécurisée)</li>
-        <li><strong>Données d'inventaire :</strong> Produits, quantités, prix, catégories</li>
-        <li><strong>Données de vente :</strong> Transactions, montants, articles vendus</li>
+        <li><strong>Informations de compte :</strong> Nom d'utilisateur, adresse email, mot de passe (haché de manière sécurisée via Firebase Authentication)</li>
+        <li><strong>Informations de profil :</strong> Nom du bar, téléphone, adresse, devise, région fiscale, taux de taxe</li>
+        <li><strong>Données d'inventaire :</strong> Produits, quantités, prix, catégories, codes d'inventaire</li>
+        <li><strong>Données de vente :</strong> Transactions, montants, articles vendus, méthodes de paiement</li>
         <li><strong>Recettes :</strong> Cocktails et recettes créés</li>
-        <li><strong>Paramètres :</strong> Préférences de l'application, paramètres de notification</li>
+        <li><strong>Paramètres :</strong> Préférences de l'application, paramètres de notification, langue, thème</li>
+        <li><strong>Logs d'audit :</strong> Historique des modifications d'inventaire pour la sécurité et la traçabilité (date, heure, utilisateur, action effectuée)</li>
     </ul>
 
     <h3>2.2 Informations collectées automatiquement</h3>
     <ul>
         <li><strong>Données d'utilisation :</strong> Statistiques d'utilisation, fonctionnalités utilisées</li>
         <li><strong>Données de performance :</strong> Informations techniques pour améliorer l'application</li>
+        <li><strong>Données d'audit :</strong> Actions effectuées sur l'inventaire (création, modification, suppression) avec horodatage et identification de l'utilisateur pour prévenir la fraude</li>
     </ul>
 
     <h3>2.3 Informations de paiement</h3>
     <p>
         Pour les paiements via Stripe Terminal, nous ne stockons <strong>aucune</strong> information de carte de crédit. 
         Toutes les transactions sont traitées directement par Stripe, conformément à leur politique de confidentialité.
-        Nous stockons uniquement les clés API Stripe que vous configurez pour votre propre compte Stripe.
+        Nous stockons uniquement les clés API Stripe que vous configurez pour votre propre compte Stripe de manière sécurisée dans Firestore.
     </p>
 
     <h2>3. Comment nous utilisons vos informations</h2>
     <p>Nous utilisons vos informations pour :</p>
     <ul>
         <li>Fournir et améliorer nos services de gestion de bar</li>
-        <li>Gérer votre compte et authentification</li>
-        <li>Traiter les transactions et paiements</li>
-        <li>Générer des rapports et analyses</li>
+        <li>Gérer votre compte et authentification via Firebase Authentication</li>
+        <li>Traiter les transactions et paiements via Stripe Terminal</li>
+        <li>Générer des rapports et analyses via OpenAI</li>
         <li>Vous envoyer des notifications importantes (si activées)</li>
-        <li>Assurer la sécurité et prévenir la fraude</li>
-        <li>Respecter nos obligations légales</li>
+        <li>Assurer la sécurité et prévenir la fraude grâce au système de logs d'audit</li>
+        <li>Appliquer le contrôle d'accès basé sur les rôles (propriétaire, administrateur, gérant, employé)</li>
+        <li>Détecter les activités suspectes et les tentatives de manipulation d'inventaire</li>
+        <li>Respecter nos obligations légales et réglementaires</li>
     </ul>
 
     <h2>4. Stockage des données</h2>
     <p>
-        Toutes vos données sont stockées <strong>localement</strong> sur votre appareil dans une base de données SQLite. 
-        Aucune donnée n'est transmise à nos serveurs sans votre consentement explicite.
+        Vos données sont stockées de manière sécurisée dans <strong>Google Cloud Firestore</strong>, un service de base de données 
+        cloud conforme au RGPD et certifié pour la sécurité des données. Les données sont également sauvegardées localement 
+        dans le stockage de votre navigateur (localStorage) pour permettre un fonctionnement hors ligne.
     </p>
     <p>
-        Les données sont stockées de manière sécurisée et ne sont accessibles qu'à vous via votre compte authentifié.
+        <strong>Stockage par collection Firestore :</strong>
+    </p>
+    <ul>
+        <li><strong>Profil utilisateur :</strong> Informations de compte et paramètres dans <code>users/{userId}</code></li>
+        <li><strong>Inventaire :</strong> Produits dans <code>users/{userId}/products</code></li>
+        <li><strong>Ventes :</strong> Transactions dans <code>users/{userId}/sales</code></li>
+        <li><strong>Recettes :</strong> Cocktails dans <code>users/{userId}/recipes</code></li>
+        <li><strong>Logs d'audit :</strong> Traçabilité immutable dans <code>users/{userId}/inventory_logs</code> (ne peut être modifié ou supprimé après création)</li>
+        <li><strong>Clés Stripe :</strong> Clés API Stripe chiffrées dans <code>users/{userId}/stripe_keys</code></li>
+    </ul>
+    <p>
+        Les données sont isolées par utilisateur et protégées par des règles de sécurité Firestore strictes. 
+        Seuls vous et les utilisateurs que vous autorisez (selon leur rôle) peuvent accéder à vos données.
     </p>
 
     <h2>5. Partage de vos informations</h2>
@@ -96,8 +114,16 @@
     <h3>5.1 Services tiers</h3>
     <ul>
         <li>
+            <strong>Firebase (Google Cloud) :</strong> Pour l'authentification, le stockage de données et l'hébergement. 
+            Google traite vos données conformément à leur <a href="https://firebase.google.com/support/privacy" target="_blank">politique de confidentialité Firebase</a>.
+        </li>
+        <li>
             <strong>Stripe :</strong> Pour le traitement des paiements. Stripe collecte et traite les informations de paiement 
             conformément à leur <a href="https://stripe.com/privacy" target="_blank">politique de confidentialité</a>.
+        </li>
+        <li>
+            <strong>OpenAI :</strong> Pour les analyses intelligentes et recommandations. Les données envoyées à OpenAI sont 
+            anonymisées et traitées conformément à leur <a href="https://openai.com/privacy" target="_blank">politique de confidentialité</a>.
         </li>
         <li>
             <strong>Google Custom Search API :</strong> Pour la recherche d'images de produits (si activée). 
@@ -116,14 +142,28 @@
     </p>
 
     <h2>6. Sécurité des données</h2>
-    <p>Nous mettons en œuvre des mesures de sécurité appropriées pour protéger vos informations :</p>
+    <p>Nous mettons en œuvre des mesures de sécurité robustes pour protéger vos informations :</p>
+    
+    <h3>6.1 Mesures de sécurité techniques</h3>
     <ul>
-        <li>Mots de passe hachés avec des algorithmes sécurisés</li>
-        <li>Double authentification (2FA) disponible</li>
-        <li>Stockage local sécurisé avec SQLite</li>
-        <li>Communication sécurisée (HTTPS) pour les services tiers</li>
-        <li>Clés API Stripe stockées de manière sécurisée</li>
+        <li><strong>Authentification Firebase :</strong> Authentification sécurisée avec chiffrement des mots de passe</li>
+        <li><strong>Double authentification (2FA) :</strong> Disponible pour renforcer la sécurité de votre compte</li>
+        <li><strong>Règles de sécurité Firestore :</strong> Contrôle d'accès strict au niveau de la base de données</li>
+        <li><strong>Communication sécurisée :</strong> HTTPS/TLS pour toutes les communications avec les services cloud</li>
+        <li><strong>Chiffrement des clés API :</strong> Clés Stripe et autres secrets stockés de manière sécurisée et chiffrée</li>
+        <li><strong>Isolation des données :</strong> Vos données sont strictement isolées de celles des autres utilisateurs</li>
     </ul>
+
+    <h3>6.2 Système anti-fraude et logs d'audit</h3>
+    <ul>
+        <li><strong>Contrôle d'accès basé sur les rôles (RBAC) :</strong> 4 niveaux d'accès (propriétaire, administrateur, gérant, employé) avec permissions granulaires</li>
+        <li><strong>Logs d'audit immutables :</strong> Toutes les modifications d'inventaire sont enregistrées de manière permanente et ne peuvent être modifiées ou supprimées</li>
+        <li><strong>Détection automatique de fraude :</strong> Algorithmes de détection des activités suspectes (ajustements non autorisés, suppressions inhabituelles, modifications de prix suspectes)</li>
+        <li><strong>Traçabilité complète :</strong> Chaque action est associée à un utilisateur, un horodatage et une raison pour assurer la responsabilité</li>
+        <li><strong>Alertes de sécurité :</strong> Notifications visuelles pour les administrateurs en cas d'activité suspecte détectée</li>
+    </ul>
+
+    <h3>6.3 Limitations</h3>
     <p>
         Cependant, aucune méthode de transmission sur Internet ou de stockage électronique n'est 100% sécurisée. 
         Bien que nous nous efforcions d'utiliser des moyens commercialement acceptables pour protéger vos informations, 
@@ -133,29 +173,60 @@
     <h2>7. Vos droits</h2>
     <p>Conformément au RGPD et aux lois sur la protection des données, vous avez le droit de :</p>
     <ul>
-        <li><strong>Accéder</strong> à vos données personnelles</li>
-        <li><strong>Rectifier</strong> vos données inexactes</li>
-        <li><strong>Supprimer</strong> vos données personnelles</li>
-        <li><strong>Limiter</strong> le traitement de vos données</li>
-        <li><strong>Vous opposer</strong> au traitement de vos données</li>
-        <li><strong>Portabilité</strong> de vos données (export CSV/Excel disponible)</li>
+        <li><strong>Accéder</strong> à vos données personnelles via l'interface de l'application</li>
+        <li><strong>Rectifier</strong> vos données inexactes dans les paramètres de l'application</li>
+        <li><strong>Supprimer</strong> vos données personnelles - Suppression complète de compte disponible dans Paramètres > Sécurité</li>
+        <li><strong>Limiter</strong> le traitement de vos données en désactivant certaines fonctionnalités</li>
+        <li><strong>Vous opposer</strong> au traitement de vos données pour certaines finalités</li>
+        <li><strong>Portabilité</strong> de vos données - Téléchargement complet de toutes vos données au format JSON disponible dans Paramètres > Sécurité</li>
+        <li><strong>Consulter les logs d'audit :</strong> Les gérants et administrateurs peuvent consulter l'historique complet des modifications (disponible dans la section Logs d'audit)</li>
     </ul>
     <p>
-        Pour exercer ces droits, vous pouvez supprimer vos données directement dans l'application ou nous contacter 
-        aux coordonnées fournies ci-dessous.
+        Pour exercer ces droits, vous pouvez :
     </p>
+    <ul>
+        <li>Télécharger toutes vos données depuis <strong>Paramètres > Sécurité > Télécharger mes données</strong></li>
+        <li>Supprimer votre compte et toutes vos données depuis <strong>Paramètres > Sécurité > Supprimer mon compte</strong></li>
+        <li>Nous contacter aux coordonnées fournies ci-dessous pour toute demande spécifique</li>
+    </ul>
 
     <h2>8. Conservation des données</h2>
     <p>
         Nous conservons vos données aussi longtemps que votre compte est actif ou aussi longtemps que nécessaire 
         pour vous fournir nos services. Vous pouvez supprimer votre compte et toutes vos données à tout moment 
-        depuis les paramètres de l'application.
+        depuis <strong>Paramètres > Sécurité > Supprimer mon compte</strong>.
+    </p>
+    <p>
+        <strong>Durée de conservation par type de données :</strong>
+    </p>
+    <ul>
+        <li><strong>Données de compte :</strong> Jusqu'à suppression du compte</li>
+        <li><strong>Inventaire et ventes :</strong> Jusqu'à suppression du compte</li>
+        <li><strong>Logs d'audit :</strong> Conservés pendant toute la durée de vie du compte pour assurer la traçabilité et la conformité réglementaire</li>
+        <li><strong>Données de cache :</strong> Supprimées automatiquement après 24 heures ou lors de la déconnexion</li>
+    </ul>
+    <p>
+        Après la suppression de votre compte, toutes vos données sont définitivement supprimées de nos systèmes 
+        (Firestore, Firebase Authentication) et ne peuvent être récupérées. Les données en cache local sont également effacées.
     </p>
 
     <h2>9. Cookies et technologies similaires</h2>
     <p>
-        Notre application utilise le stockage local (localStorage) pour sauvegarder vos préférences et données. 
-        Nous n'utilisons pas de cookies de suivi tiers.
+        Notre application utilise le stockage local (localStorage et sessionStorage) pour sauvegarder vos préférences, 
+        votre session d'authentification et des données en cache pour améliorer les performances. 
+    </p>
+    <p>
+        <strong>Données stockées localement :</strong>
+    </p>
+    <ul>
+        <li>Token d'authentification Firebase</li>
+        <li>Préférences utilisateur (langue, thème, devise)</li>
+        <li>Cache des analyses (valide 24h)</li>
+        <li>Backup des logs d'audit</li>
+    </ul>
+    <p>
+        Nous n'utilisons pas de cookies de suivi tiers à des fins publicitaires. Firebase peut utiliser des cookies 
+        pour l'authentification et la sécurité conformément à leur politique.
     </p>
 
     <h2>10. Enfants</h2>

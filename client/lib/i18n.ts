@@ -369,6 +369,27 @@ export interface Translations {
       theme: string;
       language: string;
     };
+    security: {
+      title: string;
+      description: string;
+      downloadData: string;
+      downloadDataDesc: string;
+      downloadButton: string;
+      downloading: string;
+      downloadSuccess: string;
+      downloadError: string;
+      deleteAccount: string;
+      deleteAccountDesc: string;
+      deleteButton: string;
+      deleteConfirmTitle: string;
+      deleteConfirmMessage: string;
+      deleteConfirmPlaceholder: string;
+      deleteConfirmButton: string;
+      deleteCancel: string;
+      deleteSuccess: string;
+      deleteError: string;
+      confirmationRequired: string;
+    };
   };
 
   // Common
@@ -1596,18 +1617,6 @@ const translations: Record<Language, Translations> = {
         downloading: "Descargando...",
         downloadSuccess: "¡Datos descargados con éxito!",
         downloadError: "Error al descargar los datos.",
-        deleteAccount: "Eliminar Cuenta",
-        deleteAccountDesc: "Elimina permanentemente tu cuenta y todos tus datos. Esta acción es irreversible.",
-        deleteButton: "Eliminar Mi Cuenta",
-        deleteConfirmTitle: "Confirmar Eliminación de Cuenta",
-        deleteConfirmMessage: "¿ Estás absolutamente seguro de que deseas eliminar tu cuenta? Esto eliminará permanentemente todos tus datos (productos, ventas, recetas, configuración). Esta acción es IRREVERSIBLE.",
-        deleteConfirmPlaceholder: "Escribe 'ELIMINAR' para confirmar",
-        deleteConfirmButton: "Sí, eliminar permanentemente",
-        deleteCancel: "Cancelar",
-        deleteSuccess: "Cuenta eliminada con éxito. Serás desconectado.",
-        deleteError: "Error al eliminar la cuenta.",
-        confirmationRequired: "Por favor escribe 'ELIMINAR' para confirmar",
-      },
         deleteAccount: "Eliminar Cuenta",
         deleteAccountDesc: "Elimina permanentemente tu cuenta y todos tus datos. Esta acción es irreversible.",
         deleteButton: "Eliminar Mi Cuenta",
