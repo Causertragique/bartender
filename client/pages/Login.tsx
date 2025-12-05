@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithEmail, signupWithEmail, loginWithGoogle, resetPassword } from "../services/firestore/auth";
+import { consumeInvite } from "@/services/firestore/invites";
+import { updateUserRole } from "@/services/firestore/users";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -12,9 +14,30 @@ export default function Login() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const applyInviteCodeIfAny = async (uid: string) => {
+    const code = inviteCode.trim();
+    if (!code) return;
+    const role = await consumeInvite(code, uid);
+    if (role) {
+      await updateUserRole(uid, role);
+      localStorage.setItem("bartender-user-role", role);
+      toast({
+        title: "Code appliqué",
+        description: `Rôle: ${role}`,
+      });
+    } else {
+      toast({
+        title: "Code invalide",
+        description: "Vérifiez le code ou sa validité.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,13 +45,15 @@ export default function Login() {
 
     try {
       if (isSignup) {
-        await signupWithEmail(email, password);
+        const user = await signupWithEmail(email, password);
+        await applyInviteCodeIfAny(user.uid);
         toast({
           title: "Compte créé",
           description: "Bienvenue ! Votre compte a été créé avec succès.",
         });
       } else {
-        await loginWithEmail(email, password);
+        const user = await loginWithEmail(email, password);
+        await applyInviteCodeIfAny(user.uid);
         toast({
           title: "Connexion réussie",
           description: "Bienvenue !",
@@ -79,7 +104,8 @@ export default function Login() {
   const handleGoogleAuth = async () => {
     setLoading(true);
     try {
-      await loginWithGoogle();
+      const user = await loginWithGoogle();
+      await applyInviteCodeIfAny(user.uid);
       toast({
         title: "Connexion réussie",
         description: "Bienvenue !",
@@ -187,6 +213,18 @@ export default function Login() {
                 disabled={loading}
                 minLength={6}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite">Code d'invitation (optionnel)</Label>
+              <Input
+                id="invite"
+                type="text"
+                placeholder="ABCDEF12"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">Partagé par votre administrateur.</p>
             </div>
             <Button type="submit" className="w-full bg-amber-700 hover:bg-amber-800 text-white" disabled={loading}>
               {loading ? "Chargement..." : isSignup ? "Créer mon compte" : "Se connecter"}

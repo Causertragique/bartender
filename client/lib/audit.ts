@@ -50,16 +50,21 @@ export async function logInventoryChange(params: {
       },
     };
 
+    // Supprimer les champs undefined (Firestore refuse les valeurs undefined)
+    const sanitizedLogEntry = Object.fromEntries(
+      Object.entries(logEntry).filter(([, value]) => value !== undefined)
+    ) as Omit<FirestoreInventoryLog, "id">;
+
     // Sauvegarder dans Firestore si disponible
     if (isFirebaseConfigured() && auth?.currentUser && db) {
       const logsRef = collection(db, `users/${userId}/inventory_logs`);
-      await addDoc(logsRef, logEntry);
+      await addDoc(logsRef, sanitizedLogEntry);
     }
 
     // Sauvegarder aussi dans localStorage pour traçabilité locale
     const localLogs = JSON.parse(localStorage.getItem("inventory-audit-logs") || "[]");
     localLogs.push({
-      ...logEntry,
+      ...sanitizedLogEntry,
       timestamp: new Date().toISOString(),
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     });

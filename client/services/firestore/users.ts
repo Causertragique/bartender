@@ -13,7 +13,7 @@ export interface UserProfile {
   updatedAt: Timestamp;
 }
 
-const DEFAULT_ROLE: UserRole = "owner";
+const DEFAULT_ROLE: UserRole = "employee";
 
 const isValidRole = (role: unknown): role is UserRole =>
   role === "owner" || role === "admin" || role === "manager" || role === "employee";

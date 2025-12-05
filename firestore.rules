@@ -42,7 +42,7 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isAdminOrOwner(); // Seuls admin/owner peuvent créer
         allow update: if isAdminOrOwner(); // Seuls admin/owner peuvent modifier
-        allow delete: if isAdminOrOwner(); // Seuls admin/owner peuvent supprimer
+        allow delete: if isOwner(userId) || isAdminOrOwner(); // Autorise aussi le propriétaire du compte
       }
       
       // Logs d'audit d'inventaire: users/{userId}/inventory_logs/{logId}
@@ -88,6 +88,14 @@ service cloud.firestore {
       }
     }
     
+    // Invitations (codes d'accès) - créées par owner/admin, lues par utilisateurs authentifiés
+    match /invites/{code} {
+      allow create: if isAdminOrOwner();
+      allow read: if isAuthenticated();
+      allow update: if isAdminOrOwner();
+      allow delete: if false;
+    }
+
     // Bloquer tout le reste par défaut
     match /{document=**} {
       allow read, write: if false;

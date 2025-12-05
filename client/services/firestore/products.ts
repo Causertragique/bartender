@@ -4,7 +4,7 @@ import {
   getDocs,
   getDoc,
   addDoc,
-  updateDoc,
+  setDoc,
   deleteDoc,
   query,
   where,
@@ -35,9 +35,9 @@ export async function getProduct(userId: string, productId: string): Promise<Pro
 
   const docRef = doc(db, "users", userId, "products", productId);
   const docSnap = await getDoc(docRef);
-  
+
   if (!docSnap.exists()) return null;
-  
+
   return {
     id: docSnap.id,
     ...docSnap.data(),
@@ -49,23 +49,14 @@ export async function createProduct(
   userId: string,
   product: Omit<Product, "id">
 ): Promise<Product> {
-  console.log("=== createProduct appelé ===");
-  console.log("userId:", userId);
-  console.log("product:", product);
-  console.log("db initialized:", !!db);
-  
   if (!db) throw new Error("Firestore not initialized");
 
   const productsRef = collection(db, "users", userId, "products");
-  console.log("Collection path:", `users/${userId}/products`);
-  
   const docRef = await addDoc(productsRef, {
     ...product,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
-  
-  console.log("Document créé avec ID:", docRef.id);
 
   return {
     id: docRef.id,
@@ -73,25 +64,34 @@ export async function createProduct(
   } as Product;
 }
 
-// Mettre à jour un produit
+// Mettre à jour un produit (créé si manquant)
 export async function updateProduct(
   userId: string,
   productId: string,
-  updates: Partial<Product>
+  updates: Partial<Product>,
+  options?: { allowCreateIfMissing?: boolean }
 ): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
 
   const docRef = doc(db, "users", userId, "products", productId);
-  try {
-    await updateDoc(docRef, {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    });
-  } catch (error: any) {
-    // Si le document n'existe pas, essayons juste de logger l'erreur mais ne pas crasher
-    console.warn(`[Products] Impossible de mettre à jour ${productId}:`, error.message);
-    // Ne pas relancer l'erreur pour ne pas interrompre le flux de paiement
+  const snap = await getDoc(docRef);
+
+  // Par défaut on ne recrée pas un produit supprimé
+  if (!snap.exists() && !options?.allowCreateIfMissing) {
+    console.warn(`[Products] Document absent, mise à jour ignorée pour ${productId}`);
+    return;
   }
+
+  const payload: Record<string, unknown> = {
+    ...updates,
+    updatedAt: Timestamp.now(),
+  };
+
+  if (!snap.exists() && options?.allowCreateIfMissing) {
+    payload.createdAt = Timestamp.now();
+  }
+
+  await setDoc(docRef, payload, { merge: true });
 }
 
 // Supprimer un produit
@@ -121,3 +121,4 @@ export async function getProductsByCategory(
     ...doc.data(),
   })) as Product[];
 }
+ 

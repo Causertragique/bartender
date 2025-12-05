@@ -8,6 +8,8 @@ import { AlertCircle, RefreshCw, Shield, UserCog } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { UserRole, ROLE_LABELS, hasPermission, getCurrentUserRole } from "@/lib/permissions";
 import { listUsers, updateUserRole, UserProfileWithId } from "@/services/firestore/users";
+import { createInvite } from "@/services/firestore/invites";
+import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { isFirebaseConfigured } from "@/lib/firebase";
 
@@ -18,6 +20,9 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [inviteRole, setInviteRole] = useState<UserRole>("employee");
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const currentRole = getCurrentUserRole();
   const canManageUsers = hasPermission(currentRole, "canManageUsers");
@@ -77,6 +82,38 @@ export default function UserManagement() {
     }
   };
 
+  const handleGenerateInvite = async () => {
+    if (!auth?.currentUser) {
+      toast({
+        title: language === "fr" ? "Non connecté" : "Not signed in",
+        description: language === "fr" ? "Connectez-vous pour créer un code." : "Sign in to create a code.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setInviteLoading(true);
+      setInviteCode(null);
+      const invite = await createInvite(inviteRole, auth.currentUser.uid);
+      setInviteCode(invite.code);
+      toast({
+        title: language === "fr" ? "Code créé" : "Code created",
+        description: language === "fr"
+          ? "Partagez ce code avec votre employé."
+          : "Share this code with your employee.",
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: language === "fr" ? "Erreur" : "Error",
+        description: err.message || (language === "fr" ? "Impossible de créer le code" : "Cannot create code"),
+        variant: "destructive",
+      });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   if (!canManageUsers) {
     return (
       <Layout>
@@ -119,6 +156,44 @@ export default function UserManagement() {
             {language === "fr" ? "Rafraîchir" : "Refresh"}
           </Button>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{language === "fr" ? "Inviter un employé" : "Invite an employee"}</CardTitle>
+            <CardDescription>
+              {language === "fr"
+                ? "Générez un code à partager. L'employé le saisira lors de sa connexion pour prendre ce rôle."
+                : "Generate a code to share. The employee enters it on login to receive this role."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2">
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as UserRole)}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder={language === "fr" ? "Choisir un rôle" : "Choose role"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {getRoleLabel(role)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleGenerateInvite} disabled={inviteLoading}>
+                {inviteLoading ? (language === "fr" ? "Création..." : "Creating...") : (language === "fr" ? "Générer" : "Generate")}
+              </Button>
+            </div>
+            {inviteCode && (
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Badge variant="secondary">{inviteCode}</Badge>
+                <span className="text-muted-foreground">
+                  {language === "fr" ? "Partager ce code" : "Share this code"}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
