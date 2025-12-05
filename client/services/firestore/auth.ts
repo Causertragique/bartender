@@ -10,6 +10,22 @@ import {
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { createOrUpdateUserProfile } from "./users";
+import { UserRole } from "@/lib/permissions";
+
+const persistLocalAuth = (user: User, role?: UserRole) => {
+  localStorage.setItem("bartender-auth", "authenticated");
+  localStorage.setItem("bartender-user-id", user.uid);
+  localStorage.setItem("bartender-username", user.email || user.displayName || "User");
+  localStorage.setItem("bartender-user", JSON.stringify({
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+  }));
+  if (role) {
+    localStorage.setItem("bartender-user-role", role);
+  }
+};
 
 // Connexion email/password
 export async function loginWithEmail(email: string, password: string): Promise<User> {
@@ -17,7 +33,8 @@ export async function loginWithEmail(email: string, password: string): Promise<U
   const result = await signInWithEmailAndPassword(auth, email, password);
   
   // Créer/mettre à jour le profil dans Firestore
-  await createOrUpdateUserProfile(result.user);
+  const role = await createOrUpdateUserProfile(result.user);
+  persistLocalAuth(result.user, role);
   
   return result.user;
 }
@@ -28,7 +45,8 @@ export async function signupWithEmail(email: string, password: string): Promise<
   const result = await createUserWithEmailAndPassword(auth, email, password);
   
   // Créer le profil dans Firestore
-  await createOrUpdateUserProfile(result.user);
+  const role = await createOrUpdateUserProfile(result.user);
+  persistLocalAuth(result.user, role);
   
   return result.user;
 }
@@ -39,7 +57,8 @@ export async function loginWithGoogle(): Promise<User> {
   const result = await signInWithPopup(auth, googleProvider);
   
   // Créer/mettre à jour le profil dans Firestore
-  await createOrUpdateUserProfile(result.user);
+  const role = await createOrUpdateUserProfile(result.user);
+  persistLocalAuth(result.user, role);
   
   return result.user;
 }
@@ -59,6 +78,7 @@ export async function logout(): Promise<void> {
   localStorage.removeItem("bartender-user");
   localStorage.removeItem("bartender-user-id");
   localStorage.removeItem("bartender-username");
+  localStorage.removeItem("bartender-user-role");
   
   // Nettoyer les caches analytics
   const keysToRemove: string[] = [];

@@ -54,6 +54,7 @@ import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, deleteDoc } 
 import { deleteUser } from "firebase/auth";
 import { FirestoreUserProfile } from "@shared/firestore-schema";
 import { useNavigate } from "react-router-dom";
+import { ROLE_LABELS, UserRole } from "@/lib/permissions";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -190,6 +191,9 @@ export default function Settings() {
 
   // API Keys are now stored server-side only (in .env file)
 
+  // Rôle courant de l'utilisateur (défini dans Firestore users/{userId}.role)
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+
   // Handle hydration
   useEffect(() => {
     setMounted(true);
@@ -200,6 +204,41 @@ export default function Settings() {
     // Load settings from Firestore if user is authenticated, otherwise from localStorage
     loadUserSettings();
   }, []);
+
+  const isValidRole = (role: unknown): role is UserRole =>
+    role === "owner" || role === "admin" || role === "manager" || role === "employee";
+
+  const getStoredRole = (): UserRole | null => {
+    try {
+      const storedRole = localStorage.getItem("bartender-user-role");
+      if (storedRole && isValidRole(storedRole)) return storedRole;
+
+      const authData = localStorage.getItem("bartender-auth");
+      if (authData && authData !== "authenticated") {
+        const parsedAuth = JSON.parse(authData);
+        if (parsedAuth?.role && isValidRole(parsedAuth.role)) return parsedAuth.role;
+      }
+
+      const savedSettings = localStorage.getItem("bartender-settings");
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed?.userRole && isValidRole(parsed.userRole)) return parsed.userRole;
+      }
+    } catch (error) {
+      console.error("Error loading stored role:", error);
+    }
+    return null;
+  };
+
+  const getRoleLabel = (role: UserRole | null) => {
+    if (!role) return null;
+    const labels = ROLE_LABELS[role];
+    const allowedLanguages = ["fr", "en", "es", "de"] as const;
+    const langKey = allowedLanguages.includes(language as (typeof allowedLanguages)[number])
+      ? (language as (typeof allowedLanguages)[number])
+      : "en";
+    return labels?.[langKey] || labels?.en || role;
+  };
 
   // Nouvelle fonction pour charger les paramètres depuis Firestore
   const loadUserSettings = async () => {
@@ -239,9 +278,18 @@ export default function Settings() {
             autoReorder: userData.autoReorder !== undefined ? userData.autoReorder : prev.autoReorder,
             reorderQuantity: userData.reorderQuantity !== undefined ? userData.reorderQuantity : prev.reorderQuantity,
           }));
+
+          const roleFromFirestore = userData.role && isValidRole(userData.role) ? userData.role : null;
+          const roleToUse = roleFromFirestore || getStoredRole();
+          if (roleToUse) {
+            setUserRole(roleToUse);
+            localStorage.setItem("bartender-user-role", roleToUse);
+          }
           console.log("Paramètres chargés depuis Firestore");
         } else {
           console.log("Aucun document utilisateur trouvé dans Firestore, utilisation des paramètres par défaut");
+          const storedRole = getStoredRole();
+          if (storedRole) setUserRole(storedRole);
         }
       } else {
         // Fallback sur localStorage si Firebase n'est pas configuré
@@ -250,10 +298,19 @@ export default function Settings() {
           try {
             const parsed = JSON.parse(savedSettings);
             setSettings((prev) => ({ ...prev, ...parsed }));
+            if (parsed?.userRole && isValidRole(parsed.userRole)) {
+              setUserRole(parsed.userRole);
+            } else {
+              const storedRole = getStoredRole();
+              if (storedRole) setUserRole(storedRole);
+            }
             console.log("Paramètres chargés depuis localStorage");
           } catch (error) {
             console.error("Error loading settings from localStorage:", error);
           }
+        } else {
+          const storedRole = getStoredRole();
+          if (storedRole) setUserRole(storedRole);
         }
       }
     } catch (error) {
@@ -264,9 +321,18 @@ export default function Settings() {
         try {
           const parsed = JSON.parse(savedSettings);
           setSettings((prev) => ({ ...prev, ...parsed }));
+          if (parsed?.userRole && isValidRole(parsed.userRole)) {
+            setUserRole(parsed.userRole);
+          } else {
+            const storedRole = getStoredRole();
+            if (storedRole) setUserRole(storedRole);
+          }
         } catch (err) {
           console.error("Error parsing localStorage settings:", err);
         }
+      } else {
+        const storedRole = getStoredRole();
+        if (storedRole) setUserRole(storedRole);
       }
     }
   };
@@ -468,8 +534,17 @@ export default function Settings() {
         
         // Vérifier si le document existe déjà pour ajouter createdAt seulement si nécessaire
         const docSnap = await getDoc(userDocRef);
+        const existingData = docSnap.exists() ? (docSnap.data() as FirestoreUserProfile) : undefined;
         if (!docSnap.exists()) {
           userProfile.createdAt = serverTimestamp();
+        }
+
+        const roleToPersist = userRole
+          || (existingData?.role && isValidRole(existingData.role) ? existingData.role : null)
+          || getStoredRole();
+        if (roleToPersist) {
+          userProfile.role = roleToPersist;
+          localStorage.setItem("bartender-user-role", roleToPersist);
         }
         
         // Sauvegarder dans Firestore (merge pour ne pas écraser d'autres champs)
@@ -772,6 +847,7 @@ export default function Settings() {
       localStorage.removeItem("bartender-user");
       localStorage.removeItem("bartender-user-id");
       localStorage.removeItem("bartender-username");
+      localStorage.removeItem("bartender-user-role");
       localStorage.removeItem("inventory-products");
       localStorage.removeItem("sales-history");
       localStorage.removeItem("recipes");
@@ -919,6 +995,35 @@ export default function Settings() {
             </CardHeader>
             {openSections.general && (
             <CardContent className="space-y-2 pt-0">
+              {(() => {
+                const roleLabel = getRoleLabel(userRole);
+                const hasRole = Boolean(roleLabel);
+                const title = language === "fr" ? "Rôle actuel" : "Current role";
+                const fallback = language === "fr" ? "Non défini" : "Not set";
+                const helper = hasRole
+                  ? language === "fr"
+                    ? "Défini par un administrateur. Contactez-le pour changer de rôle."
+                    : "Set by an admin. Contact them to change it."
+                  : language === "fr"
+                    ? "Aucun rôle détecté. Contactez un administrateur pour être invité."
+                    : "No role detected. Ask an administrator for access.";
+
+                return (
+                  <div className="rounded-lg border bg-muted/40 p-3 flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
+                      <p className="text-sm font-semibold text-foreground">{roleLabel || fallback}</p>
+                      <p className="text-xs text-muted-foreground">{helper}</p>
+                    </div>
+                    <div className="shrink-0">
+                      <span className="inline-flex items-center rounded-full border bg-background px-3 py-1 text-xs font-semibold text-foreground">
+                        {roleLabel || fallback}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="barName">{t.settings.general.barName}</Label>

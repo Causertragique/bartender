@@ -677,15 +677,6 @@ export default function Analytics() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto space-y-6 pt-16">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            {selectedTool === "insights" && !loadingTools["insights"] && !insights && (
-              <Button onClick={() => fetchInsights()} className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Générer les insights
-              </Button>
-            )}
-          </div>
 
           {selectedTool === "insights" ? (
             <>

@@ -132,6 +132,7 @@ export const signOutUser = async (): Promise<void> => {
     localStorage.removeItem("bartender-username");
     localStorage.removeItem("bartender-auth-provider");
     localStorage.removeItem("bartender-user");
+    localStorage.removeItem("bartender-user-role");
     return;
   }
 
@@ -144,6 +145,7 @@ export const signOutUser = async (): Promise<void> => {
     localStorage.removeItem("bartender-username");
     localStorage.removeItem("bartender-auth-provider");
     localStorage.removeItem("bartender-user");
+    localStorage.removeItem("bartender-user-role");
   } catch (error: any) {
     console.error("Erreur lors de la déconnexion:", error);
     throw new Error(error.message || "Erreur lors de la déconnexion.");
