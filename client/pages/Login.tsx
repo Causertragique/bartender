@@ -123,63 +123,55 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Côté gauche - Logo uniquement */}
-      <div className="hidden lg:flex lg:w-1/2 bg-background p-12 flex-col justify-between items-center">
-        <div className="flex-1 flex items-center justify-center">
-          <img src="/logo_bar.png" alt="Logo" className="h-64 w-auto drop-shadow-2xl" />
-        </div>
-        <div className="flex gap-6 text-sm text-muted-foreground">
-          <a href="/privacy-policy" className="hover:text-foreground transition-colors">
-            Politique de confidentialité
-          </a>
-          <span>•</span>
-          <a href="/terms-of-service" className="hover:text-foreground transition-colors">
-            Conditions d'utilisation
-          </a>
+    <div className="min-h-screen flex bg-[#f5f1e8]">
+      {/* Côté gauche - Logo et titre */}
+      <div className="hidden lg:flex lg:w-1/2 p-12 flex-col justify-center items-center">
+        <div className="flex flex-col items-center gap-8">
+          <img src="/tonneau.png" alt="Logo tonneau" className="h-64 w-auto" />
+          <div className="text-center">
+            <h1 className="text-5xl font-bold text-gray-900 mb-2">La Réserve</h1>
+            <p className="text-xl text-amber-700">Gérez votre bar avec style</p>
+          </div>
         </div>
       </div>
 
       {/* Côté droit - Formulaire de connexion */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-primary via-primary/90 to-primary/80">
-        <Card className="w-full max-w-md border-0 shadow-2xl">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4 lg:hidden">
-              <img src="/logo_bar.png" alt="Logo" className="h-20 w-auto" />
+      <div className="flex-1 flex items-center justify-center p-8">
+        <Card className="w-full max-w-md bg-white border-0 shadow-xl">
+          <CardHeader className="space-y-4">
+            <div className="flex items-center justify-center mb-2 lg:hidden">
+              <img src="/tonneau.png" alt="Logo" className="h-20 w-auto" />
             </div>
-            <CardTitle className="text-2xl text-center">
-              {isForgotPassword ? "Réinitialiser le mot de passe" : isSignup ? "Créer un compte" : "Connexion"}
-            </CardTitle>
-          <CardDescription className="text-center">
-            {isForgotPassword
-              ? "Entrez votre email pour recevoir un lien de réinitialisation"
-              : isSignup
-              ? "Créez votre compte pour gérer votre bar"
-              : "Connectez-vous à votre compte"}
-          </CardDescription>
-        </CardHeader>
+            <div className="lg:hidden text-center mb-4">
+              <h1 className="text-3xl font-bold text-gray-900">La Réserve</h1>
+              <p className="text-sm text-amber-700">Gérez votre bar avec style</p>
+            </div>
+          </CardHeader>
         <CardContent className="space-y-4">
           {isForgotPassword ? (
             <form onSubmit={handlePasswordReset} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="flex items-center gap-2 text-gray-700">
+                  <span className="text-lg">👤</span> Nom d'utilisateur
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder="Entrez votre nom d'utilisateur"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
+                  className="border-gray-300"
                 />
               </div>
-              <Button type="submit" className="w-full bg-amber-700 hover:bg-amber-800 text-white" disabled={loading}>
+              <Button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-gray-900 font-semibold" disabled={loading}>
                 {loading ? "Envoi..." : "Envoyer le lien"}
               </Button>
               <div className="text-center text-sm">
                 <button
                   type="button"
-                  className="text-slate-600 hover:text-slate-800 hover:underline font-medium"
+                  className="text-gray-600 hover:text-gray-800 hover:underline"
                   onClick={() => setIsForgotPassword(false)}
                   disabled={loading}
                 >
@@ -190,32 +182,40 @@ export default function Login() {
           ) : (
           <form onSubmit={handleEmailAuth} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="flex items-center gap-2 text-gray-700">
+                <span className="text-lg">👤</span> Nom d'utilisateur
+              </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="votre@email.com"
+                placeholder="Entrez votre nom d'utilisateur"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                className="border-gray-300"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password" className="flex items-center gap-2 text-gray-700">
+                <span className="text-lg">🔒</span> Mot de passe
+              </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Entrez votre mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
                 minLength={6}
+                className="border-gray-300"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite">Code d'invitation (optionnel)</Label>
+              <Label htmlFor="invite" className="flex items-center gap-2 text-gray-700">
+                <span className="text-lg">🎫</span> Code d'invitation (optionnel)
+              </Label>
               <Input
                 id="invite"
                 type="text"
@@ -223,17 +223,18 @@ export default function Login() {
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 disabled={loading}
+                className="border-gray-300"
               />
-              <p className="text-xs text-muted-foreground">Partagé par votre administrateur.</p>
+              <p className="text-xs text-gray-500">Partagé par votre administrateur.</p>
             </div>
-            <Button type="submit" className="w-full bg-amber-700 hover:bg-amber-800 text-white" disabled={loading}>
+            <Button type="submit" className="w-full bg-amber-400 hover:bg-amber-500 text-gray-900 font-semibold" disabled={loading}>
               {loading ? "Chargement..." : isSignup ? "Créer mon compte" : "Se connecter"}
             </Button>
             {!isSignup && (
               <div className="text-center text-sm">
                 <button
                   type="button"
-                  className="text-amber-700 hover:text-amber-800 hover:underline font-medium"
+                  className="text-amber-600 hover:text-amber-700 hover:underline font-medium"
                   onClick={() => setIsForgotPassword(true)}
                   disabled={loading}
                 >
@@ -248,21 +249,21 @@ export default function Login() {
             <>
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-gray-300" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Ou</span>
+                <div className="relative flex justify-center text-sm">
+                  <span className="bg-white px-2 text-gray-500">ou</span>
                 </div>
               </div>
 
               <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full border-gray-300 hover:bg-gray-50"
             onClick={handleGoogleAuth}
             disabled={loading}
           >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                 fill="#4285F4"
@@ -283,13 +284,25 @@ export default function Login() {
             Continuer avec Google
           </Button>
 
-          <div className="text-center text-sm">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-gray-300 hover:bg-gray-50"
+            disabled={loading}
+          >
+            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+            </svg>
+            Continuer avec Apple
+          </Button>
+
+          <div className="text-center text-sm text-gray-600">
             {isSignup ? (
               <>
                 Vous avez déjà un compte ?{" "}
                 <button
                   type="button"
-                  className="text-slate-600 hover:text-slate-800 hover:underline font-medium"
+                  className="text-amber-600 hover:text-amber-700 font-medium"
                   onClick={() => setIsSignup(false)}
                   disabled={loading}
                 >
@@ -301,11 +314,11 @@ export default function Login() {
                 Pas encore de compte ?{" "}
                 <button
                   type="button"
-                  className="text-slate-600 hover:text-slate-800 hover:underline font-medium"
+                  className="text-amber-600 hover:text-amber-700 font-medium"
                   onClick={() => setIsSignup(true)}
                   disabled={loading}
                 >
-                  Créer un compte
+                  S'inscrire
                 </button>
               </>
             )}
