@@ -10,6 +10,7 @@ export interface Translations {
       inventory: string;
       sales: string;
       analytics: string;
+      users: string;
       settings: string;
     };
   };
@@ -445,6 +446,7 @@ const translations: Record<Language, Translations> = {
         inventory: "Inventory",
         sales: "Sales",
         analytics: "Analytics",
+        users: "Roles",
         settings: "Settings",
       },
     },
@@ -856,6 +858,7 @@ const translations: Record<Language, Translations> = {
         inventory: "Inventaire",
         sales: "Ventes",
         analytics: "Analyses",
+        users: "Rôles",
         settings: "Paramètres",
       },
     },
@@ -1267,6 +1270,7 @@ const translations: Record<Language, Translations> = {
         inventory: "Inventario",
         sales: "Ventas",
         analytics: "Análisis",
+        users: "Roles",
         settings: "Configuración",
       },
     },
@@ -1678,6 +1682,7 @@ const translations: Record<Language, Translations> = {
         inventory: "Inventar",
         sales: "Verkäufe",
         analytics: "Analysen",
+        users: "Rollen",
         settings: "Einstellungen",
       },
     },

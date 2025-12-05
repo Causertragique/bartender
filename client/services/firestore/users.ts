@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, getDocs, collection, Timestamp } from "firebase/firestore";
 import { db } from "../../lib/firestore";
 import type { User } from "firebase/auth";
 import { UserRole } from "@/lib/permissions";
@@ -17,6 +17,10 @@ const DEFAULT_ROLE: UserRole = "owner";
 
 const isValidRole = (role: unknown): role is UserRole =>
   role === "owner" || role === "admin" || role === "manager" || role === "employee";
+
+export interface UserProfileWithId extends UserProfile {
+  id: string;
+}
 
 // Créer ou mettre à jour le profil utilisateur dans Firestore
 export async function createOrUpdateUserProfile(user: User): Promise<UserRole> {
@@ -60,6 +64,19 @@ export async function createOrUpdateUserProfile(user: User): Promise<UserRole> {
   localStorage.setItem("bartender-user-role", roleToPersist);
 
   return roleToPersist;
+}
+
+export async function listUsers(): Promise<UserProfileWithId[]> {
+  if (!db) throw new Error("Firestore not initialized");
+  const snap = await getDocs(collection(db, "users"));
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as UserProfile) }));
+}
+
+export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
+  if (!db) throw new Error("Firestore not initialized");
+  if (!isValidRole(role)) throw new Error("Invalid role");
+  await setDoc(doc(db, "users", userId), { role, updatedAt: Timestamp.now() }, { merge: true });
+  localStorage.setItem("bartender-user-role", role);
 }
 
 // Obtenir le profil utilisateur depuis Firestore

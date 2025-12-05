@@ -110,17 +110,24 @@ export function hasPermission(
  */
 export function getCurrentUserRole(): UserRole | undefined {
   try {
+    // 1. D'abord vérifier bartender-user-role (source principale)
+    const directRole = localStorage.getItem("bartender-user-role");
+    if (directRole && (directRole === "owner" || directRole === "admin" || directRole === "manager" || directRole === "employee")) {
+      return directRole as UserRole;
+    }
+
+    // 2. Vérifier dans bartender-auth (si c'est un objet JSON avec role)
     const authData = localStorage.getItem("bartender-auth");
     if (authData && authData !== "authenticated") {
       const parsed = JSON.parse(authData);
-      return parsed.role;
+      if (parsed.role) return parsed.role;
     }
     
-    // Si pas de rôle défini, chercher dans les settings
+    // 3. Fallback : chercher dans les settings
     const settings = localStorage.getItem("bartender-settings");
     if (settings) {
       const parsedSettings = JSON.parse(settings);
-      return parsedSettings.userRole;
+      if (parsedSettings.userRole) return parsedSettings.userRole;
     }
   } catch (error) {
     console.error("Error getting user role:", error);

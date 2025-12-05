@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, ShoppingCart, Package, Settings, LogOut, ChevronLeft, ChevronRight, Bell, Shield } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Settings, LogOut, ChevronLeft, ChevronRight, Bell, Shield, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -93,6 +93,15 @@ export default function Layout({ children }: LayoutProps) {
   // Récupérer le rôle de l'utilisateur pour les permissions
   const userRole = getCurrentUserRole();
   const canViewAuditLogs = hasPermission(userRole, "canViewAuditLogs");
+  const canManageUsers = hasPermission(userRole, "canManageUsers");
+
+  // Debug: afficher le rôle et les permissions
+  useEffect(() => {
+    console.log("🔍 [Layout Debug] Current role:", userRole);
+    console.log("🔍 [Layout Debug] canManageUsers:", canManageUsers);
+    console.log("🔍 [Layout Debug] canViewAuditLogs:", canViewAuditLogs);
+    console.log("🔍 [Layout Debug] localStorage role:", localStorage.getItem("bartender-user-role"));
+  }, [userRole, canManageUsers, canViewAuditLogs]);
 
   const navItems = [
     {
@@ -115,6 +124,12 @@ export default function Layout({ children }: LayoutProps) {
       path: "/notifications",
       icon: Bell,
     },
+    // Gestion des utilisateurs - owners/admin seulement
+    ...(canManageUsers ? [{
+      label: t.layout.nav.users,
+      path: "/users",
+      icon: UserCog,
+    }] : []),
     // Audit Logs - visible seulement pour managers et au-dessus
     ...(canViewAuditLogs ? [{
       label: "Logs d'audit",

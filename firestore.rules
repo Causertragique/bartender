@@ -19,35 +19,36 @@ service cloud.firestore {
     }
     
     // Helper function pour vérifier si l'utilisateur est admin ou propriétaire
-    function isAdminOrOwner(userId) {
-      return isOwner(userId) && (getUserRole(userId) == 'owner' || getUserRole(userId) == 'admin');
+    function isAdminOrOwner() {
+      return isAuthenticated() && (getUserRole(request.auth.uid) == 'owner' || getUserRole(request.auth.uid) == 'admin');
     }
     
     // Helper function pour vérifier si l'utilisateur est au moins manager
-    function isManagerOrAbove(userId) {
-      return isOwner(userId) && (getUserRole(userId) in ['owner', 'admin', 'manager']);
+    function isManagerOrAbove() {
+      return isAuthenticated() && (getUserRole(request.auth.uid) in ['owner', 'admin', 'manager']);
     }
     
-    // Structure: users/{userId}/...
+    // Collection users (liste des utilisateurs) - lecture pour admin/owner seulement
     match /users/{userId} {
       // Profil utilisateur: users/{userId}
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdminOrOwner(); // Owner peut lire tous les users
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) || (isAdminOrOwner() && resource.data.role != null); // Admin peut modifier les rôles
+      allow delete: if false; // Pas de suppression de comptes via Firestore
       
       // Produits: users/{userId}/products/{productId}
       // SÉCURITÉ ANTI-FRAUDE: Seuls les admins/propriétaires peuvent modifier
       match /products/{productId} {
         allow read: if isOwner(userId);
-        allow create: if isAdminOrOwner(userId); // Seuls admin/owner peuvent créer
-        allow update: if isAdminOrOwner(userId); // Seuls admin/owner peuvent modifier
-        allow delete: if isAdminOrOwner(userId); // Seuls admin/owner peuvent supprimer
+        allow create: if isAdminOrOwner(); // Seuls admin/owner peuvent créer
+        allow update: if isAdminOrOwner(); // Seuls admin/owner peuvent modifier
+        allow delete: if isAdminOrOwner(); // Seuls admin/owner peuvent supprimer
       }
       
       // Logs d'audit d'inventaire: users/{userId}/inventory_logs/{logId}
       // Les logs sont en lecture seule après création (traçabilité)
       match /inventory_logs/{logId} {
-        allow read: if isManagerOrAbove(userId); // Managers+ peuvent voir les logs
+        allow read: if isManagerOrAbove(); // Managers+ peuvent voir les logs
         allow create: if isOwner(userId); // Tout le monde peut créer des logs
         allow update, delete: if false; // Les logs ne peuvent jamais être modifiés
       }

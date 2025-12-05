@@ -14,6 +14,7 @@ const Analytics = lazy(() => import("./pages/Analytics"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Settings = lazy(() => import("./pages/Settings"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -90,6 +91,14 @@ export default function App() {
                         <AuditLogs />
                       </ProtectedRoute>
                     } 
+                  />
+                  <Route 
+                    path="/users" 
+                    element={
+                      <ProtectedRoute>
+                        <UserManagement />
+                      </ProtectedRoute>
+                    }
                   />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/terms-of-service" element={<TermsOfService />} />
