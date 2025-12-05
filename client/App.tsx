@@ -1,21 +1,21 @@
 import { lazy, Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/contexts/I18nContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import NotificationBanner from "./components/NotificationBanner";
 
 // Lazy load pages for code splitting
-const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Sales = lazy(() => import("./pages/Sales"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const Settings = lazy(() => import("./pages/Settings"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading component
@@ -33,18 +33,16 @@ export default function App() {
       <I18nProvider>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            <Toaster />
-            <Sonner />
             <BrowserRouter
               future={{
                 v7_startTransition: true,
                 v7_relativeSplatPath: true,
               }}
             >
-              <NotificationBanner />
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<Login />} />
+                  <Route path="/login" element={<Login />} />
                   <Route 
                     path="/inventory" 
                     element={
@@ -70,6 +68,14 @@ export default function App() {
                     } 
                   />
                   <Route 
+                    path="/notifications" 
+                    element={
+                      <ProtectedRoute>
+                        <Notifications />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
                     path="/settings" 
                     element={
                       <ProtectedRoute>
@@ -77,7 +83,16 @@ export default function App() {
                       </ProtectedRoute>
                     } 
                   />
+                  <Route 
+                    path="/audit-logs" 
+                    element={
+                      <ProtectedRoute>
+                        <AuditLogs />
+                      </ProtectedRoute>
+                    } 
+                  />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/terms-of-service" element={<TermsOfService />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -3,9 +3,15 @@ import Layout from "@/components/Layout";
 import ProductCard, { Product } from "@/components/ProductCard";
 import AddProductModal from "@/components/AddProductModal";
 import QRCodeScanner from "@/components/QRCodeScanner";
+import NotificationIcons from "@/components/NotificationIcons";
 import { Plus, Search, Camera, Grid3x3, List } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useAuth } from "@/hooks/useAuth";
+import { getProducts, createProduct, updateProduct, deleteProduct } from "@/services/firestore";
+import { useNotificationStore } from "@/hooks/useNotificationStore";
+import { logInventoryChange } from "@/lib/audit";
+import { getCurrentUserRole } from "@/lib/permissions";
 
 const SAMPLE_PRODUCTS: Product[] = [
   {
@@ -84,21 +90,11 @@ const SAMPLE_PRODUCTS: Product[] = [
 
 export default function Inventory() {
   const { t } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const { checkLowStock } = useNotifications();
-  
-  // Load products from localStorage or use sample products
-  const loadProducts = (): Product[] => {
-    const stored = localStorage.getItem("inventory-products");
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return SAMPLE_PRODUCTS;
-      }
-    }
-    return SAMPLE_PRODUCTS;
-  };
-  const [products, setProducts] = useState<Product[]>(loadProducts);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<
     "all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other"
@@ -111,10 +107,27 @@ export default function Inventory() {
     return (saved === "list" || saved === "grid") ? saved : "grid";
   });
 
-  // Save products to localStorage whenever they change
+  // Charger les produits depuis Firestore
   useEffect(() => {
-    localStorage.setItem("inventory-products", JSON.stringify(products));
-  }, [products]);
+    if (authLoading) return;
+    if (!user) return;
+
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const firebaseProducts = await getProducts(user.uid);
+        setProducts(firebaseProducts as Product[]);
+      } catch (error: any) {
+        console.error("Erreur chargement produits:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [user, authLoading]);
+
+
 
   // Save view mode to localStorage
   useEffect(() => {
@@ -154,34 +167,119 @@ export default function Inventory() {
       return a.name.localeCompare(b.name);
     });
 
-  const handleAddStock = (id: string, amount: number) => {
-    setProducts(
-      products.map((p) =>
-        p.id === id ? { ...p, quantity: p.quantity + amount } : p,
-      ),
-    );
+  const handleAddStock = async (id: string, amount: number) => {
+    if (!user) return;
+    try {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        const newQuantity = product.quantity + amount;
+        await updateProduct(user.uid, id, { quantity: newQuantity });
+        setProducts(products.map(p => p.id === id ? { ...p, quantity: newQuantity } : p));
+        
+        // Log l'ajustement d'inventaire
+        await logInventoryChange({
+          productId: id,
+          productName: product.name,
+          action: "restock",
+          previousQuantity: product.quantity,
+          newQuantity: newQuantity,
+          source: "manual",
+        });
+      }
+    } catch (error) {
+      // Handle error silently
+    }
   };
 
-  const handleRemoveStock = (id: string, amount: number) => {
-    setProducts(
-      products.map((p) =>
-        p.id === id ? { ...p, quantity: Math.max(0, p.quantity - amount) } : p,
-      ),
-    );
+  const handleRemoveStock = async (id: string, amount: number) => {
+    if (!user) return;
+    try {
+      const product = products.find(p => p.id === id);
+      if (product) {
+        const newQuantity = Math.max(0, product.quantity - amount);
+        await updateProduct(user.uid, id, { quantity: newQuantity });
+        setProducts(products.map(p => p.id === id ? { ...p, quantity: newQuantity } : p));
+      }
+    } catch (error) {
+      // Handle error silently
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+    const { addNotification } = useNotificationStore.getState();
     const product = products.find((p) => p.id === id);
     if (product) {
       const message = (t.inventory.confirmDelete || "Êtes-vous sûr de vouloir supprimer \"{name}\" ?").replace("{name}", product.name);
       if (window.confirm(message)) {
-        setProducts(products.filter((p) => p.id !== id));
+        try {
+          await deleteProduct(user.uid, id);
+          setProducts(products.filter((p) => p.id !== id));
+          
+          // Log la suppression
+          await logInventoryChange({
+            productId: id,
+            productName: product.name,
+            action: "delete",
+            previousQuantity: product.quantity,
+            newQuantity: 0,
+            previousPrice: product.price,
+            source: "manual",
+          });
+          
+          addNotification({
+            title: "Produit supprimé",
+            description: product.name,
+          });
+        } catch (error) {
+          addNotification({
+            title: "Erreur",
+            description: "Impossible de supprimer le produit",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
 
-  const handleAddProduct = (newProduct: Product) => {
-    setProducts([...products, newProduct]);
+  const handleAddProduct = async (newProduct: Product) => {
+    if (!user) return;
+    const { addNotification } = useNotificationStore.getState();
+    console.log("=== handleAddProduct appelé ===");
+    console.log("User ID:", user.uid);
+    console.log("Product data:", newProduct);
+    try {
+      const { id, ...productWithoutId } = newProduct;
+      console.log("Appel de createProduct avec:", { userId: user.uid, product: productWithoutId });
+      const added = await createProduct(user.uid, { ...productWithoutId, userId: user.uid } as any);
+      console.log("Produit créé avec succès:", added);
+      if (added.id) {
+        setProducts([...products, added as Product]);
+        
+        // Log la création du produit
+        await logInventoryChange({
+          productId: added.id,
+          productName: newProduct.name,
+          action: "create",
+          newQuantity: newProduct.quantity,
+          newPrice: newProduct.price,
+          source: "manual",
+        });
+        
+        // Ajouter notification
+        addNotification({
+          title: "Produit ajouté",
+          description: newProduct.name,
+        });
+      }
+    } catch (error) {
+      console.error("=== Erreur lors de la création du produit ===", error);
+      addNotification({
+        title: "Erreur",
+        description: "Impossible d'ajouter le produit",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEdit = (product: Product) => {
@@ -189,15 +287,42 @@ export default function Inventory() {
     setIsAddProductModalOpen(true);
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = async (updatedProduct: Product) => {
+    if (!user) return;
+    const { addNotification } = useNotificationStore.getState();
     if (editingProduct) {
-      // Replace the existing product by its original ID to avoid creating duplicates
-      setProducts(
-        products.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
-      );
-      setEditingProduct(null);
+      try {
+        const { id, ...updates } = updatedProduct;
+        await updateProduct(user.uid, editingProduct.id, updates as any);
+        setProducts(
+          products.map((p) => (p.id === editingProduct.id ? updatedProduct : p))
+        );
+        
+        // Log la modification
+        await logInventoryChange({
+          productId: editingProduct.id,
+          productName: updatedProduct.name,
+          action: "update",
+          previousQuantity: editingProduct.quantity,
+          newQuantity: updatedProduct.quantity,
+          previousPrice: editingProduct.price,
+          newPrice: updatedProduct.price,
+          source: "manual",
+        });
+        
+        setEditingProduct(null);
+        addNotification({
+          title: "Produit modifié",
+          description: updatedProduct.name,
+        });
+      } catch (error) {
+        addNotification({
+          title: "Erreur",
+          description: "Impossible de mettre à jour le produit",
+          variant: "destructive",
+        });
+      }
     } else {
-      // Only add new product if not editing
       handleAddProduct(updatedProduct);
     }
   };
@@ -230,7 +355,10 @@ export default function Inventory() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-2xl sm:text-2xl font-bold text-foreground">{t.inventory.title}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl sm:text-2xl font-bold text-foreground">{t.inventory.title}</h2>
+              <NotificationIcons />
+            </div>
             <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
               {t.inventory.subtitle}
             </p>

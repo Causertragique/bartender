@@ -58,32 +58,6 @@ export const signInWithGoogle = async (): Promise<AuthUser> => {
     const user = convertFirebaseUser(result.user);
     console.log("Utilisateur connecté:", user);
 
-    // Synchroniser avec le backend SQLite
-    try {
-      const syncResponse = await fetch("/api/auth/firebase-sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        }),
-      });
-
-      if (syncResponse.ok) {
-        const syncData = await syncResponse.json();
-        console.log("Utilisateur synchronisé avec SQLite:", syncData);
-      } else {
-        const errorData = await syncResponse.json().catch(() => ({}));
-        console.warn("Erreur lors de la synchronisation avec SQLite:", errorData);
-        // On continue quand même, l'authentification Firebase a réussi
-      }
-    } catch (syncError) {
-      console.warn("Erreur lors de la synchronisation avec SQLite:", syncError);
-      // On continue quand même, l'authentification Firebase a réussi
-    }
-
     // Sauvegarder dans localStorage pour compatibilité avec le système existant
     localStorage.setItem("bartender-auth", "authenticated");
     localStorage.setItem("bartender-user-id", user.uid);

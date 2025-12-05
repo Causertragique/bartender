@@ -14,10 +14,20 @@ try {
     res.status(500).json({ error: err.message || "Internal server error" });
   });
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     console.log(`🔌 Backend (dev) running at http://localhost:${port}`);
     console.log(`📡 API base: http://localhost:${port}/api`);
   });
+  
+  // Keep process alive and handle errors
+  process.on('uncaughtException', (err: any) => {
+    console.error("[Dev Server] Uncaught exception:", err);
+  });
+  
+  process.on('unhandledRejection', (reason: any, promise: any) => {
+    console.error("[Dev Server] Unhandled rejection:", reason);
+  });
+  
 } catch (error) {
   console.error("[Dev Server] Fatal error:", error);
   process.exit(1);

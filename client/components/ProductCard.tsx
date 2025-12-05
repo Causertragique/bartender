@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Plus, Minus, RotateCw } from "lucide-react";
+import { Edit2, Trash2, Plus, Minus, FlipHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -14,6 +14,7 @@ export interface Product {
   imageUrl?: string;
   subcategory?: string;
   origin?: string;
+  bottleSizeInMl?: number;
 }
 
 interface ProductCardProps {
@@ -221,24 +222,15 @@ export default function ProductCard({
   }
 
   return (
-    <div className="bg-card border-2 border-foreground/20 rounded-lg cursor-pointer overflow-hidden [perspective:1000px]">
-      <div
-        className={cn(
-          "relative transition-transform duration-500 [transform-style:preserve-3d]",
-          isFlipped ? "[transform:rotateY(180deg)]" : "[transform:rotateY(0deg)]"
-        )}
-      >
-        {/* Front of card */}
-        <div
-          className="p-3 hover:border-primary/50 transition-all relative [backface-visibility:hidden]"
-      onClick={() => onClick?.(product)}
-    >
-          <div className="space-y-2">
-        {/* Header */}
-            <div className="flex items-start gap-3">
+    <div className="bg-card border-2 border-foreground/20 rounded-lg cursor-pointer">
+      {!isFlipped ? (
+        // Front of card
+        <div className="p-3 space-y-2 min-h-full flex flex-col">
+          {/* Header */}
+          <div className="flex items-start gap-3">
             {/* Product Image */}
-              <div className="w-20 h-20 rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
-                {product.imageUrl ? (
+            <div className="w-20 h-20 rounded-lg overflow-hidden border-2 border-foreground/20 bg-secondary flex-shrink-0">
+              {product.imageUrl ? (
                 <img
                   src={product.imageUrl}
                   alt={product.name}
@@ -247,163 +239,164 @@ export default function ProductCard({
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
-                ) : (
-                  <div className="w-full h-full bg-transparent" />
-                )}
+              ) : (
+                <div className="w-full h-full bg-transparent" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <div className="flex items-start justify-between gap-2">
+                <h3 
+                  className="font-semibold text-sm text-foreground line-clamp-2 flex-1 cursor-pointer hover:text-primary"
+                  onClick={() => onClick?.(product)}
+                >
+                  {product.name}
+                </h3>
+                {/* Flip button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFlipped(true);
+                  }}
+                  className="p-1.5 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
+                  aria-label="Retourner la carte"
+                  title="Retourner la carte"
+                  type="button"
+                >
+                  <FlipHorizontal className="h-4 w-4" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0 flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-sm text-foreground line-clamp-2 flex-1">
-                {product.name}
-              </h3>
-                  {/* Flip button */}
+              <p className="text-base font-bold text-foreground">
+                ${product.price.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          {/* Stock Status */}
+          <div className="space-y-1" onClick={() => onClick?.(product)}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">{t.productCard.stockLevel}</span>
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  isLowStock ? "text-red-900 dark:text-red-200" : "text-green-600 dark:text-green-400",
+                )}
+              >
+                {product.quantity} {translateUnit(product.unit)}
+              </span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div
+                ref={progressBarRef}
+                className={cn(
+                  "h-full transition-all",
+                  isLowStock ? "bg-red-900 dark:bg-red-900" : "bg-green-500 dark:bg-green-500",
+                )}
+              />
+            </div>
+            {isLowStock && (
+              <p className="text-xs text-red-900 dark:text-red-200 font-medium">{t.productCard.lowStock}</p>
+            )}
+          </div>
+
+          {/* Actions - pushed to bottom */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t-2 border-foreground/20 mt-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.(product);
+              }}
+              className="p-2 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground"
+              aria-label="Edit product"
+              type="button"
+            >
+              <Edit2 className="h-4 w-4" />
+            </button>
+            <div className="flex gap-3">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                      setIsFlipped(!isFlipped);
+                  onRemoveStock?.(product.id, 1);
                 }}
-                    className="p-1.5 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
-                    aria-label="Retourner la carte"
-                    title="Voir les détails"
+                className="flex items-center justify-center w-7 h-7 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border border-red-300 dark:border-destructive/30"
+                aria-label={t.productCard.remove}
+                type="button"
               >
-                    <RotateCw className="h-4 w-4" />
+                <Minus className="h-3.5 w-3.5" />
               </button>
-                </div>
-                <p className="text-base font-bold text-foreground">
-                  ${product.price.toFixed(2)}
-                    </p>
-          </div>
-        </div>
-
-        {/* Stock Status */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{t.productCard.stockLevel}</span>
-            <span
-              className={cn(
-                "text-sm font-semibold",
-                isLowStock ? "text-red-900 dark:text-red-200" : "text-green-600 dark:text-green-400",
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddStock?.(product.id, 1);
+                }}
+                className="flex items-center justify-center w-7 h-7 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border border-green-300 dark:border-green-500/30"
+                aria-label={t.productCard.add}
+                type="button"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(product.id);
+              }}
+              className="p-2 hover:bg-destructive/20 rounded transition-colors text-muted-foreground hover:text-destructive"
+              aria-label="Delete product"
+              type="button"
             >
-              {product.quantity} {translateUnit(product.unit)}
-            </span>
-          </div>
-          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-            <div
-              ref={progressBarRef}
-              className={cn(
-                "h-full transition-all",
-                isLowStock ? "bg-red-900 dark:bg-red-900" : "bg-green-500 dark:bg-green-500",
-              )}
-            />
-          </div>
-          {isLowStock && (
-            <p className="text-xs text-red-900 dark:text-red-200 font-medium">{t.productCard.lowStock}</p>
-          )}
-        </div>
-
-          </div>
-        {/* Actions */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t-2 border-foreground/20">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit?.(product);
-            }}
-            className="p-2 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground"
-            aria-label="Edit product"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-              <div className="flex gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveStock?.(product.id, 1);
-                    }}
-                    className="flex items-center justify-center w-7 h-7 bg-red-100 dark:bg-destructive/20 text-red-700 dark:text-destructive hover:bg-red-200 dark:hover:bg-destructive/30 rounded transition-colors text-xs font-medium border border-red-300 dark:border-destructive/30"
-                    aria-label={t.productCard.remove}
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddStock?.(product.id, 1);
-                    }}
-                    className="flex items-center justify-center w-7 h-7 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 rounded transition-colors text-xs font-medium border border-green-300 dark:border-green-500/30"
-                    aria-label={t.productCard.add}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-              </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete?.(product.id);
-            }}
-            className="p-2 hover:bg-destructive/20 rounded transition-colors text-muted-foreground hover:text-destructive"
-            aria-label="Delete product"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         </div>
-
-        {/* Back of card - Category and Origin */}
-        <div
-          className="absolute inset-0 p-4 [backface-visibility:hidden] [transform:rotateY(180deg)]"
-          onClick={() => setIsFlipped(false)}
-        >
-          <div className="w-full space-y-2">
-            <div className="text-center">
-              <h3 className="font-semibold text-base text-foreground mb-1 line-clamp-2">
-                {product.name}
-              </h3>
-            </div>
-
-            {/* Category */}
-            <div className="space-y-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground font-medium">Catégorie</span>
-                <span className="text-sm font-semibold text-foreground">
-                  {categoryLabels[product.category]}
-                </span>
-              </div>
-              {product.subcategory && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground font-medium">Sous-catégorie</span>
-                  <span className="text-sm font-semibold text-foreground">
-                    {subcategoryLabels[product.subcategory] || product.subcategory}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Origin */}
-            {product.origin && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground font-medium">Provenance</span>
-                <span className="text-sm font-semibold text-foreground">
-                  {originLabels[product.origin] || product.origin}
-                </span>
-              </div>
-            )}
-
-            {/* Flip back button */}
+      ) : (
+        // Back of card
+        <div className="p-4 space-y-3 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-base text-foreground line-clamp-2 flex-1">
+              {product.name}
+            </h3>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsFlipped(false);
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium mt-2"
+              className="p-1.5 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground flex-shrink-0"
+              aria-label="Retourner la carte"
+              type="button"
             >
-              <RotateCw className="h-4 w-4" />
-              Retourner
+              <FlipHorizontal className="h-4 w-4" />
             </button>
           </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground font-medium">Catégorie</span>
+              <span className="text-sm font-semibold text-foreground">
+                {categoryLabels[product.category]}
+              </span>
+            </div>
+            {product.subcategory && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground font-medium">Sous-catégorie</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {subcategoryLabels[product.subcategory] || product.subcategory}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Origin */}
+          {product.origin && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground font-medium">Provenance</span>
+              <span className="text-sm font-semibold text-foreground">
+                {originLabels[product.origin] || product.origin}
+              </span>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

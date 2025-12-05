@@ -2,15 +2,6 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import {
-  register,
-  login,
-  verify2FA,
-  setup2FA,
-  enable2FA,
-  disable2FA,
-  syncFirebaseUser,
-} from "./routes/auth";
-import {
   getSalesPrediction,
   getReorderRecommendations,
   getProfitabilityAnalysis,
@@ -26,21 +17,7 @@ import {
   getTaxReport,
   getFoodWinePairing,
 } from "./routes/analytics";
-import {
-  getProducts,
-  getProduct,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  updateProductQuantity,
-} from "./routes/products";
-import {
-  getRecipes,
-  getRecipe,
-  createRecipe,
-  updateRecipe,
-  deleteRecipe,
-} from "./routes/recipes";
+
 import { searchImages } from "./routes/image-search";
 import { handleSAQScrape } from "./routes/saq-scraper";
 import {
@@ -81,15 +58,6 @@ export function createServer() {
   // SAQ product scraper endpoint
   app.get("/api/saq-scrape", handleSAQScrape);
 
-  // Authentication endpoints
-  app.post("/api/auth/register", register);
-  app.post("/api/auth/login", login);
-  app.post("/api/auth/verify-2fa", verify2FA);
-  app.get("/api/auth/2fa/setup", setup2FA);
-  app.post("/api/auth/2fa/enable", enable2FA);
-  app.post("/api/auth/2fa/disable", disable2FA);
-  app.post("/api/auth/firebase-sync", syncFirebaseUser);
-
   // Image search endpoint (server-side only, API key stays secure)
   app.post("/api/image-search", searchImages);
 
@@ -104,36 +72,35 @@ export function createServer() {
   app.post("/api/stripe-keys", authenticateToken, saveStripeKeys);
   app.delete("/api/stripe-keys", authenticateToken, deleteStripeKeys);
 
-  // Products API
-  app.get("/api/products", getProducts);
-  app.get("/api/products/:id", getProduct);
-  app.post("/api/products", createProduct);
-  app.put("/api/products/:id", updateProduct);
-  app.delete("/api/products/:id", deleteProduct);
-  app.patch("/api/products/:id/quantity", updateProductQuantity);
+  // Products API - DÉSACTIVÉ (utiliser Firestore côté client)
+  // app.get("/api/products", getProducts);
+  // app.get("/api/products/:id", getProduct);
+  // app.post("/api/products", createProduct);
+  // app.put("/api/products/:id", updateProduct);
+  // app.delete("/api/products/:id", deleteProduct);
+  // app.patch("/api/products/:id/quantity", updateProductQuantity);
 
-  // Recipes API
-  app.get("/api/recipes", getRecipes);
-  app.get("/api/recipes/:id", getRecipe);
-  app.post("/api/recipes", createRecipe);
-  app.put("/api/recipes/:id", updateRecipe);
-  app.delete("/api/recipes/:id", deleteRecipe);
+  // Recipes API - DÉSACTIVÉ (utiliser Firestore côté client)
+  // app.get("/api/recipes", getRecipes);
+  // app.get("/api/recipes/:id", getRecipe);
+  // app.post("/api/recipes", createRecipe);
+  // app.put("/api/recipes/:id", updateRecipe);
+  // app.delete("/api/recipes/:id", deleteRecipe);
 
   // Analytics & AI endpoints
-  app.get("/api/analytics/sales-prediction", authenticateToken, getSalesPrediction);
-  app.get("/api/analytics/reorder-recommendations", authenticateToken, getReorderRecommendations);
-  app.get("/api/analytics/profitability", authenticateToken, getProfitabilityAnalysis);
-  app.get("/api/analytics/price-optimization", authenticateToken, getPriceOptimization);
-  app.get("/api/analytics/insights", authenticateToken, getInsights);
-  app.get("/api/analytics/promotion-recommendations", authenticateToken, getPromotionRecommendations);
-  app.get("/api/analytics/stockout-prediction", authenticateToken, getStockoutPrediction);
-  app.get("/api/analytics/menu-optimization", authenticateToken, getMenuOptimization);
-  app.get("/api/analytics/temporal-trends", authenticateToken, getTemporalTrends);
-  app.get("/api/analytics/dynamic-pricing", authenticateToken, getDynamicPricing);
-  app.get("/api/analytics/revenue-forecast", authenticateToken, getRevenueForecast);
-  app.get("/api/analytics/sales-report", authenticateToken, getSalesReport);
-  app.get("/api/analytics/tax-report", authenticateToken, getTaxReport);
-  app.get("/api/analytics/food-wine-pairing", authenticateToken, getFoodWinePairing);
+  app.post("/api/analytics/sales-prediction", authenticateToken, getSalesPrediction);
+  app.post("/api/analytics/reorder-recommendations", authenticateToken, getReorderRecommendations);
+  app.post("/api/analytics/profitability", authenticateToken, getProfitabilityAnalysis);
+  app.post("/api/analytics/price-optimization", authenticateToken, getPriceOptimization);
+  app.post("/api/analytics/insights", authenticateToken, getInsights);
+  app.post("/api/analytics/promotion-recommendations", authenticateToken, getPromotionRecommendations);
+  app.post("/api/analytics/stockout-prediction", authenticateToken, getStockoutPrediction);
+  app.post("/api/analytics/menu-optimization", authenticateToken, getMenuOptimization);
+  app.post("/api/analytics/temporal-trends", authenticateToken, getTemporalTrends);
+  app.post("/api/analytics/dynamic-pricing", authenticateToken, getDynamicPricing);
+  app.post("/api/analytics/revenue-forecast", authenticateToken, getRevenueForecast);
+  app.post("/api/analytics/sales-report", authenticateToken, getSalesReport);
+  app.post("/api/analytics/tax-report", authenticateToken, getTaxReport);
   app.post("/api/analytics/food-wine-pairing", authenticateToken, getFoodWinePairing);
 
   // 404 handler for API routes

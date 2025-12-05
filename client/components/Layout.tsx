@@ -1,8 +1,11 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, ShoppingCart, Package, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { BarChart3, ShoppingCart, Package, Settings, LogOut, ChevronLeft, ChevronRight, Bell, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
+import NotificationDropdown from "@/components/NotificationDropdown";
+import { BarProfileSetupModal } from "@/components/BarProfileSetupModal";
+import { getCurrentUserRole, hasPermission } from "@/lib/permissions";
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,6 +16,9 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
   
+  // État du modal de setup du profil
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  
   // État de la sidebar (rétractée ou non)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -22,12 +28,43 @@ export default function Layout({ children }: LayoutProps) {
     return false;
   });
 
+  // Vérifier si c'est la première visite et afficher le modal de setup
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasSeenSetup = localStorage.getItem("bartender-profile-setup-seen");
+      const isAuthenticated = localStorage.getItem("bartender-auth");
+      
+      if (isAuthenticated && !hasSeenSetup) {
+        // Attendre un peu avant d'afficher le modal (pour que la page se charge complètement)
+        const timer = setTimeout(() => {
+          setShowProfileSetup(true);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   // Sauvegarder l'état de la sidebar
   useEffect(() => {
     localStorage.setItem("bartender-sidebar-collapsed", sidebarCollapsed.toString());
   }, [sidebarCollapsed]);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleProfileSetupComplete = (profile: any) => {
+    // Fusionner le profil avec les paramètres existants
+    const existingSettings = localStorage.getItem("bartender-settings");
+    const currentSettings = existingSettings ? JSON.parse(existingSettings) : {};
+    
+    const updatedSettings = {
+      ...currentSettings,
+      ...profile,
+    };
+    
+    localStorage.setItem("bartender-settings", JSON.stringify(updatedSettings));
+    localStorage.setItem("bartender-profile-setup-seen", "true");
+    setShowProfileSetup(false);
+  };
 
   const handleLogout = () => {
     // Clear all analytics cache
@@ -53,6 +90,10 @@ export default function Layout({ children }: LayoutProps) {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
+  // Récupérer le rôle de l'utilisateur pour les permissions
+  const userRole = getCurrentUserRole();
+  const canViewAuditLogs = hasPermission(userRole, "canViewAuditLogs");
+
   const navItems = [
     {
       label: t.layout.nav.inventory,
@@ -70,15 +111,22 @@ export default function Layout({ children }: LayoutProps) {
       icon: BarChart3,
     },
     {
+      label: "Notifications",
+      path: "/notifications",
+      icon: Bell,
+    },
+    // Audit Logs - visible seulement pour managers et au-dessus
+    ...(canViewAuditLogs ? [{
+      label: "Logs d'audit",
+      path: "/audit-logs",
+      icon: Shield,
+    }] : []),
+    {
       label: t.layout.nav.settings,
       path: "/settings",
       icon: Settings,
     },
   ];
-
-  // Vérifier si la bannière de notification est visible
-  const bannerShown = typeof window !== 'undefined' ? localStorage.getItem("bartender-notification-banner-shown") : null;
-  const bannerVisible = !bannerShown;
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground flex flex-col lg:flex-row">
@@ -156,7 +204,10 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t-2 border-foreground/20 p-4">
+        <div className="border-t-2 border-foreground/20 p-4 space-y-2">
+          <div className="w-full">
+            <NotificationDropdown />
+          </div>
           <button
             onClick={handleLogout}
             className={cn(
@@ -178,7 +229,7 @@ export default function Layout({ children }: LayoutProps) {
         sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
       )}>
         {/* Header - Mobile only */}
-        <header className={`lg:hidden border-b-2 border-foreground/20 bg-card w-full flex-shrink-0 ${bannerVisible ? 'mt-[60px]' : ''}`}>
+        <header className={`lg:hidden border-b-2 border-foreground/20 bg-card w-full flex-shrink-0`}>
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-1.5 sm:py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -201,14 +252,17 @@ export default function Layout({ children }: LayoutProps) {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors flex-shrink-0"
-                title="Déconnexion"
-              >
-                <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
-                <span className="hidden sm:inline text-xs">Déconnexion</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <NotificationDropdown />
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors flex-shrink-0"
+                  title="Déconnexion"
+                >
+                  <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <span className="hidden sm:inline text-xs">Déconnexion</span>
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -249,6 +303,16 @@ export default function Layout({ children }: LayoutProps) {
             </div>
           </div>
         </nav>
+
+        {/* Modal de setup du profil à la première connexion */}
+        <BarProfileSetupModal
+          isOpen={showProfileSetup}
+          onClose={() => {
+            localStorage.setItem("bartender-profile-setup-seen", "true");
+            setShowProfileSetup(false);
+          }}
+          onComplete={handleProfileSetupComplete}
+        />
       </div>
     </div>
   );

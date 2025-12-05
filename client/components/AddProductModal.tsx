@@ -45,6 +45,7 @@ export default function AddProductModal({
     pricePerBottle: "",
     inventoryCode: "",
     imageUrl: "",
+    bottleSizeInMl: "",
   });
 
   // Load product data when editing
@@ -57,20 +58,22 @@ export default function AddProductModal({
         if (category === "spirits") return "spirits";
         if (category === "beer") return "beer";
         if (category === "wine") return "wine";
-        if (category === "soda") return "readyToDrink";
-        if (category === "juice") return "snacks";
-        return "snacks"; // Default for "other"
+        if (category === "soda") return "soda";
+        if (category === "juice") return "juice";
+        if (category === "other") return "other";
+        return "other"; // Default fallback
       };
 
       setFormData({
         name: editingProduct.name || "",
         category: mapProductCategoryToFormCategory(editingProduct.category),
-        subcategory: "",
-        origin: "",
+        subcategory: editingProduct.subcategory || "",
+        origin: editingProduct.origin || "",
         quantity: editingProduct.quantity.toString() || "",
         pricePerBottle: editingProduct.price.toString() || "",
         inventoryCode: editingProduct.id || "",
         imageUrl: editingProduct.imageUrl || "",
+        bottleSizeInMl: (editingProduct.bottleSizeInMl || "").toString(),
       });
       setWasCodeManuallySet(true); // Don't auto-generate when editing
     } else if (!editingProduct && isOpen) {
@@ -84,6 +87,7 @@ export default function AddProductModal({
         pricePerBottle: "",
         inventoryCode: "",
         imageUrl: "",
+        bottleSizeInMl: "",
       });
       setWasCodeManuallySet(false);
     }
@@ -101,6 +105,7 @@ export default function AddProductModal({
   >([]);
   const [showProductSelection, setShowProductSelection] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [forceSAQSearch, setForceSAQSearch] = useState<boolean>(true); // Default to SAQ
   const PRODUCTS_PER_PAGE = 5;
   const MAX_PAGES = 3;
   const isMountedRef = useRef(true);
@@ -153,9 +158,46 @@ export default function AddProductModal({
         return [];
       }
 
-      // Recherche ciblée SAQ
-      const googleQuery = `${keywords.join(" ")} site:saq.com`;
-      console.log("[Image search] Google query:", googleQuery);
+      // Determine search scope based on category or forced preference
+      // Beer, juice, soda, and snacks are not sold at SAQ - use general web search
+      const currentCategory = formData.category.toLowerCase();
+      const isNonSAQCategory = 
+        currentCategory === "beer" || 
+        currentCategory === "juice" ||
+        currentCategory === "soda" ||
+        currentCategory === "readytodrink" || 
+        currentCategory === "other" ||
+        currentCategory.includes("snack");
+      
+      // Determine if we should search SAQ based on forced preference or category
+      const shouldSearchSAQ = forceSAQSearch;
+      
+      let googleQuery: string;
+      if (shouldSearchSAQ) {
+        // SAQ-specific search for spirits and wine
+        googleQuery = `${keywords.join(" ")} site:saq.com`;
+        console.log("[Image search] SAQ-specific search (forced or default):", googleQuery);
+      } else {
+        // Add category-specific search terms for better results
+        let categoryTerm = "";
+        if (currentCategory === "beer") {
+          categoryTerm = "beer brewery";
+        } else if (currentCategory === "juice") {
+          categoryTerm = "juice beverage";
+        } else if (currentCategory === "soda") {
+          categoryTerm = "soda soft drink";
+        } else if (currentCategory === "readytodrink") {
+          categoryTerm = "ready to drink cocktail";
+        } else if (currentCategory.includes("snack")) {
+          categoryTerm = "snack food";
+        } else {
+          categoryTerm = "product";
+        }
+        
+        // General web search for non-SAQ products with category context
+        googleQuery = `${keywords.join(" ")} ${categoryTerm}`;
+        console.log("[Image search] Category-specific web search (forced or default):", googleQuery);
+      }
 
       const webSearchUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(
         googleQuery
@@ -219,51 +261,73 @@ export default function AddProductModal({
       });
       console.log("[Image search] Images extracted from web results:", webImages.length);
 
-      // Filtrer SAQ - accepter toutes les pages SAQ (plus flexible)
-            const saqProducts = allItems
-        .filter((item: any) => {
-          const link = (item.link || "").toLowerCase();
-          const displayLink = (item.displayLink || "").toLowerCase();
-          // Accepter toutes les pages SAQ
-          const isSAQ = link.includes("saq.com") || displayLink.includes("saq.com");
-          
-          if (!isSAQ) {
-            return false;
-          }
-          
-          // Exclure seulement les pages vraiment non-produits (recherche, accueil)
-          // Accepter les pages de catégories et sous-catégories SAQ qui peuvent contenir des produits
-          const isNotProductPage = 
-            link.includes("/recherche") ||
-            link.includes("/search") ||
-            link.includes("/accueil") ||
-            link.includes("/home");
-          
-          return !isNotProductPage;
-        })
-        .slice(0, 15)
-              .map((item: any) => ({
-                productPageUrl: item.link,
-          title: item.title || "",
-          snippet: item.snippet || item.htmlSnippet || "", // Utiliser htmlSnippet si snippet n'existe pas
-          imageUrl: "",
-              }));
+      // Filter products based on search source preference (SAQ vs Web)
+      let productPages: any[];
+      
+      if (shouldSearchSAQ) {
+        // Force SAQ search - filter SAQ pages only
+        productPages = allItems
+          .filter((item: any) => {
+            const link = (item.link || "").toLowerCase();
+            const displayLink = (item.displayLink || "").toLowerCase();
+            const isSAQ = link.includes("saq.com") || displayLink.includes("saq.com");
             
-      console.log(
-        "[Image search] SAQ product pages filtered:",
-        saqProducts.length
-      );
+            if (!isSAQ) {
+              return false;
+            }
             
-            if (saqProducts.length > 0) {
-        console.log("[Image search] Sample SAQ product:", {
-          title: saqProducts[0].title,
-          snippet: saqProducts[0].snippet?.substring(0, 100),
-          url: saqProducts[0].productPageUrl,
+            const isNotProductPage = 
+              link.includes("/recherche") ||
+              link.includes("/search") ||
+              link.includes("/accueil") ||
+              link.includes("/home");
+            
+            return !isNotProductPage;
+          })
+          .slice(0, 15)
+          .map((item: any) => ({
+            productPageUrl: item.link,
+            title: item.title || "",
+            snippet: item.snippet || item.htmlSnippet || "",
+            imageUrl: "",
+          }));
+        
+        console.log("[Image search] SAQ product pages filtered:", productPages.length);
+      } else {
+        // Web search - accept all results except navigation pages
+        productPages = allItems
+          .filter((item: any) => {
+            const link = (item.link || "").toLowerCase();
+            // Exclude common non-product pages
+            const isNotProductPage = 
+              link.includes("/search") ||
+              link.includes("/recherche") ||
+              link === "/" ||
+              link.endsWith("/fr") ||
+              link.endsWith("/en");
+            return !isNotProductPage;
+          })
+          .slice(0, 15)
+          .map((item: any) => ({
+            productPageUrl: item.link,
+            title: item.title || "",
+            snippet: item.snippet || item.htmlSnippet || "",
+            imageUrl: "",
+          }));
+        
+        console.log("[Image search] Web product pages filtered:", productPages.length);
+      }
+            
+      if (productPages.length > 0) {
+        console.log("[Image search] Sample product:", {
+          title: productPages[0].title,
+          snippet: productPages[0].snippet?.substring(0, 100),
+          url: productPages[0].productPageUrl,
         });
       }
 
-      if (!saqProducts.length) {
-        console.warn("[Image search] No SAQ products found after filtering");
+      if (!productPages.length) {
+        console.warn("[Image search] No product pages found after filtering");
         return [];
       }
 
@@ -321,7 +385,7 @@ export default function AddProductModal({
                   productPageUrl: string;
                   title: string;
                   snippet?: string;
-      }> = saqProducts.map((product, index) => {
+      }> = productPages.map((product, index) => {
         // Essayer de trouver une image correspondante
         let match = allImageItems.find((img: any) => {
           if (!img.contextUrl) return false;
@@ -408,7 +472,24 @@ export default function AddProductModal({
   };
 
   const handleCategoryChange = (category: string) => {
-    setFormData((prev) => ({ ...prev, category, subcategory: "" }));
+    setFormData((prev) => {
+      let bottleSizeDefault = "";
+      // Set default bottle size based on category
+      if (category === "spirits") {
+        bottleSizeDefault = "750";
+      } else if (category === "wine" || category === "aperitif" || category === "champagne") {
+        bottleSizeDefault = "750";
+      } else if (category === "beer") {
+        bottleSizeDefault = "341"; // Standard beer bottle (12 oz)
+      }
+      
+      return {
+        ...prev,
+        category,
+        subcategory: "",
+        bottleSizeInMl: bottleSizeDefault,
+      };
+    });
   };
 
   const getSubcategories = () => {
@@ -621,8 +702,16 @@ export default function AddProductModal({
             champagne: "wine",
             aperitif: "wine",
             aperitifs: "wine",
+            jus: "juice",
+            juice: "juice",
+            soda: "soda",
+            "boisson gazeuse": "soda",
+            "soft drink": "soda",
             "ready-to-drink": "readyToDrink",
             "ready to drink": "readyToDrink",
+            autre: "other",
+            other: "other",
+            autres: "other",
           };
           const categoryLower = details.category.toLowerCase().trim();
           const mappedCategory =
@@ -716,6 +805,11 @@ export default function AddProductModal({
         if (details.price) {
           updates.pricePerBottle = details.price.toString();
         }
+        
+        // Fill bottle size in ml
+        if (details.bottleSizeInMl) {
+          updates.bottleSizeInMl = details.bottleSizeInMl.toString();
+        }
       }
       
       setFormData((prev) => ({
@@ -727,6 +821,7 @@ export default function AddProductModal({
         pricePerBottle: (updates.pricePerBottle ?? prev.pricePerBottle) || "",
         inventoryCode: prev.inventoryCode || "",
         imageUrl: (updates.imageUrl ?? prev.imageUrl) || "",
+        bottleSizeInMl: (updates.bottleSizeInMl ?? prev.bottleSizeInMl) || "",
       }));
       
       setShowProductSelection(false);
@@ -799,6 +894,7 @@ export default function AddProductModal({
       imageUrl: formData.imageUrl || undefined,
       subcategory: formData.subcategory || undefined,
       origin: formData.origin || undefined,
+      bottleSizeInMl: formData.bottleSizeInMl ? parseInt(formData.bottleSizeInMl) : undefined,
     };
 
     onSave(product);
@@ -816,7 +912,10 @@ export default function AddProductModal({
       category === "champagne"
     )
       return "wine";
+    if (category === "juice") return "juice";
+    if (category === "soda") return "soda";
     if (category === "readyToDrink") return "soda";
+    if (category === "other") return "other";
     return "other";
   };
 
@@ -830,12 +929,14 @@ export default function AddProductModal({
       pricePerBottle: "",
       inventoryCode: "",
       imageUrl: "",
+      bottleSizeInMl: "",
     });
     setQrCodeValue("");
     setWasCodeManuallySet(false);
     setSearchResults([]);
     setShowProductSelection(false);
     setCurrentPage(1);
+    setForceSAQSearch(true); // Reset to SAQ by default
     onClose();
   };
 
@@ -847,11 +948,33 @@ export default function AddProductModal({
   const endIndex = startIndex + PRODUCTS_PER_PAGE;
   const currentPageResults = searchResults.slice(startIndex, endIndex);
 
+  // Determine if category is required for search
+  // Non-SAQ categories (beer, juice, soda, snacks, other) require category for better results
+  // SAQ categories (spirits, wine, etc.) don't require it since SAQ has everything
+  const isCategoryRequiredForSearch = () => {
+    const category = formData.category.toLowerCase();
+    const isNonSAQCategory = 
+      category === "beer" || 
+      category === "juice" ||
+      category === "soda" ||
+      category === "readytodrink" || 
+      category === "other" ||
+      category.includes("snack");
+    
+    // If a non-SAQ category is selected, it's no longer required (already selected)
+    // If no category selected, it's only required if we would do a non-SAQ search
+    // Since we don't know yet, we need category for non-SAQ searches
+    return isNonSAQCategory ? false : !formData.category.trim();
+  };
+
+  // Button is disabled if: name is empty OR (category required AND category empty) OR search in progress
+  const isSearchDisabled = !formData.name.trim() || isCategoryRequiredForSearch() || isSearchingImage;
+
   return (
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
               {editingProduct
                 ? t.inventory.addProductModal.editTitle ||
@@ -866,7 +989,8 @@ export default function AddProductModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
           {/* Product Name */}
           <div className="space-y-2 md:col-span-2">
             <div className="flex items-center justify-between">
@@ -878,7 +1002,7 @@ export default function AddProductModal({
                 variant="outline"
                 size="sm"
                 onClick={searchProductImage}
-                disabled={!formData.name.trim() || isSearchingImage}
+                disabled={isSearchDisabled}
                 className="gap-2"
               >
                 {isSearchingImage ? (
@@ -891,11 +1015,36 @@ export default function AddProductModal({
                   <>
                     <Search className="h-4 w-4" />
                       {t.inventory.addProductModal.searchImage ||
-                        "Rechercher image"}
+                        "Rechercher"}
                   </>
                 )}
               </Button>
             </div>
+            
+            {/* SAQ/Non-SAQ Toggle */}
+            <div className="flex gap-4 mt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="searchSource"
+                  checked={forceSAQSearch === true}
+                  onChange={() => setForceSAQSearch(true)}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm font-medium">SAQ</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="searchSource"
+                  checked={forceSAQSearch === false}
+                  onChange={() => setForceSAQSearch(false)}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm font-medium">Web</span>
+              </label>
+            </div>
+            
             <Input
               id="name"
                 name="name"
@@ -978,11 +1127,20 @@ export default function AddProductModal({
                 <SelectItem value="champagne">
                   {t.inventory.addProductModal.categories.champagne}
                 </SelectItem>
+                <SelectItem value="juice">
+                  {t.inventory.addProductModal.categories.juice || "Jus"}
+                </SelectItem>
+                <SelectItem value="soda">
+                  {t.inventory.addProductModal.categories.soda || "Boisson gazeuse"}
+                </SelectItem>
                 <SelectItem value="readyToDrink">
                   {t.inventory.addProductModal.categories.readyToDrink}
                 </SelectItem>
                 <SelectItem value="snacks">
                   {t.inventory.addProductModal.categories.snacks}
+                </SelectItem>
+                <SelectItem value="other">
+                  {t.inventory.addProductModal.categories.other || "Autres"}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -1117,6 +1275,29 @@ export default function AddProductModal({
             />
           </div>
 
+          {/* Bottle Size in ml */}
+          <div className="space-y-2">
+              <Label htmlFor="bottleSizeInMl">
+                {t.inventory.addProductModal.bottleSizeInMl || "Taille de la bouteille (ml)"}
+              </Label>
+            <Input
+              id="bottleSizeInMl"
+                name="bottleSizeInMl"
+              type="number"
+                autoComplete="off"
+              min="0"
+              step="1"
+              value={formData.bottleSizeInMl || ""}
+                onChange={(e) =>
+                  handleInputChange("bottleSizeInMl", e.target.value)
+                }
+              placeholder="e.g., 750 (ml)"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t.inventory.addProductModal.bottleSizeHint || "La capacité de la bouteille en millilitres. Ex: 750ml pour une bouteille standard de vin"}
+            </p>
+          </div>
+
           {/* Inventory Code */}
           <div className="space-y-2">
             <Label htmlFor="inventoryCode">
@@ -1196,8 +1377,9 @@ export default function AddProductModal({
             )}
           </div>
         </div>
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button variant="outline" onClick={handleClose}>
             {t.inventory.addProductModal.cancel}
           </Button>
@@ -1218,8 +1400,8 @@ export default function AddProductModal({
         }
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Sélectionner un produit</DialogTitle>
           <DialogDescription>
               Plusieurs produits correspondent à votre recherche.
@@ -1228,7 +1410,8 @@ export default function AddProductModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <div className="space-y-3 py-4">
               <>
                 {currentPageResults.map((result, index) => (
                   <div
@@ -1309,9 +1492,10 @@ export default function AddProductModal({
                   </div>
                 )}
               </>
+          </div>
         </div>
 
-        <DialogFooter className="flex gap-2">
+        <DialogFooter className="flex-shrink-0 flex gap-2">
           <Button 
             variant="outline" 
             onClick={() => {

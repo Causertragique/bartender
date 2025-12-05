@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function pour vérifier l'authentification
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function pour vérifier que l'utilisateur accède à ses propres données
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function pour vérifier le rôle de l'utilisateur
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+    
+    // Helper function pour vérifier si l'utilisateur est admin ou propriétaire
+    function isAdminOrOwner(userId) {
+      return isOwner(userId) && (getUserRole(userId) == 'owner' || getUserRole(userId) == 'admin');
+    }
+    
+    // Helper function pour vérifier si l'utilisateur est au moins manager
+    function isManagerOrAbove(userId) {
+      return isOwner(userId) && (getUserRole(userId) in ['owner', 'admin', 'manager']);
+    }
+    
+    // Structure: users/{userId}/...
+    match /users/{userId} {
+      // Profil utilisateur: users/{userId}
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      
+      // Produits: users/{userId}/products/{productId}
+      // SÉCURITÉ ANTI-FRAUDE: Seuls les admins/propriétaires peuvent modifier
+      match /products/{productId} {
+        allow read: if isOwner(userId);
+        allow create: if isAdminOrOwner(userId); // Seuls admin/owner peuvent créer
+        allow update: if isAdminOrOwner(userId); // Seuls admin/owner peuvent modifier
+        allow delete: if isAdminOrOwner(userId); // Seuls admin/owner peuvent supprimer
+      }
+      
+      // Logs d'audit d'inventaire: users/{userId}/inventory_logs/{logId}
+      // Les logs sont en lecture seule après création (traçabilité)
+      match /inventory_logs/{logId} {
+        allow read: if isManagerOrAbove(userId); // Managers+ peuvent voir les logs
+        allow create: if isOwner(userId); // Tout le monde peut créer des logs
+        allow update, delete: if false; // Les logs ne peuvent jamais être modifiés
+      }
+      
+      // Recettes: users/{userId}/recipes/{recipeId}
+      match /recipes/{recipeId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update, delete: if isOwner(userId);
+      }
+      
+      // Ventes: users/{userId}/sales/{saleId}
+      match /sales/{saleId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        // Les ventes ne peuvent pas être modifiées (audit trail)
+        allow update, delete: if false;
+      }
+      
+      // Statistiques de ventes: users/{userId}/sales/stats/{statsId}
+      match /sales/stats/{statsId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+      
+      // IA/Analytics: users/{userId}/ai/...
+      match /ai/{subcollection}/{docId} {
+        // insights ou analytics
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+      
+      // Paramètres: users/{userId}/settings/...
+      match /settings/{subcollection}/{docId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+    
+    // Bloquer tout le reste par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

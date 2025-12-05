@@ -1,23 +1,28 @@
 import { RequestHandler } from "express";
 import Stripe from "stripe";
-import db from "../database";
+// import db from "../database"; // DÉSACTIVÉ - Utiliser Firestore ou variables d'environnement
 import { getUserId } from "../middleware/auth";
 
 /**
  * Get Stripe instance for the current user
+ * TODO: Migrer vers Firestore ou variables d'environnement
  */
 function getStripeForUser(userId: string | null): Stripe | null {
   if (!userId) return null;
 
+  // DÉSACTIVÉ - Nécessite migration vers Firestore
   // Get user's Stripe keys from database
-  const keys = db.prepare("SELECT * FROM stripe_keys WHERE userId = ?").get(userId) as any;
+  // const keys = db.prepare("SELECT * FROM stripe_keys WHERE userId = ?").get(userId) as any;
 
-  if (!keys || !keys.secretKey) {
+  // Temporairement, utiliser les variables d'environnement si disponibles
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    console.warn("⚠️ STRIPE_SECRET_KEY not configured");
     return null;
   }
 
-  // Initialize Stripe with user's secret key
-  return new Stripe(keys.secretKey, {
+  // Initialize Stripe with secret key
+  return new Stripe(secretKey, {
     apiVersion: "2020-08-27",
   });
 }

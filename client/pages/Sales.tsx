@@ -2,8 +2,14 @@ import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
-import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List } from "lucide-react";
+import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List, Search } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { getProducts, updateProduct } from "@/services/firestore/products";
+import { getRecipes, createRecipe } from "@/services/firestore/recipes";
+import { createSale } from "@/services/firestore/sales";
+import { stockAlertsService } from "@/services/firestore/notifications";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +29,7 @@ interface CartItem extends Omit<Product, 'category'> {
 }
 
 interface RecipeIngredient {
-  productId: string;
+  productId?: string;
   productName: string;
   quantity: number; // Quantity in ml or units
   unit: string; // "ml" or unit from product
@@ -47,119 +53,24 @@ interface Tab {
   subtotal: number;
   tax: number;
   total: number;
+  status: "open" | "paid"; // Track if tab is open or paid
 }
-
-const PRODUCTS_FOR_SALE: Product[] = [
-  {
-    id: "1",
-    name: "Johnnie Walker Blue",
-    category: "spirits",
-    price: 12.99,
-    quantity: 3,
-    unit: "shot",
-  },
-  {
-    id: "2",
-    name: "Tanqueray Gin",
-    category: "spirits",
-    price: 8.99,
-    quantity: 8,
-    unit: "shot",
-  },
-  {
-    id: "3",
-    name: "Corona Extra",
-    category: "beer",
-    price: 6.99,
-    quantity: 42,
-    unit: "bottle",
-  },
-  {
-    id: "4",
-    name: "Heineken",
-    category: "beer",
-    price: 7.49,
-    quantity: 38,
-    unit: "bottle",
-  },
-  {
-    id: "5",
-    name: "Red Wine - Cabernet",
-    category: "wine",
-    price: 8.99,
-    quantity: 12,
-    unit: "glass",
-  },
-  {
-    id: "6",
-    name: "Smirnoff Vodka",
-    category: "spirits",
-    price: 7.99,
-    quantity: 2,
-    unit: "shot",
-  },
-  {
-    id: "7",
-    name: "Mixed Nuts",
-    category: "other",
-    price: 4.99,
-    quantity: 15,
-    unit: "bag",
-  },
-  {
-    id: "8",
-    name: "Pretzels",
-    category: "other",
-    price: 3.49,
-    quantity: 22,
-    unit: "bag",
-  },
-  {
-    id: "9",
-    name: "Margarita Mix",
-    category: "wine",
-    price: 6.99,
-    quantity: 5,
-    unit: "drink",
-  },
-  {
-    id: "10",
-    name: "Mojito Mix",
-    category: "wine",
-    price: 7.99,
-    quantity: 4,
-    unit: "drink",
-  },
-  {
-    id: "11",
-    name: "Whiskey Sour",
-    category: "spirits",
-    price: 9.99,
-    quantity: 6,
-    unit: "drink",
-  },
-  {
-    id: "12",
-    name: "Chips",
-    category: "other",
-    price: 2.99,
-    quantity: 30,
-    unit: "bag",
-  },
-];
 
 const categoryColors = {
   spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
   wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30 hover:bg-red-200 dark:hover:bg-red-500/30",
-  beer: "bg-red-100 dark:bg-red-900/20 text-red-900 dark:text-red-100 border-red-300 dark:border-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/30",
+  beer: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
   soda: "bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30 hover:bg-cyan-200 dark:hover:bg-cyan-500/30",
   juice: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-500/30 hover:bg-orange-200 dark:hover:bg-orange-500/30",
   other: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30 hover:bg-green-200 dark:hover:bg-green-500/30",
-  cocktail: "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-500/30 hover:bg-purple-200 dark:hover:bg-purple-500/30",
+  cocktail: "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-500/30 hover:bg-indigo-200 dark:hover:bg-indigo-500/30",
 };
 
 export default function Sales() {
   const { t } = useI18n();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  
   const [cart, setCart] = useState<CartItem[]>([]);
   const [filterCategory, setFilterCategory] = useState<
     "all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail"
@@ -184,48 +95,48 @@ export default function Sales() {
   const [showRecipeDialog, setShowRecipeDialog] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [inventoryProducts, setInventoryProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tip, setTip] = useState(0);
+  const [tipPercentage, setTipPercentage] = useState<number | null>(null);
   
-  // Load inventory products and recipes from localStorage
+  // Load inventory products and recipes from Firestore
   useEffect(() => {
-    const loadInventory = () => {
-      const stored = localStorage.getItem("inventory-products");
-      if (stored) {
-        try {
-          setInventoryProducts(JSON.parse(stored));
-        } catch {
-          setInventoryProducts([]);
-        }
+    if (authLoading) return;
+    if (!user) return;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [products, recipesList] = await Promise.all([
+          getProducts(user.uid),
+          getRecipes(user.uid),
+        ]);
+        setInventoryProducts(products as Product[]);
+        // Map FirestoreRecipe to local Recipe interface
+        const mappedRecipes: Recipe[] = recipesList
+          .filter(r => r.id) // Filter out recipes without id
+          .map(r => ({
+            ...r,
+            id: r.id!, // Assert id exists after filter
+            price: (r as any).price || 0, // Use price from Firestore or default to 0
+            ingredients: r.ingredients.filter(ing => ing.productId), // Filter out ingredients without productId
+            category: r.category === "mocktail" ? "other" : "cocktail" as "cocktail" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other",
+          }));
+        setRecipes(mappedRecipes);
+      } catch (error: any) {
+        console.error("Erreur chargement données:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les produits et recettes",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
     };
-    
-    const loadRecipes = () => {
-      const stored = localStorage.getItem("sales-recipes");
-      if (stored) {
-        try {
-          setRecipes(JSON.parse(stored));
-        } catch {
-          setRecipes([]);
-        }
-      }
-    };
-    
-    loadInventory();
-    loadRecipes();
-    
-    // Listen for inventory updates
-    const handleStorageChange = () => {
-      loadInventory();
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-  
-  // Save recipes to localStorage
-  useEffect(() => {
-    if (recipes.length > 0) {
-      localStorage.setItem("sales-recipes", JSON.stringify(recipes));
-    }
-  }, [recipes]);
+
+    loadData();
+  }, [user, authLoading, toast]);
 
   // Save view mode to localStorage
   useEffect(() => {
@@ -285,7 +196,7 @@ export default function Sales() {
 
   // Combine inventory products and recipes for display
   const allProductsForSale: (Product | Recipe)[] = [
-    ...inventoryProducts.map(p => ({ ...p, isRecipe: false })),
+    // Only show recipes/cocktails created in Sales page, not inventory products
     ...recipes.map(r => ({ ...r, isRecipe: true }))
   ];
   
@@ -390,8 +301,9 @@ export default function Sales() {
     }
   };
 
-  const updateInventoryAfterSale = (items: CartItem[]) => {
+  const updateInventoryAfterSale = async (items: CartItem[]) => {
     const updatedProducts = [...inventoryProducts];
+    const lowStockAlerts: Array<{ productId: string; productName: string; quantity: number; threshold: number }> = [];
     
     items.forEach(item => {
       // Check if it's a recipe
@@ -408,10 +320,10 @@ export default function Sales() {
             
             if (ingredient.unit === "ml" || ingredient.unit === "oz") {
               // Handle ml-based inventory (including oz converted to ml)
-              const productQuantityInMl = (product as any).quantityInMl || 0;
+              const productQuantityInMl = (product as any).quantityInMl || product.bottleSizeInMl || 0;
               
               if (productQuantityInMl > 0) {
-                // Product has quantity in ml
+                // Product has quantity in ml per bottle/unit
                 const currentMl = productQuantityInMl * product.quantity;
                 const newMl = Math.max(0, currentMl - quantityToRemoveInMl);
                 product.quantity = Math.ceil(newMl / productQuantityInMl);
@@ -428,6 +340,24 @@ export default function Sales() {
               const quantityToRemove = ingredient.quantity * item.cartQuantity;
               product.quantity = Math.max(0, product.quantity - quantityToRemove);
             }
+            
+            // Check for low stock (threshold = 25% or 1 unit minimum)
+            const lowStockThreshold = Math.max(1, Math.ceil(product.quantity * 0.25));
+            if (product.quantity > 0 && product.quantity <= lowStockThreshold) {
+              lowStockAlerts.push({
+                productId: product.id,
+                productName: product.name,
+                quantity: product.quantity,
+                threshold: lowStockThreshold,
+              });
+            } else if (product.quantity === 0) {
+              lowStockAlerts.push({
+                productId: product.id,
+                productName: product.name,
+                quantity: 0,
+                threshold: lowStockThreshold,
+              });
+            }
           }
         });
       } else {
@@ -435,11 +365,69 @@ export default function Sales() {
         const product = updatedProducts.find(p => p.id === item.id);
         if (product) {
           product.quantity = Math.max(0, product.quantity - item.cartQuantity);
+          
+          // Check for low stock (threshold = 25% or 1 unit minimum)
+          const lowStockThreshold = Math.max(1, Math.ceil(product.quantity * 0.25));
+          if (product.quantity > 0 && product.quantity <= lowStockThreshold) {
+            lowStockAlerts.push({
+              productId: product.id,
+              productName: product.name,
+              quantity: product.quantity,
+              threshold: lowStockThreshold,
+            });
+          } else if (product.quantity === 0) {
+            lowStockAlerts.push({
+              productId: product.id,
+              productName: product.name,
+              quantity: 0,
+              threshold: lowStockThreshold,
+            });
+          }
         }
       }
     });
     
+    // Update inventory in Firestore
+    for (const product of updatedProducts) {
+      try {
+        if (user?.uid) {
+          await updateProduct(user.uid, product.id, {
+            quantity: product.quantity,
+          });
+        }
+      } catch (error) {
+        console.error(`Error updating product ${product.id}:`, error);
+      }
+    }
+    
     setInventoryProducts(updatedProducts);
+    
+    // Create stock alerts for low stock items
+    if (user?.uid && lowStockAlerts.length > 0) {
+      for (const alert of lowStockAlerts) {
+        try {
+          const alertType = alert.quantity === 0 ? "out_of_stock" : "low_stock";
+          await stockAlertsService.create(user.uid, {
+            productId: alert.productId,
+            productName: alert.productName,
+            currentStock: alert.quantity,
+            thresholdLevel: alert.threshold,
+            alertType,
+            isDismissed: false,
+          });
+        } catch (error) {
+          console.error(`Error creating stock alert for ${alert.productName}:`, error);
+        }
+      }
+      
+      // Show toast notification
+      toast({
+        title: "Stock Alert",
+        description: `${lowStockAlerts.length} product(s) have low stock. Check notifications for details.`,
+        variant: "destructive",
+      });
+    }
+    
     localStorage.setItem("inventory-products", JSON.stringify(updatedProducts));
   };
 
@@ -610,13 +598,17 @@ export default function Sales() {
   );
   const taxCalculation = calculateTax(subtotal);
   const tax = taxCalculation.total;
-  const total = subtotal + tax;
+  // Le pourboire ne s'ajoute au total que si c'est par carte
+  const tipAmount = paymentMethod === "card" ? tip : 0;
+  const total = subtotal + tax + tipAmount;
 
   const handleCheckout = () => {
     if (paymentMethod === "cash") {
-      alert(`${t.sales.alerts.cashPayment}$${total.toFixed(2)}`);
+      alert(`${t.sales.alerts.cashPayment}$${(subtotal + tax).toFixed(2)}`);
       setCart([]);
       setPaymentMethod(null);
+      setTip(0);
+      setTipPercentage(null);
     } else if (paymentMethod === "card") {
       setShowPaymentModal(true);
     } else if (paymentMethod === "tab") {
@@ -689,6 +681,7 @@ export default function Sales() {
       subtotal,
       tax,
       total,
+      status: "open", // New tabs are open
     };
     
     setOpenTabs([...openTabs, newTab]);
@@ -711,6 +704,15 @@ export default function Sales() {
   };
 
   const handleCloseTab = (tabId: string) => {
+    const tab = openTabs.find(t => t.id === tabId);
+    if (!tab) return;
+    
+    // Prevent closing tab if it's still open (not paid)
+    if (tab.status === "open") {
+      alert("Ce compte doit être payé avant de pouvoir le fermer");
+      return;
+    }
+    
     if (confirm(`${t.sales.closeTab}?`)) {
       setOpenTabs(openTabs.filter(t => t.id !== tabId));
       if (selectedTabId === tabId) {
@@ -719,15 +721,76 @@ export default function Sales() {
     }
   };
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = async () => {
+    // Enregistrer la vente dans Firestore
+    if (user?.uid && cart.length > 0) {
+      try {
+        const method = paymentMethod === "tab" ? "other" : (paymentMethod || "cash");
+        
+        const saleData = {
+          items: cart.map(item => {
+            const itemData: any = {
+              name: item.name,
+              quantity: item.cartQuantity,
+              price: item.price,
+              category: item.category,
+            };
+            if (item.isRecipe) {
+              itemData.recipeId = item.id;
+            } else {
+              itemData.productId = item.id;
+            }
+            return itemData;
+          }),
+          total: total,
+          subtotal: subtotal,
+          tax: tax,
+          tip: tip > 0 ? tip : undefined,
+          paymentMethod: method as "cash" | "card" | "stripe" | "other",
+          userId: user.uid,
+        };
+        
+        const result = await createSale(user.uid, saleData);
+        console.log("[Sales] ✅ Vente enregistrée avec ID:", result.id);
+        
+        toast({
+          title: "Succès",
+          description: "Vente enregistrée dans l'historique",
+          variant: "default",
+        });
+      } catch (error: any) {
+        console.error("[Sales] ❌ Erreur enregistrement vente:", error);
+        console.error("[Sales] Détails erreur:", error.message || error);
+        toast({
+          title: "Avertissement",
+          description: `Vente effectuée mais erreur d'enregistrement: ${error.message || "Erreur inconnue"}`,
+          variant: "destructive",
+        });
+      }
+    } else {
+      console.warn("[Sales] ⚠️ Impossible d'enregistrer: user?.uid=", user?.uid, "cart.length=", cart.length);
+    }
+    
+    await updateInventoryAfterSale(cart);
+    setCart([]);
+    setPaymentMethod(null);
+    setTip(0);
+    setTipPercentage(null);
+    setShowPaymentModal(false);
+    
+    alert(`${t.sales.alerts.orderCompleted}$${total.toFixed(2)}`);
+  };
+
+  const handleTabPaymentComplete = async () => {
     const payingTabId = (window as any).__payingTabId;
-    if (payingTabId) {
-      // Close the tab after payment
-      const tab = openTabs.find(t => t.id === payingTabId);
-      if (tab) {
-        // Update inventory for tab items
-        const updatedProducts = [...inventoryProducts];
-        tab.items.forEach(cartItem => {
+    if (!payingTabId) return;
+    
+    const tab = openTabs.find(t => t.id === payingTabId);
+    if (!tab) return;
+    
+    // Update inventory for tab items
+    const updatedProducts = [...inventoryProducts];
+    tab.items.forEach(cartItem => {
           const product = updatedProducts.find(p => p.id === cartItem.id);
           if (product) {
             product.quantity = Math.max(0, product.quantity - cartItem.cartQuantity);
@@ -763,23 +826,66 @@ export default function Sales() {
             }
           }
         });
+        
+        // Update inventory in Firestore
+        for (const product of updatedProducts) {
+          try {
+            if (user?.uid) {
+              await updateProduct(user.uid, product.id, {
+                quantity: product.quantity,
+              });
+            }
+          } catch (error) {
+            console.error(`Error updating product ${product.id}:`, error);
+          }
+        }
+        
         setInventoryProducts(updatedProducts);
         localStorage.setItem("products", JSON.stringify(updatedProducts));
 
+        // Enregistrer la vente de l'addition dans Firestore
+        if (user?.uid && tab.items.length > 0) {
+          try {
+            console.log("[Sales] Enregistrement vente d'addition pour tab:", tab.name);
+            
+            const tabSaleData = {
+              items: tab.items.map(item => ({
+                productId: item.isRecipe ? undefined : item.id,
+                recipeId: item.isRecipe ? item.id : undefined,
+                name: item.name,
+                quantity: item.cartQuantity,
+                price: item.price,
+                category: item.category,
+              })),
+              total: tab.total,
+              subtotal: tab.subtotal,
+              tax: tab.tax,
+              paymentMethod: "card" as const,
+              userId: user.uid,
+              tableNumber: tab.name,
+            };
+            
+            console.log("[Sales] Données d'addition:", tabSaleData);
+            const result = await createSale(user.uid, tabSaleData);
+            console.log("[Sales] ✅ Vente d'addition enregistrée dans Firestore:", result);
+          } catch (error: any) {
+            console.error("[Sales] ❌ Erreur enregistrement vente d'addition:", error);
+            console.error("[Sales] Détails erreur:", error.message || error);
+          }
+        }
+
+        // Mark tab as paid
+        setOpenTabs(openTabs.map(t => 
+          t.id === payingTabId 
+            ? { ...t, status: "paid" as const }
+            : t
+        ));
+        
         alert(`${t.sales.tabClosed}: ${tab.name} - $${tab.total.toFixed(2)}`);
-        setOpenTabs(openTabs.filter(t => t.id !== payingTabId));
         if (selectedTabId === payingTabId) {
           setSelectedTabId(null);
         }
-      }
-      delete (window as any).__payingTabId;
-    } else {
-      updateInventoryAfterSale(cart);
-      setCart([]);
-      setPaymentMethod(null);
-      alert(`${t.sales.alerts.orderCompleted}$${total.toFixed(2)}`);
-    }
-    setShowPaymentModal(false);
+        delete (window as any).__payingTabId;
   };
 
   return (
@@ -844,20 +950,39 @@ export default function Sales() {
           {/* Products Grid */}
           <div className="lg:col-span-2 space-y-4">
             {/* Category Filter */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(cat)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap ${
-                    filterCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {categoryLabels[cat]}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {categories.map((cat) => {
+                // Couleur pour "all" (neutre)
+                const allColor = "bg-primary text-primary-foreground";
+                const allColorInactive = "bg-secondary text-muted-foreground hover:text-foreground";
+                
+                // Couleurs spécifiques par catégorie (version simplifiée pour les boutons)
+                const categoryButtonColors: Record<string, string> = {
+                  spirits: "bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500",
+                  wine: "bg-red-200 dark:bg-red-600 text-red-800 dark:text-red-100 border-2 border-red-400 dark:border-red-500",
+                  beer: "bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500",
+                  soda: "bg-cyan-200 dark:bg-cyan-600 text-cyan-800 dark:text-cyan-100 border-2 border-cyan-400 dark:border-cyan-500",
+                  juice: "bg-orange-200 dark:bg-orange-600 text-orange-800 dark:text-orange-100 border-2 border-orange-400 dark:border-orange-500",
+                  other: "bg-green-200 dark:bg-green-600 text-green-800 dark:text-green-100 border-2 border-green-400 dark:border-green-500",
+                  cocktail: "bg-indigo-200 dark:bg-indigo-600 text-indigo-800 dark:text-indigo-100 border-2 border-indigo-400 dark:border-indigo-500",
+                };
+                
+                const isActive = filterCategory === cat;
+                const activeColor = cat === "all" ? allColor : categoryButtonColors[cat] || allColor;
+                const inactiveColor = "bg-secondary/50 text-muted-foreground hover:bg-secondary border-2 border-foreground/20";
+                
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
+                    className={`px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition-colors ${
+                      isActive ? activeColor : inactiveColor
+                    }`}
+                  >
+                    {categoryLabels[cat]}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Products Display - Grid or List */}
@@ -876,7 +1001,7 @@ export default function Sales() {
                       disabled={availableQuantity <= 0}
                       className={`p-3 rounded-lg border-2 border-foreground/30 transition-all text-left hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex flex-col h-full min-h-[120px] ${categoryColors[product.category]}`}
                     >
-                      <p className="font-bold text-lg line-clamp-2 h-12 mb-2">
+                      <p className="font-bold text-base line-clamp-2 min-h-[2.5rem] mb-2">
                         {product.name}
                       </p>
                       <div className="mt-auto">
@@ -910,7 +1035,7 @@ export default function Sales() {
                       className={`w-full p-3 sm:p-4 rounded-lg border-2 border-foreground/30 transition-all text-left hover:border-primary/50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 sm:gap-4 ${categoryColors[product.category]}`}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-base sm:text-lg line-clamp-1 mb-1">
+                        <p className="font-bold text-sm sm:text-base line-clamp-1 mb-1">
                           {product.name}
                         </p>
                         <div className="flex items-center gap-3 sm:gap-4 text-sm">
@@ -1019,6 +1144,71 @@ export default function Sales() {
                   <span>${tax.toFixed(2)}</span>
                 </div>
                 )}
+                
+                {/* Tip Section */}
+                {cart.length > 0 && (
+                  <div className="border-t border-foreground/10 pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Pourboire</span>
+                      <span className="font-medium">${tip.toFixed(2)}</span>
+                    </div>
+                    {paymentMethod === "card" && (
+                      <>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[10, 15, 18, 20].map((percent) => (
+                            <button
+                              key={percent}
+                              onClick={() => {
+                                const calculatedTip = (subtotal + tax) * (percent / 100);
+                                setTip(calculatedTip);
+                                setTipPercentage(percent);
+                              }}
+                              className={`py-1.5 px-2 text-xs rounded transition-colors ${
+                                tipPercentage === percent
+                                  ? "bg-primary text-primary-foreground font-semibold"
+                                  : "bg-secondary hover:bg-secondary/80 text-foreground"
+                              }`}
+                            >
+                              {percent}%
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Input
+                            type="number"
+                            placeholder="Montant personnalisé"
+                            value={tip > 0 && tipPercentage === null ? tip : ""}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              setTip(value);
+                              setTipPercentage(null);
+                            }}
+                            className="text-sm h-8"
+                            min="0"
+                            step="0.01"
+                          />
+                          {tip > 0 && (
+                            <button
+                              onClick={() => {
+                                setTip(0);
+                                setTipPercentage(null);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 rounded transition-colors"
+                            >
+                              Effacer
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {paymentMethod === "cash" && (
+                      <p className="text-xs text-muted-foreground italic">
+                        Le client ajoutera le pourboire en espèces
+                      </p>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex justify-between text-lg font-bold border-t-2 border-foreground/20 pt-2">
                   <span>{t.sales.total}</span>
                   <span className="text-foreground">${total.toFixed(2)}</span>
@@ -1147,6 +1337,21 @@ export default function Sales() {
         amount={(window as any).__payingTabId 
           ? openTabs.find(t => t.id === (window as any).__payingTabId)?.total || total
           : total}
+        subtotal={(window as any).__payingTabId 
+          ? openTabs.find(t => t.id === (window as any).__payingTabId)?.subtotal || subtotal
+          : subtotal}
+        tax={(window as any).__payingTabId 
+          ? openTabs.find(t => t.id === (window as any).__payingTabId)?.tax || tax
+          : tax}
+        taxBreakdown={{
+          TPS: taxCalculation.TPS,
+          TVQ: taxCalculation.TVQ,
+          PST: taxCalculation.PST,
+          HST: taxCalculation.HST,
+          TVD: taxCalculation.TVD,
+        }}
+        taxLabels={taxCalculation.labels}
+        tip={tip}
         onClose={() => {
           setShowPaymentModal(false);
           delete (window as any).__payingTabId;
@@ -1559,21 +1764,50 @@ export default function Sales() {
 
       {/* Recipe Creation Dialog */}
       <Dialog open={showRecipeDialog} onOpenChange={setShowRecipeDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-4">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <Wine className="h-5 w-5" />
-              Créer un produit (cocktail, au verres etc...)
+              Créer un produit
             </DialogTitle>
-            <DialogDescription>
-              Créez un produit avec des ingrédients de l'inventaire (ex: Vodka jus d'orange, Mojito, etc.)
+            <DialogDescription className="text-xs">
+              Sélectionnez le type, la catégorie, les ingrédients et le prix
             </DialogDescription>
           </DialogHeader>
           <RecipeForm
             inventoryProducts={inventoryProducts}
-            onSave={(recipe) => {
-              setRecipes([...recipes, recipe]);
-              setShowRecipeDialog(false);
+            onSave={async (recipe) => {
+              try {
+                // Sauvegarder la recette dans Firestore
+                if (user?.uid) {
+                  // Map local category to Firestore schema (cocktail or mocktail)
+                  const firestoreCategory: "cocktail" | "mocktail" = 
+                    recipe.category === "other" ? "mocktail" : "cocktail";
+                  
+                  await createRecipe(user.uid, {
+                    name: recipe.name,
+                    category: firestoreCategory,
+                    ingredients: recipe.ingredients,
+                    instructions: [],
+                    userId: user.uid,
+                  });
+                  setRecipes([...recipes, recipe]);
+                  setShowRecipeDialog(false);
+                  toast({
+                    title: "Produit créé",
+                    description: `${recipe.name} a été ajouté avec succès`,
+                  });
+                } else {
+                  throw new Error("Utilisateur non authentifié");
+                }
+              } catch (error) {
+                console.error("Erreur lors de la création du produit:", error);
+                toast({
+                  title: "Erreur",
+                  description: "Impossible de créer le produit",
+                  variant: "destructive",
+                });
+              }
             }}
             onCancel={() => setShowRecipeDialog(false)}
           />
@@ -1593,15 +1827,252 @@ interface RecipeFormProps {
   onCancel: () => void;
 }
 
+// Recettes traditionnelles préétablies
+const PRESET_RECIPES: Partial<Recipe>[] = [
+  // Cocktails classiques
+  { name: "Mojito", category: "cocktail", ingredients: [
+    { productName: "Rhum blanc", quantity: 50, unit: "ml" },
+    { productName: "Menthe fraîche", quantity: 10, unit: "unit" },
+    { productName: "Sucre", quantity: 2, unit: "unit" },
+    { productName: "Lime", quantity: 1, unit: "unit" },
+    { productName: "Soda", quantity: 100, unit: "ml" }
+  ]},
+  { name: "Margarita", category: "cocktail", ingredients: [
+    { productName: "Tequila", quantity: 50, unit: "ml" },
+    { productName: "Triple sec", quantity: 25, unit: "ml" },
+    { productName: "Jus de lime", quantity: 25, unit: "ml" }
+  ]},
+  { name: "Piña Colada", category: "cocktail", ingredients: [
+    { productName: "Rhum blanc", quantity: 50, unit: "ml" },
+    { productName: "Crème de coco", quantity: 30, unit: "ml" },
+    { productName: "Jus d'ananas", quantity: 90, unit: "ml" }
+  ]},
+  { name: "Cosmopolitan", category: "cocktail", ingredients: [
+    { productName: "Vodka", quantity: 40, unit: "ml" },
+    { productName: "Triple sec", quantity: 15, unit: "ml" },
+    { productName: "Jus de lime", quantity: 15, unit: "ml" },
+    { productName: "Jus de canneberge", quantity: 30, unit: "ml" }
+  ]},
+  { name: "Manhattan", category: "cocktail", ingredients: [
+    { productName: "Whisky", quantity: 50, unit: "ml" },
+    { productName: "Vermouth rouge", quantity: 25, unit: "ml" },
+    { productName: "Angostura bitters", quantity: 2, unit: "unit" }
+  ]},
+  { name: "Old Fashioned", category: "cocktail", ingredients: [
+    { productName: "Bourbon", quantity: 60, unit: "ml" },
+    { productName: "Sucre", quantity: 1, unit: "unit" },
+    { productName: "Angostura bitters", quantity: 3, unit: "unit" }
+  ]},
+  { name: "Daiquiri", category: "cocktail", ingredients: [
+    { productName: "Rhum blanc", quantity: 60, unit: "ml" },
+    { productName: "Jus de lime", quantity: 30, unit: "ml" },
+    { productName: "Sirop simple", quantity: 15, unit: "ml" }
+  ]},
+  { name: "Sex on the Beach", category: "cocktail", ingredients: [
+    { productName: "Vodka", quantity: 40, unit: "ml" },
+    { productName: "Peach schnapps", quantity: 20, unit: "ml" },
+    { productName: "Jus d'orange", quantity: 40, unit: "ml" },
+    { productName: "Jus de canneberge", quantity: 40, unit: "ml" }
+  ]},
+  { name: "Long Island Iced Tea", category: "cocktail", ingredients: [
+    { productName: "Vodka", quantity: 15, unit: "ml" },
+    { productName: "Rhum blanc", quantity: 15, unit: "ml" },
+    { productName: "Gin", quantity: 15, unit: "ml" },
+    { productName: "Tequila", quantity: 15, unit: "ml" },
+    { productName: "Triple sec", quantity: 15, unit: "ml" },
+    { productName: "Jus de citron", quantity: 25, unit: "ml" },
+    { productName: "Cola", quantity: 30, unit: "ml" }
+  ]},
+  { name: "Mai Tai", category: "cocktail", ingredients: [
+    { productName: "Rhum blanc", quantity: 30, unit: "ml" },
+    { productName: "Rhum brun", quantity: 30, unit: "ml" },
+    { productName: "Triple sec", quantity: 15, unit: "ml" },
+    { productName: "Jus de lime", quantity: 15, unit: "ml" },
+    { productName: "Sirop d'orgeat", quantity: 15, unit: "ml" }
+  ]},
+  
+  // Mocktails
+  { name: "Virgin Mojito", category: "other", ingredients: [
+    { productName: "Menthe fraîche", quantity: 10, unit: "unit" },
+    { productName: "Sucre", quantity: 2, unit: "unit" },
+    { productName: "Lime", quantity: 1, unit: "unit" },
+    { productName: "Soda", quantity: 150, unit: "ml" }
+  ]},
+  { name: "Shirley Temple", category: "other", ingredients: [
+    { productName: "Ginger ale", quantity: 120, unit: "ml" },
+    { productName: "Grenadine", quantity: 15, unit: "ml" },
+    { productName: "Jus d'orange", quantity: 30, unit: "ml" }
+  ]},
+  { name: "Virgin Piña Colada", category: "other", ingredients: [
+    { productName: "Crème de coco", quantity: 30, unit: "ml" },
+    { productName: "Jus d'ananas", quantity: 120, unit: "ml" }
+  ]},
+  
+  // Shots
+  { name: "Tequila Shot", category: "spirits", ingredients: [
+    { productName: "Tequila", quantity: 44, unit: "ml" }
+  ]},
+  { name: "Vodka Shot", category: "spirits", ingredients: [
+    { productName: "Vodka", quantity: 44, unit: "ml" }
+  ]},
+  { name: "Whisky Shot", category: "spirits", ingredients: [
+    { productName: "Whisky", quantity: 44, unit: "ml" }
+  ]},
+  { name: "B-52", category: "spirits", ingredients: [
+    { productName: "Kahlúa", quantity: 15, unit: "ml" },
+    { productName: "Baileys", quantity: 15, unit: "ml" },
+    { productName: "Grand Marnier", quantity: 15, unit: "ml" }
+  ]},
+  { name: "Jägerbomb", category: "spirits", ingredients: [
+    { productName: "Jägermeister", quantity: 44, unit: "ml" },
+    { productName: "Red Bull", quantity: 250, unit: "ml" }
+  ]},
+];
+
 function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
   const { t } = useI18n();
-  const [recipeName, setRecipeName] = useState("");
+  
+  // Step 1: Type de service
+  const [serviceType, setServiceType] = useState<"glass" | "shot" | "cocktail" | "bottle" | "">(""); 
+  
+  // Step 2: Catégorie
+  const [recipeCategory, setRecipeCategory] = useState<"spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail">("spirits");
+  
+  // Marge de profit désirée (en %)
+  const [profitMargin, setProfitMargin] = useState("30");
+  
+  // Prix de vente (pré-rempli avec le prix suggéré)
   const [recipePrice, setRecipePrice] = useState("");
-  const [recipeCategory, setRecipeCategory] = useState<"spirits" | "wine" | "beer" | "soda" | "juice" | "other">("wine");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Step 4: Ingrédients
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [selectedProductId, setSelectedProductId] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("ml");
+
+  // Suggérer des produits de l'inventaire basés sur la recherche
+  const getSuggestedProducts = (): Product[] => {
+    let filteredProducts = [...inventoryProducts];
+    
+    // Filtrer par catégorie (Point 2) - toujours appliqué
+    if (recipeCategory === "wine") {
+      filteredProducts = filteredProducts.filter(p => p.category === "wine");
+    } else if (recipeCategory === "beer") {
+      filteredProducts = filteredProducts.filter(p => p.category === "beer");
+    } else if (recipeCategory === "spirits") {
+      filteredProducts = filteredProducts.filter(p => 
+        p.category === "spirits" || 
+        p.name.toLowerCase().includes("vodka") ||
+        p.name.toLowerCase().includes("rhum") ||
+        p.name.toLowerCase().includes("rum") ||
+        p.name.toLowerCase().includes("whisky") ||
+        p.name.toLowerCase().includes("gin") ||
+        p.name.toLowerCase().includes("tequila")
+      );
+    } else if (recipeCategory === "juice") {
+      filteredProducts = filteredProducts.filter(p => p.category === "juice");
+    } else if (recipeCategory === "soda") {
+      filteredProducts = filteredProducts.filter(p => p.category === "soda");
+    }
+    
+    // Filtrer par type de service (Point 1) - toujours appliqué
+    if (serviceType === "glass") {
+      // Pour les verres, suggérer vins, bières, jus, sodas
+      filteredProducts = filteredProducts.filter(p => 
+        p.category === "wine" || 
+        p.category === "beer" || 
+        p.category === "juice" || 
+        p.category === "soda"
+      );
+    } else if (serviceType === "shot") {
+      // Pour les shots, suggérer spiritueux
+      filteredProducts = filteredProducts.filter(p => 
+        p.category === "spirits" || 
+        p.name.toLowerCase().includes("vodka") ||
+        p.name.toLowerCase().includes("rhum") ||
+        p.name.toLowerCase().includes("rum") ||
+        p.name.toLowerCase().includes("whisky") ||
+        p.name.toLowerCase().includes("gin") ||
+        p.name.toLowerCase().includes("tequila")
+      );
+    } else if (serviceType === "bottle") {
+      // Pour les bouteilles, suggérer bières
+      filteredProducts = filteredProducts.filter(p => p.category === "beer");
+    }
+    
+    // Si recherche active, filtrer davantage par texte
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      
+      filteredProducts = filteredProducts.filter(product => {
+        const nameMatch = product.name.toLowerCase().includes(query);
+        const categoryMatch = product.category.toLowerCase().includes(query);
+        
+        return nameMatch || categoryMatch;
+      });
+    }
+    
+    // Trier par pertinence
+    filteredProducts.sort((a, b) => {
+      // Priorité 1: Produits en stock (quantité > 0)
+      const aHasStock = a.quantity > 0;
+      const bHasStock = b.quantity > 0;
+      
+      if (aHasStock && !bHasStock) return -1;
+      if (!aHasStock && bHasStock) return 1;
+      
+      // Priorité 2: Si recherche active, tri par pertinence du nom
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const aStartsWith = a.name.toLowerCase().startsWith(query);
+        const bStartsWith = b.name.toLowerCase().startsWith(query);
+        
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+      }
+      
+      // Priorité 3: Tri alphabétique
+      return a.name.localeCompare(b.name);
+    });
+    
+    return filteredProducts.slice(0, 15); // Limiter à 15 suggestions
+  };
+
+  const selectSuggestedProduct = (product: Product) => {
+    // Fonction conservée pour compatibilité mais non utilisée dans la nouvelle version
+    
+    // Ajouter le produit comme ingrédient si ce n'est pas déjà fait
+    if (!ingredients.some(i => i.productId === product.id)) {
+      let defaultQuantity = 44; // 1 shot par défaut
+      let defaultUnit = "ml";
+      
+      // Ajuster selon le type de service
+      if (serviceType === "glass") {
+        if (product.category === "wine") {
+          defaultQuantity = 150; // 5 oz
+        } else if (product.category === "beer") {
+          defaultQuantity = 473; // 16 oz (pinte)
+        } else {
+          defaultQuantity = 120; // 4 oz
+        }
+      } else if (serviceType === "bottle") {
+        defaultQuantity = 1;
+        defaultUnit = "unit";
+      }
+      
+      setIngredients([{
+        productId: product.id,
+        productName: product.name,
+        quantity: defaultQuantity,
+        unit: defaultUnit,
+      }]);
+    }
+    
+    setSearchQuery("");
+    setShowSuggestions(false);
+  };
 
   // Calculate recipe cost based on ingredients
   const calculateRecipeCost = (): number => {
@@ -1613,41 +2084,72 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
       const product = inventoryProducts.find(p => p.id === ingredient.productId);
       if (!product) return;
       
-      // Get product size in ml
-      const productQuantityInMl = (product as any).quantityInMl || 0;
+      // Déterminer la taille totale du produit en ml
       let productSizeInMl = 0;
       
-      if (productQuantityInMl > 0) {
-        // Product has explicit ml size
-        productSizeInMl = productQuantityInMl;
+      // Priorité 1: Utiliser bottleSizeInMl du produit s'il existe
+      if ((product as any).bottleSizeInMl && (product as any).bottleSizeInMl > 0) {
+        productSizeInMl = (product as any).bottleSizeInMl;
+      } else if ((product as any).quantityInMl && (product as any).quantityInMl > 0) {
+        // Priorité 2: Utiliser la quantité en ml si elle existe
+        productSizeInMl = (product as any).quantityInMl;
       } else {
-        // Estimate based on standard bottle sizes
-        if (product.unit.includes("bottle")) {
-          productSizeInMl = product.category === "beer" ? 330 : 750;
-        } else if (product.unit.includes("shot")) {
-          productSizeInMl = 44; // Standard shot is ~44ml (1.5 oz)
+        // Priorité 3: Estimer selon la catégorie et l'unité
+        if (product.unit.toLowerCase().includes("bottle") || product.unit.toLowerCase().includes("bouteille")) {
+          // Bouteilles standards
+          if (product.category === "beer") {
+            productSizeInMl = 341; // Bière standard 341ml (12oz)
+          } else if (product.category === "wine") {
+            productSizeInMl = 750; // Bouteille de vin standard
+          } else if (product.category === "spirits") {
+            productSizeInMl = 750; // Bouteille de spiritueux standard
+          } else {
+            productSizeInMl = 750; // Par défaut
+          }
+        } else if (product.unit.toLowerCase().includes("l") || product.unit.toLowerCase().includes("litre")) {
+          // Si l'unité est en litres
+          const liters = parseFloat(product.unit.match(/[\d.]+/)?.[0] || "1");
+          productSizeInMl = liters * 1000;
+        } else if (product.unit.toLowerCase().includes("ml")) {
+          // Si l'unité est en ml
+          productSizeInMl = parseFloat(product.unit.match(/[\d.]+/)?.[0] || "750");
+        } else if (product.unit.toLowerCase().includes("oz")) {
+          // Si l'unité est en oz
+          const oz = parseFloat(product.unit.match(/[\d.]+/)?.[0] || "25.4");
+          productSizeInMl = oz * 29.5735; // Conversion oz vers ml
         } else {
-          productSizeInMl = 750; // Default to 750ml
+          // Par défaut: 750ml
+          productSizeInMl = 750;
         }
       }
       
-      // Calculate cost per ml
+      // Calculer le coût par ml
       const costPerMl = product.price / productSizeInMl;
       
-      // Convert ingredient quantity to ml
+      // Convertir la quantité de l'ingrédient en ml
       let ingredientQuantityInMl = 0;
+      
       if (ingredient.unit === "ml") {
         ingredientQuantityInMl = ingredient.quantity;
       } else if (ingredient.unit === "oz") {
-        ingredientQuantityInMl = ozToMlRecipe(ingredient.quantity);
+        ingredientQuantityInMl = ingredient.quantity * 29.5735; // Conversion oz vers ml
+      } else if (ingredient.unit === "cl") {
+        ingredientQuantityInMl = ingredient.quantity * 10; // Conversion cl vers ml
+      } else if (ingredient.unit === "l" || ingredient.unit === "litre") {
+        ingredientQuantityInMl = ingredient.quantity * 1000; // Conversion litres vers ml
+      } else if (ingredient.unit === "unit" || ingredient.unit === "unité") {
+        // Pour les unités (ex: 1 citron, 1 sachet), utiliser le coût unitaire
+        const costPerUnit = product.price / (product.quantity || 1);
+        totalCost += costPerUnit * ingredient.quantity;
+        return; // Skip le reste du calcul pour cet ingrédient
       } else {
-        // For units, assume 1 unit = 1 product (e.g., 1 bag = 1 bag)
-        // Calculate cost per unit
-        totalCost += (product.price / product.quantity) * ingredient.quantity;
+        // Unité non reconnue, utiliser le coût unitaire
+        const costPerUnit = product.price / (product.quantity || 1);
+        totalCost += costPerUnit * ingredient.quantity;
         return;
       }
       
-      // Add cost for this ingredient
+      // Ajouter le coût de cet ingrédient au total
       totalCost += costPerMl * ingredientQuantityInMl;
     });
     
@@ -1655,6 +2157,17 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
   };
   
   const recipeCost = calculateRecipeCost();
+  
+  // Calculer le prix suggéré automatiquement basé sur la marge configurée
+  const marginPercentage = parseFloat(profitMargin) || 10;
+  const suggestedPrice = recipeCost > 0 ? (recipeCost * (1 + marginPercentage / 100)).toFixed(2) : "";
+  
+  // Pré-remplir le prix de vente avec le prix suggéré quand des ingrédients sont ajoutés ou marge change
+  useEffect(() => {
+    if (suggestedPrice && ingredients.length > 0) {
+      setRecipePrice(suggestedPrice);
+    }
+  }, [suggestedPrice, ingredients.length]);
 
   const addIngredient = () => {
     if (!selectedProductId || !ingredientQuantity) return;
@@ -1665,7 +2178,6 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
     const quantity = parseFloat(ingredientQuantity);
     if (isNaN(quantity) || quantity <= 0) return;
     
-    // Check if ingredient already exists
     if (ingredients.some(i => i.productId === selectedProductId)) {
       alert("Ce produit est déjà dans la recette");
       return;
@@ -1688,166 +2200,445 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
   };
 
   const handleSave = () => {
-    if (!recipeName.trim()) {
-      alert("Veuillez entrer un nom pour la recette");
+    if (!serviceType) {
+      alert("Veuillez sélectionner un type de service");
+      return;
+    }
+    if (ingredients.length === 0) {
+      alert("Veuillez ajouter au moins un ingrédient");
       return;
     }
     if (!recipePrice.trim() || parseFloat(recipePrice) <= 0) {
-      alert("Veuillez entrer un prix valide");
+      alert("Veuillez entrer un prix de vente valide");
       return;
     }
-    // Ingredients are now optional
+    
+    // Générer un nom automatique basé sur les ingrédients
+    const recipeName = ingredients.length === 1
+      ? ingredients[0].productName
+      : `${ingredients[0].productName} + ${ingredients.length - 1} autre${ingredients.length > 2 ? 's' : ''}`;
 
     const recipe: Recipe = {
       id: `recipe-${Date.now()}`,
-      name: recipeName.trim(),
+      name: recipeName,
       price: parseFloat(recipePrice),
       ingredients,
       category: recipeCategory,
     };
 
     onSave(recipe);
-    setRecipeName("");
+    
+    // Reset form
+    setServiceType("");
+    setRecipeCategory("spirits");
+    setProfitMargin("30");
     setRecipePrice("");
     setIngredients([]);
   };
 
   return (
-    <div className="space-y-4 py-4">
+    <div className="space-y-3 py-2">
+      {/* Étape 1: Type de service */}
       <div className="space-y-2">
-        <Label htmlFor="recipeName">Nom de la recette *</Label>
-        <Input
-          id="recipeName"
-          value={recipeName}
-          onChange={(e) => setRecipeName(e.target.value)}
-          placeholder="Ex: Vodka jus d'orange, Mojito, etc."
-        />
-      </div>
-
-      {/* Recipe Cost Display */}
-      {ingredients.length > 0 && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              Prix coûtant calculé:
-            </span>
-            <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-              ${recipeCost.toFixed(2)}
-            </span>
-          </div>
-          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-            Basé sur les coûts des ingrédients de l'inventaire
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="recipePrice">Prix de vente ($) *</Label>
-          <Input
-            id="recipePrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={recipePrice}
-            onChange={(e) => setRecipePrice(e.target.value)}
-            placeholder="0.00"
-          />
-          {recipeCost > 0 && parseFloat(recipePrice) > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Marge: ${(parseFloat(recipePrice) - recipeCost).toFixed(2)} 
-              ({recipeCost > 0 ? (((parseFloat(recipePrice) - recipeCost) / recipeCost) * 100).toFixed(1) : '0'}%)
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="recipeCategory">Catégorie</Label>
-          <select
-            id="recipeCategory"
-            value={recipeCategory}
-            onChange={(e) => setRecipeCategory(e.target.value as any)}
-            className="w-full px-3 py-2 border rounded-lg bg-background"
-            aria-label="Catégorie de la recette"
+        <Label className="text-base font-semibold">1. Type de service</Label>
+        <div className="grid grid-cols-4 gap-2">
+          <button
+            onClick={() => setServiceType("glass")}
+            className={`p-2 border-2 rounded-lg text-left transition-all text-sm ${
+              serviceType === "glass"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            }`}
           >
-            <option value="spirits">Spiritueux</option>
-            <option value="wine">Vin</option>
-            <option value="beer">Bière</option>
-            <option value="soda">Boissons gazeuses</option>
-            <option value="juice">Jus</option>
-            <option value="other">Autres</option>
-          </select>
+            <div className="font-semibold text-sm">Verre</div>
+            <div className="text-xs text-muted-foreground">Vin, Bière</div>
+          </button>
+          
+          <button
+            onClick={() => setServiceType("shot")}
+            className={`p-4 border-2 rounded-lg text-left transition-all ${
+              serviceType === "shot"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <div className="font-semibold">Shot</div>
+            <div className="text-xs text-muted-foreground">44ml (1.5 oz)</div>
+          </button>
+          
+          <button
+            onClick={() => setServiceType("cocktail")}
+            className={`p-4 border-2 rounded-lg text-left transition-all ${
+              serviceType === "cocktail"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <div className="font-semibold">Cocktail</div>
+            <div className="text-xs text-muted-foreground">Mélange de plusieurs ingrédients</div>
+          </button>
+          
+          <button
+            onClick={() => setServiceType("bottle")}
+            className={`p-4 border-2 rounded-lg text-left transition-all ${
+              serviceType === "bottle"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:border-primary/50"
+            }`}
+          >
+            <div className="font-semibold">Bouteille</div>
+            <div className="text-xs text-muted-foreground">Bière en bouteille</div>
+          </button>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Ingrédients</Label>
-        <div className="flex gap-2">
-          <select
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-lg bg-background"
-            aria-label="Sélectionner un produit"
-          >
-            <option value="">Sélectionner un produit</option>
-            {inventoryProducts.map(product => (
-              <option key={product.id} value={product.id}>
-                {product.name} (Stock: {product.quantity} {product.unit})
-              </option>
-            ))}
-          </select>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={ingredientQuantity}
-            onChange={(e) => setIngredientQuantity(e.target.value)}
-            placeholder="Quantité"
-            className="w-24"
-          />
-          <select
-            value={ingredientUnit}
-            onChange={(e) => setIngredientUnit(e.target.value)}
-            className="px-3 py-2 border rounded-lg bg-background"
-            aria-label="Unité de mesure"
-          >
-            <option value="ml">ml</option>
-            <option value="oz">oz</option>
-            <option value="unit">unité</option>
-          </select>
-          <Button onClick={addIngredient} disabled={!selectedProductId || !ingredientQuantity}>
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {ingredients.length > 0 && (
-          <div className="mt-2 space-y-2 border rounded-lg p-2">
-            {ingredients.map((ingredient) => (
-              <div key={ingredient.productId} className="flex items-center justify-between p-2 bg-secondary rounded">
-                <span className="text-sm">
-                  {ingredient.productName} - {ingredient.quantity} {ingredient.unit}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeIngredient(ingredient.productId)}
+      {serviceType && (
+        <>
+          {/* Étape 2: Catégorie */}
+          <div className="space-y-3">
+            <Label className="text-lg font-semibold">2. Catégorie</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {["spirits", "wine", "beer", "soda", "juice", "other"].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setRecipeCategory(cat as any)}
+                  className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
+                    recipeCategory === cat
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  }`}
                 >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                  {cat === "spirits" && "Spiritueux"}
+                  {cat === "wine" && "Vin"}
+                  {cat === "beer" && "Bière"}
+                  {cat === "soda" && "Boissons gazeuses"}
+                  {cat === "juice" && "Jus"}
+                  {cat === "other" && "Mocktail/Autre"}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Étape 3: Ingrédients */}
+          <div className="space-y-3">
+            <Label className="text-lg font-semibold">3. Ingrédients</Label>
+            <p className="text-sm font-semibold text-muted-foreground">
+              Ajoutez les ingrédients pour calculer le coût et gérer l'inventaire automatiquement
+            </p>
+            
+            {/* Helper function to get default quantity based on category */}
+            {(() => {
+              const getDefaultQuantityForCategory = () => {
+                if (recipeCategory === "wine") {
+                  return { quantity: "150", unit: "ml" }; // Verre de vin blanc 150ml
+                } else if (recipeCategory === "beer") {
+                  return { quantity: "341", unit: "ml" }; // Verre de bière 341ml
+                } else if (recipeCategory === "spirits") {
+                  return { quantity: "44", unit: "ml" }; // Shooter 44ml
+                } else if (recipeCategory === "juice" || recipeCategory === "soda") {
+                  return { quantity: "200", unit: "ml" }; // Verre standard
+                } else {
+                  return { quantity: "50", unit: "ml" }; // Par défaut pour cocktails
+                }
+              };
+              
+              return null;
+            })()}
+
+            {/* Recherche intelligente de produits */}
+            <div className="space-y-2">
+              <Label htmlFor="searchProduct" className="font-semibold">Sélectionner un produit</Label>
+              <div className="relative">
+                <Input
+                  id="searchProduct"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Rechercher un produit (vodka, vin rouge, bière blonde...)"
+                  className="pr-10"
+                  autoComplete="off"
+                />
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                
+                {/* Suggestions dropdown */}
+                {showSuggestions && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {getSuggestedProducts().length > 0 ? (
+                      getSuggestedProducts().map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            setSearchQuery(product.name);
+                            setShowSuggestions(false);
+                            
+                            // Pré-remplir la quantité selon la catégorie (point 2)
+                            let defaultQuantity = "50";
+                            let defaultUnit = "ml";
+                            
+                            if (recipeCategory === "wine") {
+                              // Vérifier le type de vin
+                              if (product.name.toLowerCase().includes("rouge")) {
+                                defaultQuantity = "360"; // Verre de vin rouge 360ml
+                              } else {
+                                defaultQuantity = "150"; // Verre de vin blanc 150ml
+                              }
+                              defaultUnit = "ml";
+                            } else if (recipeCategory === "beer") {
+                              // Vérifier le type de bière
+                              if (product.name.toLowerCase().includes("pinte")) {
+                                defaultQuantity = "570"; // Pinte de bière 570ml
+                              } else if (product.name.toLowerCase().includes("bock")) {
+                                defaultQuantity = "473"; // Bock de bière 473ml
+                              } else {
+                                defaultQuantity = "341"; // Verre de bière 341ml
+                              }
+                              defaultUnit = "ml";
+                            } else if (recipeCategory === "spirits") {
+                              defaultQuantity = "44"; // Shooter 44ml
+                              defaultUnit = "ml";
+                            } else if (recipeCategory === "juice" || recipeCategory === "soda") {
+                              defaultQuantity = "200";
+                              defaultUnit = "ml";
+                            }
+                            
+                            setIngredientQuantity(defaultQuantity);
+                            setIngredientUnit(defaultUnit);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between group"
+                        >
+                          <div>
+                            <div className="font-semibold">{product.name}</div>
+                            <div className="text-xs font-semibold text-muted-foreground">
+                              {product.category} • Stock: {product.quantity} {product.unit} • ${product.price}
+                            </div>
+                          </div>
+                          <Plus className="h-4 w-4 opacity-0 group-hover:opacity-100" />
+                        </button>
+                      ))
+                    ) : searchQuery.length > 0 ? (
+                      <div className="px-3 py-4 text-sm font-semibold text-muted-foreground text-center">
+                        Aucun produit trouvé
+                      </div>
+                    ) : (
+                      <div className="max-h-60 overflow-y-auto">
+                        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                          Tous les produits de l'inventaire
+                        </div>
+                        {inventoryProducts.map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedProductId(product.id);
+                              setSearchQuery(product.name);
+                              setShowSuggestions(false);
+                              
+                              // Pré-remplir la quantité selon la catégorie (point 2)
+                              let defaultQuantity = "50";
+                              let defaultUnit = "ml";
+                              
+                              if (recipeCategory === "wine") {
+                                // Vérifier le type de vin
+                                if (product.name.toLowerCase().includes("rouge")) {
+                                  defaultQuantity = "360"; // Verre de vin rouge 360ml
+                                } else {
+                                  defaultQuantity = "150"; // Verre de vin blanc 150ml
+                                }
+                                defaultUnit = "ml";
+                              } else if (recipeCategory === "beer") {
+                                // Vérifier le type de bière
+                                if (product.name.toLowerCase().includes("pinte")) {
+                                  defaultQuantity = "570"; // Pinte de bière 570ml
+                                } else if (product.name.toLowerCase().includes("bock")) {
+                                  defaultQuantity = "473"; // Bock de bière 473ml
+                                } else {
+                                  defaultQuantity = "341"; // Verre de bière 341ml
+                                }
+                                defaultUnit = "ml";
+                              } else if (recipeCategory === "spirits") {
+                                defaultQuantity = "44"; // Shooter 44ml
+                                defaultUnit = "ml";
+                              } else if (recipeCategory === "juice" || recipeCategory === "soda") {
+                                defaultQuantity = "200";
+                                defaultUnit = "ml";
+                              }
+                              
+                              setIngredientQuantity(defaultQuantity);
+                              setIngredientUnit(defaultUnit);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between group"
+                          >
+                            <div>
+                              <div className="font-semibold">{product.name}</div>
+                              <div className="text-xs font-semibold text-muted-foreground">
+                                {product.category} • ${product.price}
+                              </div>
+                            </div>
+                            <Plus className="h-4 w-4 opacity-0 group-hover:opacity-100" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Quantité et unité (pré-remplies selon la catégorie) */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Quantité de cet ingrédient</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={ingredientQuantity}
+                  onChange={(e) => setIngredientQuantity(e.target.value)}
+                  placeholder="Quantité"
+                  className="flex-1"
+                  autoComplete="off"
+                />
+                <select
+                  value={ingredientUnit}
+                  onChange={(e) => setIngredientUnit(e.target.value)}
+                  className="px-3 py-2 border rounded-lg bg-background"
+                  aria-label="Unité de mesure"
+                >
+                  <option value="ml">ml</option>
+                  <option value="oz">oz</option>
+                  <option value="cl">cl</option>
+                  <option value="l">l</option>
+                  <option value="unit">unité</option>
+                </select>
+              </div>
+            </div>
+
+            <Button 
+              onClick={addIngredient} 
+              disabled={!selectedProductId || !ingredientQuantity}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter cet ingrédient
+            </Button>
+
+            {ingredients.length > 0 && (
+              <div className="space-y-3 border-2 border-dashed rounded-lg p-4 bg-background/50">
+                <Label className="text-base font-semibold">Ingrédients ajoutés</Label>
+                <div className="flex flex-wrap gap-2 min-h-14">
+                  {ingredients.map((ingredient) => {
+                    const product = inventoryProducts.find(p => p.id === ingredient.productId);
+                    const categoryColors: Record<string, string> = {
+                      spirits: "bg-slate-100 border-slate-300 text-slate-900 dark:bg-slate-900/30 dark:text-slate-200",
+                      wine: "bg-red-100 border-red-300 text-red-900 dark:bg-red-900/30 dark:text-red-200",
+                      beer: "bg-slate-100 border-slate-300 text-slate-900 dark:bg-slate-900/30 dark:text-slate-200",
+                      soda: "bg-blue-100 border-blue-300 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200",
+                      juice: "bg-orange-100 border-orange-300 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200",
+                      other: "bg-gray-100 border-gray-300 text-gray-900 dark:bg-gray-900/30 dark:text-gray-200",
+                    };
+                    const colorClass = categoryColors[product?.category || "other"] || categoryColors.other;
+                    
+                    return (
+                      <button
+                        key={ingredient.productId || ingredient.productName}
+                        onClick={() => removeIngredient(ingredient.productId!)}
+                        className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded border ${colorClass} hover:opacity-75 transition-opacity`}
+                        title="Cliquez pour supprimer"
+                      >
+                        <span>{ingredient.quantity}{ingredient.unit}</span>
+                        <span>{ingredient.productName}</span>
+                        <X className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Étapes 4-7: Sections de prix sur deux colonnes */}
+          {ingredients.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {/* Étape 4: Prix coûtant */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">4. Prix coûtant</Label>
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg h-10 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+                    Coûtant:
+                  </span>
+                  <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    ${recipeCost.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Étape 5: Marge de profit */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">5. Marge (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="200"
+                  step="1"
+                  value={profitMargin}
+                  onChange={(e) => setProfitMargin(e.target.value)}
+                  placeholder="30"
+                  className="flex-1 text-sm"
+                  autoComplete="off"
+                />
+              </div>
+
+              {/* Étape 6: Prix suggéré */}
+              {recipeCost > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">6. Prix suggéré</Label>
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg h-10 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-green-900 dark:text-green-100">
+                      +{marginPercentage}%:
+                    </span>
+                    <span className="text-lg font-bold text-green-700 dark:text-green-300">
+                      ${suggestedPrice}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Étape 7: Prix de vente */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">7. Prix de vente *</Label>
+                <Input
+                  id="recipePrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={recipePrice}
+                  onChange={(e) => setRecipePrice(e.target.value)}
+                  placeholder={suggestedPrice || "0.00"}
+                  className="text-sm"
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
           {t.common.cancel}
         </Button>
-        <Button onClick={handleSave} disabled={!recipeName.trim() || !recipePrice.trim()}>
+        <Button onClick={handleSave} disabled={!serviceType || ingredients.length === 0 || !recipePrice.trim()}>
           <Wine className="h-4 w-4 mr-2" />
-          Créer
+          Créer le produit
         </Button>
       </DialogFooter>
     </div>
   );
 }
+

@@ -1,9 +1,10 @@
 import { RequestHandler } from "express";
-import db from "../database";
+// import db from "../database"; // DÉSACTIVÉ - Utiliser Firestore ou variables d'environnement
 import { getUserId } from "../middleware/auth";
 
 /**
  * GET /api/stripe-keys - Get Stripe keys for current user
+ * TODO: Migrer vers Firestore
  */
 export const getStripeKeys: RequestHandler = async (req, res) => {
   try {
@@ -13,23 +14,15 @@ export const getStripeKeys: RequestHandler = async (req, res) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const keys = db.prepare("SELECT * FROM stripe_keys WHERE userId = ?").get(userId);
+    // DÉSACTIVÉ - Nécessite migration vers Firestore
+    // const keys = db.prepare("SELECT * FROM stripe_keys WHERE userId = ?").get(userId);
 
-    if (!keys) {
-      return res.json({
-        secretKey: "",
-        publishableKey: "",
-        terminalLocationId: "",
-        isTestMode: true,
-      });
-    }
-
-    // Return keys (in production, decrypt if encrypted)
+    // Temporairement, retourner les valeurs des variables d'environnement
     res.json({
-      secretKey: (keys as any).secretKey || "",
-      publishableKey: (keys as any).publishableKey || "",
-      terminalLocationId: (keys as any).terminalLocationId || "",
-      isTestMode: (keys as any).isTestMode === 1,
+      secretKey: process.env.STRIPE_SECRET_KEY || "",
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+      terminalLocationId: process.env.STRIPE_TERMINAL_LOCATION_ID || "",
+      isTestMode: true,
     });
   } catch (error: any) {
     console.error("Error getting Stripe keys:", error);
@@ -51,38 +44,13 @@ export const saveStripeKeys: RequestHandler = async (req, res) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const { secretKey, publishableKey, terminalLocationId, isTestMode } = req.body;
-
-    if (!secretKey || !publishableKey) {
-      return res.status(400).json({ error: "Secret key and publishable key are required" });
-    }
-
-    // Validate Stripe key format
-    if (!secretKey.startsWith("sk_") || !publishableKey.startsWith("pk_")) {
-      return res.status(400).json({ error: "Invalid Stripe key format" });
-    }
-
-    // Check if keys already exist for this user
-    const existing = db.prepare("SELECT * FROM stripe_keys WHERE userId = ?").get(userId);
-
-    if (existing) {
-      // Update existing keys
-      const id = (existing as any).id;
-      db.prepare(`
-        UPDATE stripe_keys
-        SET secretKey = ?, publishableKey = ?, terminalLocationId = ?, isTestMode = ?, updatedAt = datetime('now')
-        WHERE id = ?
-      `).run(secretKey, publishableKey, terminalLocationId || null, isTestMode ? 1 : 0, id);
-    } else {
-      // Insert new keys
-      const id = `stripe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      db.prepare(`
-        INSERT INTO stripe_keys (id, userId, secretKey, publishableKey, terminalLocationId, isTestMode)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(id, userId, secretKey, publishableKey, terminalLocationId || null, isTestMode ? 1 : 0);
-    }
-
-    res.json({ success: true, message: "Stripe keys saved successfully" });
+    // DÉSACTIVÉ - Utiliser les variables d'environnement pour l'instant
+    console.warn("⚠️ Stripe keys should be configured via environment variables");
+    
+    res.json({
+      success: true,
+      message: "Please configure Stripe keys via environment variables (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_TERMINAL_LOCATION_ID)",
+    });
   } catch (error: any) {
     console.error("Error saving Stripe keys:", error);
     res.status(500).json({
@@ -94,6 +62,7 @@ export const saveStripeKeys: RequestHandler = async (req, res) => {
 
 /**
  * DELETE /api/stripe-keys - Delete Stripe keys for current user
+ * TODO: Migrer vers Firestore
  */
 export const deleteStripeKeys: RequestHandler = async (req, res) => {
   try {
@@ -103,9 +72,10 @@ export const deleteStripeKeys: RequestHandler = async (req, res) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    db.prepare("DELETE FROM stripe_keys WHERE userId = ?").run(userId);
+    // DÉSACTIVÉ - Les clés sont maintenant dans les variables d'environnement
+    console.warn("⚠️ Stripe keys are configured via environment variables");
 
-    res.json({ success: true, message: "Stripe keys deleted successfully" });
+    res.json({ success: true, message: "Stripe keys are managed via environment variables" });
   } catch (error: any) {
     console.error("Error deleting Stripe keys:", error);
     res.status(500).json({

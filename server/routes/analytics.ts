@@ -1,1906 +1,743 @@
-import { RequestHandler } from "express";
-import db from "../database";
-import { getUserId } from "../middleware/auth";
-import { callOpenAI, callOpenAIJSON } from "../services/openai";
+import { RequestHandler } from 'express';
+import { callOpenAIJSON } from '../services/openai';
 
-/**
- * GET /api/analytics/sales-prediction - Analyse des meilleurs vendeurs avec IA
- */
+// Fonction pour mapper les taxRegions à des régions géographiques lisibles
+const mapTaxRegionToRegion = (taxRegion: string): string => {
+  const regionMap: Record<string, string> = {
+    // Canada - Provinces
+    "quebec": "Quebec",
+    "ontario": "Ontario",
+    "british-columbia": "British Columbia",
+    "alberta": "Alberta",
+    "manitoba": "Manitoba",
+    "saskatchewan": "Saskatchewan",
+    "nova-scotia": "Nova Scotia",
+    "new-brunswick": "New Brunswick",
+    "newfoundland": "Newfoundland",
+    "prince-edward-island": "Prince Edward Island",
+    "northwest-territories": "Northwest Territories",
+    "nunavut": "Nunavut",
+    "yukon": "Yukon",
+    // USA - States
+    "new-york": "New York",
+    "california": "California",
+    "texas": "Texas",
+    "florida": "Florida",
+    "illinois": "Illinois",
+    "nevada": "Nevada",
+    "washington": "Washington",
+    "oregon": "Oregon",
+    "new-hampshire": "New Hampshire",
+    "montana": "Montana",
+    // Europe
+    "france": "France",
+    "spain": "Spain",
+    "germany": "Germany",
+    "italy": "Italy",
+    "uk": "United Kingdom",
+    "belgium": "Belgium",
+    "netherlands": "Netherlands",
+    "portugal": "Portugal",
+    "sweden": "Sweden",
+    "denmark": "Denmark",
+    "poland": "Poland",
+    // Latin America
+    "mexico": "Mexico",
+    "argentina": "Argentina",
+    "chile": "Chile",
+    "colombia": "Colombia",
+    "peru": "Peru",
+    "ecuador": "Ecuador",
+    "uruguay": "Uruguay",
+    "panama": "Panama",
+    "dominican-republic": "Dominican Republic",
+    // Other
+    "australia": "Australia",
+    "new-zealand": "New Zealand",
+    "switzerland": "Switzerland",
+  };
+  
+  return regionMap[taxRegion.toLowerCase()] || taxRegion || "Quebec";
+};
+
+// Implementation de getSalesPrediction pour obtenir les meilleurs produits à vendre pour augmenter CA
 export const getSalesPrediction: RequestHandler = async (req, res) => {
   try {
-    console.log("[Best Sellers] Requête reçue, headers:", {
-      authorization: !!req.headers.authorization,
-      "x-username": req.headers["x-username"],
-      "x-user-id": req.headers["x-user-id"],
-    });
-    const userId = getUserId(req);
-    console.log("[Best Sellers] UserId extrait:", userId);
-    if (!userId) {
-      console.warn("[Best Sellers] Aucun userId trouvé, retour 401");
-      return res.status(401).json({ error: "Authentication required" });
+    // Récupérer la région depuis le body (sent by client from barProfile.taxRegion)
+    let region = req.body.region || (req.query.region as string) || "Quebec";
+    // Mapper taxRegion (ex: "quebec") à région lisible (ex: "Quebec")
+    if (region.includes("-") || region.length < 5) {
+      region = mapTaxRegionToRegion(region);
     }
-
-    const { region: regionParam } = req.query;
-
-    // Récupérer la région depuis les paramètres de la requête ou utiliser une valeur par défaut
-    const region = (regionParam as string) || "quebec";
-
-    // Récupérer les ventes des 30 derniers jours pour l'analyse
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Récupérer les produits pour analyser les meilleurs vendeurs
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Calculer les statistiques
-    const totalRevenue = sales.reduce((sum, s) => sum + (s.price * s.quantity), 0);
-    const totalSales = sales.length;
-
-    // Analyser les meilleurs produits vendus
-    const productSales: Record<string, { quantity: number; revenue: number; transactions: number }> = {};
-    sales.forEach((sale) => {
-      const productId = sale.productId || sale.recipeId;
-      if (productId) {
-        if (!productSales[productId]) {
-          productSales[productId] = { quantity: 0, revenue: 0, transactions: 0 };
-        }
-        productSales[productId].quantity += sale.quantity;
-        productSales[productId].revenue += sale.price * sale.quantity;
-        productSales[productId].transactions += 1;
+    const barProfile = req.body.barProfile || {}; // Profil du bar envoyé par le client
+    // Construire le contexte complet du bar si disponible
+    let barContext = "";
+    if (barProfile && Object.keys(barProfile).length > 0) {
+      const currencySymbols: Record<string, string> = {
+        USD: "$", EUR: "€", GBP: "£", CAD: "$", AUD: "A$", MXN: "Mex$",
+        ARS: "$", CLP: "$", COP: "$", PEN: "S/", UYU: "$U", NZD: "NZ$", CHF: "CHF",
+      };
+      
+      const currency = currencySymbols[barProfile.currency] || barProfile.currency || "$";
+      const yearsInBusiness = barProfile.yearsFounded ? new Date().getFullYear() - barProfile.yearsFounded : 0;
+      
+      barContext = `\n\n=== CONTEXTE COMPLET DE L'ÉTABLISSEMENT ===`;
+      barContext += `\n📍 ${barProfile.barName || 'Bar'}`;
+      if (barProfile.address) barContext += ` - ${barProfile.address}`;
+      
+      barContext += `\n\n💰 CONFIGURATION :`;
+      barContext += `\n- Devise : ${currency}`;
+      barContext += `\n- Taux de taxe : ${((barProfile.taxRate || 0.08) * 100).toFixed(2)}%`;
+      barContext += `\n- Positionnement prix : ${barProfile.priceRange || 'modéré'}`;
+      
+      barContext += `\n\n🏢 PROFIL :`;
+      barContext += `\n- Type : ${barProfile.barType || 'bar casual'}`;
+      barContext += `\n- Ambiance : ${barProfile.barAmbiance || 'décontractée'}`;
+      barContext += `\n- Clientèle : ${barProfile.primaryClientele || 'mixte'}`;
+      barContext += `\n- Capacité : ${barProfile.seatingCapacity || 50} places`;
+      barContext += `\n- Expérience : ${yearsInBusiness} ans (${barProfile.businessStage || 'établi'})`;
+      
+      if (barProfile.specialties) {
+        barContext += `\n- Spécialités : ${barProfile.specialties}`;
       }
-    });
+      if (barProfile.targetMarket) {
+        barContext += `\n- Marché cible : ${barProfile.targetMarket}`;
+      }
+      
+      barContext += `\n\n⚠️ IMPORTANT : Recommande des produits qui correspondent EXACTEMENT à ce profil. Utilise ${currency} pour les prix.`;
+      barContext += `\n==========================================`;
+    }
+    
+    const prompt = `Tu es consultant en affaires pour bars au ${region}, Canada. Ta tâche est d'analyser les boissons et de recommander les 3 à 5 MEILLEURS produits qui génèrent le PLUS de REVENUS pour un bar.
+${barContext}
 
-    const topProducts = Object.entries(productSales)
-      .map(([id, data]) => {
-        const product = products.find(p => p.id === id);
-        return {
-          id,
-          name: product?.name || "Produit inconnu",
-          category: product?.category || "other",
-          quantity: data.quantity,
-          revenue: data.revenue,
-          avgPrice: data.revenue / data.quantity,
-          transactions: data.transactions,
-          currentStock: product?.quantity || 0,
-        };
-      })
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
+INSTRUCTIONS CRITIQUES :
+1. Tu DOIS retourner du JSON valide avec EXACTEMENT ces champs pour chaque produit
+2. Chaque champ doit avoir une valeur numérique (pas de null, pas de chaînes pour les nombres)
+3. Tous les calculs doivent utiliser des valeurs réalistes de bar
+4. Tiens compte du profil de l'établissement pour personnaliser les recommandations (type, clientèle, prix, spécialités)
 
-    // Préparer les détails des meilleurs vendeurs pour le prompt
-    const topProductsDetails = topProducts.map((p, index) => 
-      `${index + 1}. ${p.name} (${p.category})\n   - ${p.quantity} unités vendues en ${p.transactions} transactions\n   - Revenus: $${p.revenue.toFixed(2)} CAD\n   - Prix moyen: $${p.avgPrice.toFixed(2)} CAD\n   - Stock actuel: ${p.currentStock} unités`
-    ).join("\n\n");
+Pour CHAQUE produit dans le tableau topSellers, fournis :
+- product (string) : Nom de la boisson
+- category (string) : Un de : spirits, wine, beer, cocktails, non-alcoholic, mixers
+- reason (string) : Pourquoi ça génère des revenus au ${region} pour CE type d'établissement
+- estimatedDailyUnits (number) : Unités vendues quotidiennement réalistes (ex: 8)
+- estimatedUnitPrice (number) : Prix client par unité en $ (ex: 35.00)
+- estimatedDailyRevenue (number) : Unités × Prix (ex: 280)
+- profitMargin (number) : Marge en pourcentage, typiquement 35-50 pour les bars (ex: 40)
+- region (string) : "${region}"
 
-    // Utiliser OpenAI pour analyser les meilleurs vendeurs
-    const aiPrompt = `En tant qu'expert en analyse de ventes pour bar/restaurant au Québec, analyse les meilleurs vendeurs et fournis des recommandations stratégiques.
+Retourne UNIQUEMENT cette structure JSON, sans autre texte :
 
-**CONTEXTE DE L'ÉTABLISSEMENT:**
-- Type: Bar/Restaurant québécois
-- Région: ${region}, Québec, Canada
-- Devise: Dollar canadien (CAD)
-- Marché: Clientèle québécoise
-
-**PERFORMANCE GLOBALE (30 derniers jours):**
-- Revenus totaux: $${totalRevenue.toFixed(2)} CAD
-- Nombre de transactions: ${totalSales}
-- Revenu moyen par transaction: $${(totalRevenue / totalSales || 0).toFixed(2)} CAD
-
-**TOP 10 MEILLEURS VENDEURS (classés par revenu):**
-${topProductsDetails}
-
-**INSTRUCTIONS:**
-1. Analyse les meilleurs vendeurs en tenant compte du contexte québécois
-2. Identifie les tendances et patterns de vente
-3. Fournis des recommandations pour maximiser les ventes
-4. Suggère des stratégies de pricing ou de promotion adaptées au marché québécois
-
-Réponds en JSON:
 {
   "topSellers": [
     {
-      "product": "nom du produit",
-      "category": "catégorie",
-      "performance": "excellent|bon|moyen",
-      "insights": "analyse détaillée de la performance",
-      "recommendation": "recommandation spécifique pour ce produit"
+      "product": "Scotch Single Malt Premium",
+      "category": "spirits",
+      "reason": "Marge élevée, populaire auprès des professionnels au ${region}",
+      "estimatedDailyUnits": 6,
+      "estimatedUnitPrice": 45.00,
+      "estimatedDailyRevenue": 270,
+      "profitMargin": 45,
+      "region": "${region}"
+    },
+    {
+      "product": "Bière Artisanale IPA",
+      "category": "beer",
+      "reason": "Forte demande pour les bières locales et artisanales au ${region}",
+      "estimatedDailyUnits": 12,
+      "estimatedUnitPrice": 8.50,
+      "estimatedDailyRevenue": 102,
+      "profitMargin": 40,
+      "region": "${region}"
     }
   ],
-  "summary": "résumé global des tendances observées",
-  "recommendations": [
-    "recommandation stratégique 1",
-    "recommandation stratégique 2",
-    "recommandation stratégique 3"
-  ]
+  "totalPotentialWeeklyRevenue": 2604,
+  "regionInsight": "Analyse de marché pour ${region}"
 }`;
 
-    console.log("[Best Sellers] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
-    const aiResponse = await callOpenAIJSON<{
-      topSellers: Array<{
-        product: string;
-        category: string;
-        performance: string;
-        insights: string;
-        recommendation: string;
-      }>;
-      summary: string;
-      recommendations: string[];
-    }>(aiPrompt, "Tu es un expert en analyse de ventes pour l'industrie de la restauration et des bars au Québec, Canada. Tu possèdes une connaissance approfondie du marché québécois, des habitudes de consommation locales, et des stratégies de pricing adaptées au contexte économique québécois.");
-
-    console.log("[Best Sellers] Réponse OpenAI:", aiResponse ? "Reçue" : "Aucune réponse");
-
-    // Utiliser l'analyse IA si disponible, sinon fallback sur analyse basique
-    if (aiResponse && aiResponse.topSellers && aiResponse.topSellers.length > 0) {
-      console.log("[Best Sellers] Utilisation de l'analyse IA:", aiResponse.topSellers.length, "produits analysés");
-      return res.json({
-        topSellers: aiResponse.topSellers,
-        summary: aiResponse.summary,
-        recommendations: aiResponse.recommendations,
-        rawData: topProducts.map(p => ({
-          name: p.name,
-          category: p.category,
-          quantity: p.quantity,
-          revenue: p.revenue,
-          avgPrice: p.avgPrice,
-          transactions: p.transactions,
-          currentStock: p.currentStock,
-        })),
-        totalRevenue,
-        totalSales,
-        region,
+    const response = await callOpenAIJSON(prompt);
+    
+    if (!response) {
+      console.error('[getSalesPrediction] OpenAI API returned null - check OPENAI_API_KEY in .env');
+      return res.status(503).json({
+        error: 'OpenAI API unavailable',
+        message: 'La clé API OpenAI n\'est pas configurée. Vérifiez OPENAI_API_KEY dans .env'
+      });
+    }
+    
+    if (!response.topSellers || response.topSellers.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid response from AI',
+        message: 'Could not generate revenue recommendations'
       });
     }
 
-    // Fallback sur analyse basique
-    const basicTopSellers = topProducts.map(p => ({
-      product: p.name,
-      category: p.category,
-      performance: p.revenue > totalRevenue * 0.2 ? "excellent" : p.revenue > totalRevenue * 0.1 ? "bon" : "moyen",
-      insights: `${p.quantity} unités vendues pour $${p.revenue.toFixed(2)} CAD de revenus`,
-      recommendation: p.currentStock < p.quantity / 30 * 7 
-        ? `Stock faible (${p.currentStock} unités), réapprovisionnement recommandé`
-        : `Stock suffisant (${p.currentStock} unités)`,
+    // Validate and ensure all numeric fields are present
+    const validatedSellers = response.topSellers.map((seller: any) => ({
+      product: seller.product || 'Unknown Product',
+      category: seller.category || 'other',
+      reason: seller.reason || 'Popular in the region',
+      estimatedDailyUnits: Number(seller.estimatedDailyUnits) || 5,
+      estimatedUnitPrice: Number(seller.estimatedUnitPrice) || 25,
+      estimatedDailyRevenue: Number(seller.estimatedDailyRevenue) || 125,
+      profitMargin: Number(seller.profitMargin) || 40,
+      region: region
     }));
 
-    res.json({
-      topSellers: basicTopSellers,
-      summary: `Analyse de ${topProducts.length} meilleurs produits sur les 30 derniers jours`,
-      recommendations: [
-        "Surveillez les stocks des meilleurs vendeurs",
-        "Considérez des promotions sur les produits à forte marge",
-        "Analysez les tendances par catégorie pour optimiser l'offre"
-      ],
-      rawData: topProducts.map(p => ({
-        name: p.name,
-        category: p.category,
-        quantity: p.quantity,
-        revenue: p.revenue,
-        avgPrice: p.avgPrice,
-        transactions: p.transactions,
-        currentStock: p.currentStock,
-      })),
-      totalRevenue,
-      totalSales,
-      region,
-    });
-  } catch (error: any) {
-    console.error("[Best Sellers] Erreur complète:", error);
-    console.error("[Best Sellers] Stack trace:", error.stack);
-    res.status(500).json({
-      error: "Failed to get best sellers analysis",
-      message: error.message || "Erreur inconnue",
-      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/reorder-recommendations - Recommandations intelligentes de réapprovisionnement
- */
-export const getReorderRecommendations: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer tous les produits
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Calculer la vitesse de vente par produit
-    const productSales: Record<string, { quantity: number; days: number }> = {};
-    const productFirstSale: Record<string, string> = {};
-    const productLastSale: Record<string, string> = {};
-
-    sales.forEach((sale) => {
-      const productId = sale.productId || sale.recipeId;
-      if (!productId) return;
-
-      const date = sale.createdAt.split("T")[0];
-      if (!productFirstSale[productId]) {
-        productFirstSale[productId] = date;
-      }
-      productLastSale[productId] = date;
-
-      if (!productSales[productId]) {
-        productSales[productId] = { quantity: 0, days: 0 };
-      }
-      productSales[productId].quantity += sale.quantity;
-    });
-
-    // Calculer les jours actifs pour chaque produit
-    Object.keys(productSales).forEach((productId) => {
-      const first = new Date(productFirstSale[productId]);
-      const last = new Date(productLastSale[productId]);
-      const daysActive = Math.max(1, Math.ceil((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24)));
-      productSales[productId].days = daysActive;
-    });
-
-    const recommendations = products
-      .map((product) => {
-        const salesData = productSales[product.id];
-        if (!salesData || salesData.days === 0) {
-          return null;
-        }
-
-        const dailyConsumption = salesData.quantity / salesData.days;
-        const daysUntilEmpty = product.quantity / dailyConsumption;
-        const recommendedOrder = Math.ceil(dailyConsumption * 14); // 2 semaines de stock
-
-        // Priorité basée sur plusieurs facteurs
-        let priority = 0;
-        if (daysUntilEmpty < 3) priority = 3; // Critique
-        else if (daysUntilEmpty < 7) priority = 2; // Urgent
-        else if (daysUntilEmpty < 14) priority = 1; // Important
-
-        // Augmenter la priorité si c'est un produit à forte vente
-        if (dailyConsumption > 5) priority = Math.max(priority, 2);
-
-        return {
-          productId: product.id,
-          productName: product.name,
-          currentStock: product.quantity,
-          dailyConsumption: Math.round(dailyConsumption * 100) / 100,
-          daysUntilEmpty: Math.round(daysUntilEmpty * 100) / 100,
-          recommendedOrder,
-          priority,
-          category: product.category,
-          unit: product.unit,
-        };
-      })
-      .filter((r) => r !== null && r.priority > 0)
-      .sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
-
-    res.json({
-      recommendations,
-      totalProducts: products.length,
-      productsNeedingReorder: recommendations.length,
-    });
-  } catch (error: any) {
-    console.error("Error getting reorder recommendations:", error);
-    res.status(500).json({
-      error: "Failed to get reorder recommendations",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/profitability - Analyse de rentabilité par produit/catégorie
- */
-export const getProfitabilityAnalysis: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les produits avec leurs coûts (on suppose que le prix de vente est dans products)
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Calculer la rentabilité par produit
-    const productStats: Record<string, {
-      name: string;
-      category: string;
-      revenue: number;
-      quantitySold: number;
-      avgPrice: number;
-      margin: number; // Marge estimée (on suppose 60% de marge par défaut)
-    }> = {};
-
-    sales.forEach((sale) => {
-      const productId = sale.productId;
-      if (!productId) return;
-
-      const product = products.find((p) => p.id === productId);
-      if (!product) return;
-
-      if (!productStats[productId]) {
-        productStats[productId] = {
-          name: product.name,
-          category: product.category,
-          revenue: 0,
-          quantitySold: 0,
-          avgPrice: 0,
-          margin: 0.6, // 60% de marge par défaut
-        };
-      }
-
-      productStats[productId].revenue += sale.price * sale.quantity;
-      productStats[productId].quantitySold += sale.quantity;
-    });
-
-    // Calculer la marge moyenne et le prix moyen
-    Object.keys(productStats).forEach((productId) => {
-      const stats = productStats[productId];
-      stats.avgPrice = stats.revenue / stats.quantitySold;
-      // Marge estimée : on suppose que le coût est 40% du prix de vente
-      stats.margin = 0.6; // Peut être ajusté avec les données réelles de coût
-    });
-
-    // Calculer par catégorie
-    const categoryStats: Record<string, {
-      revenue: number;
-      quantitySold: number;
-      avgMargin: number;
-      products: number;
-    }> = {};
-
-    Object.values(productStats).forEach((stats) => {
-      if (!categoryStats[stats.category]) {
-        categoryStats[stats.category] = {
-          revenue: 0,
-          quantitySold: 0,
-          avgMargin: 0,
-          products: 0,
-        };
-      }
-      categoryStats[stats.category].revenue += stats.revenue;
-      categoryStats[stats.category].quantitySold += stats.quantitySold;
-      categoryStats[stats.category].products += 1;
-    });
-
-    // Calculer la marge moyenne par catégorie
-    Object.keys(categoryStats).forEach((category) => {
-      const stats = categoryStats[category];
-      stats.avgMargin = 0.6; // Marge moyenne estimée
-    });
-
-    // Top produits les plus rentables
-    const topProducts = Object.entries(productStats)
-      .map(([id, stats]) => ({
-        productId: id,
-        ...stats,
-        profit: stats.revenue * stats.margin,
-      }))
-      .sort((a, b) => b.profit - a.profit)
-      .slice(0, 10);
-
-    res.json({
-      productStats: Object.entries(productStats).map(([id, stats]) => ({
-        productId: id,
-        ...stats,
-        profit: stats.revenue * stats.margin,
-      })),
-      categoryStats,
-      topProducts,
-      totalRevenue: Object.values(productStats).reduce((sum, s) => sum + s.revenue, 0),
-      totalProfit: Object.values(productStats).reduce((sum, s) => sum + (s.revenue * s.margin), 0),
-    });
-  } catch (error: any) {
-    console.error("Error getting profitability analysis:", error);
-    res.status(500).json({
-      error: "Failed to get profitability analysis",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/price-optimization - Suggestions de prix optimaux
- */
-export const getPriceOptimization: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser la sensibilité au prix (élasticité de la demande)
-    const productAnalysis: Record<string, {
-      currentPrice: number;
-      quantitySold: number;
-      revenue: number;
-      suggestedPrice: number;
-      expectedRevenue: number;
-      priceChange: number;
-      reason: string;
-    }> = {};
-
-    products.forEach((product) => {
-      const productSales = sales.filter((s) => s.productId === product.id);
-      if (productSales.length === 0) return;
-
-      const quantitySold = productSales.reduce((sum, s) => sum + s.quantity, 0);
-      const revenue = productSales.reduce((sum, s) => sum + (s.price * s.quantity), 0);
-      const avgPrice = revenue / quantitySold;
-
-      // Algorithme simple d'optimisation de prix
-      // Si le produit se vend bien, on peut augmenter légèrement le prix
-      // Si le produit ne se vend pas bien, on peut baisser le prix
-      let suggestedPrice = product.price;
-      let reason = "Prix optimal";
-      let expectedRevenue = revenue;
-
-      if (quantitySold > 20 && avgPrice === product.price) {
-        // Produit populaire, on peut augmenter de 5-10%
-        suggestedPrice = product.price * 1.08;
-        reason = "Produit très demandé, augmentation recommandée";
-        // Estimation : baisse de 5% de la quantité mais hausse de 8% du prix = +2.6% de revenu
-        expectedRevenue = revenue * 1.026;
-      } else if (quantitySold < 5 && product.price > 10) {
-        // Produit peu vendu et cher, on peut baisser
-        suggestedPrice = product.price * 0.92;
-        reason = "Prix élevé pour faible demande, réduction recommandée";
-        // Estimation : hausse de 15% de la quantité avec baisse de 8% du prix = +5.8% de revenu
-        expectedRevenue = revenue * 1.058;
-      }
-
-      productAnalysis[product.id] = {
-        currentPrice: product.price,
-        quantitySold,
-        revenue,
-        suggestedPrice: Math.round(suggestedPrice * 100) / 100,
-        expectedRevenue: Math.round(expectedRevenue * 100) / 100,
-        priceChange: Math.round((suggestedPrice - product.price) * 100) / 100,
-        reason,
-      };
-    });
-
-    const recommendations = Object.entries(productAnalysis)
-      .filter(([_, analysis]) => Math.abs(analysis.priceChange) > 0.1) // Seulement si le changement est significatif
-      .map(([id, analysis]) => ({
-        productId: id,
-        productName: products.find((p) => p.id === id)?.name || "",
-        ...analysis,
-      }))
-      .sort((a, b) => Math.abs(b.priceChange) - Math.abs(a.priceChange));
-
-    const totalPotentialRevenue = recommendations.reduce(
-      (sum, r) => sum + (r.expectedRevenue - r.revenue),
+    // Calculate weekly revenue
+    const totalPotentialWeeklyRevenue = validatedSellers.reduce(
+      (sum: number, seller: any) => sum + (seller.estimatedDailyRevenue * 7),
       0
     );
 
     res.json({
-      recommendations,
-      totalPotentialRevenue: Math.round(totalPotentialRevenue * 100) / 100,
-      productsAnalyzed: Object.keys(productAnalysis).length,
+      topSellers: validatedSellers,
+      totalPotentialWeeklyRevenue,
+      regionInsight: response.regionInsight || `Key beverage trends in ${region}`,
+      region
     });
-  } catch (error: any) {
-    console.error("Error getting price optimization:", error);
+  } catch (error) {
+    console.error('Error in getSalesPrediction:', error);
     res.status(500).json({
-      error: "Failed to get price optimization",
-      message: error.message,
+      error: 'Failed to generate revenue prediction',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
-/**
- * GET /api/analytics/insights - Insights généraux et recommandations
- */
-export const getInsights: RequestHandler = async (req, res) => {
-  try {
-    console.log("[Insights] Requête reçue, headers:", {
-      authorization: !!req.headers.authorization,
-      "x-username": req.headers["x-username"],
-      "x-user-id": req.headers["x-user-id"],
-    });
-    const userId = getUserId(req);
-    console.log("[Insights] UserId extrait:", userId);
-    if (!userId) {
-      console.warn("[Insights] Aucun userId trouvé, retour 401");
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les données récentes
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Calculer les insights
-    const totalRevenue = sales.reduce((sum, s) => sum + (s.price * s.quantity), 0);
-    const totalSales = sales.length;
-    const avgSaleValue = totalSales > 0 ? totalRevenue / totalSales : 0;
-
-    // Produits les plus vendus avec détails
-    const productSalesDetails: Record<string, { quantity: number; revenue: number }> = {};
-    sales.forEach((sale) => {
-      const productId = sale.productId || sale.recipeId;
-      if (productId) {
-        if (!productSalesDetails[productId]) {
-          productSalesDetails[productId] = { quantity: 0, revenue: 0 };
-        }
-        productSalesDetails[productId].quantity += sale.quantity;
-        productSalesDetails[productId].revenue += sale.price * sale.quantity;
-      }
-    });
-
-    const topProductsAnalysis = Object.entries(productSalesDetails)
-      .map(([id, data]) => {
-        const product = products.find(p => p.id === id);
-        return {
-          id,
-          name: product?.name || "Produit inconnu",
-          category: product?.category || "other",
-          quantity: data.quantity,
-          revenue: data.revenue,
-          avgPrice: data.revenue / data.quantity,
-        };
-      })
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    const topProductId = topProductsAnalysis[0]?.id;
-    const topProduct = topProductsAnalysis[0];
-
-    // Préparer les détails des meilleurs vendeurs pour le prompt
-    const topProductsText = topProductsAnalysis.map((p, index) => 
-      `${index + 1}. ${p.name} (${p.category})\n   - Quantité vendue: ${p.quantity} unités\n   - Revenus générés: $${p.revenue.toFixed(2)} CAD\n   - Prix moyen: $${p.avgPrice.toFixed(2)} CAD`
-    ).join("\n");
-
-    // Produits en rupture de stock
-    const outOfStock = products.filter((p) => p.quantity === 0);
-    const lowStock = products.filter((p) => p.quantity > 0 && p.quantity <= 5);
-
-    // Générer des recommandations intelligentes avec OpenAI si disponible
-    const dataSummary = {
-      totalRevenue,
-      totalSales,
-      avgSaleValue,
-      topProduct: topProduct?.name || "Aucun",
-      topProductSales: topProduct?.quantity || 0,
-      outOfStockCount: outOfStock.length,
-      lowStockCount: lowStock.length,
-      productCount: products.length,
-    };
-
-    // Essayer d'obtenir des insights IA
-    const aiPrompt = `En tant qu'expert en analyse de données pour bar/restaurant au Québec, génère 4 insights pertinents basés sur ces données:
-
-**CONTEXTE DE L'ÉTABLISSEMENT:**
-- Type: Bar/Restaurant au Québec, Canada
-- Devise: Dollar canadien (CAD)
-- Marché: Clientèle québécoise avec habitudes de consommation locales
-- Réglementation: Lois québécoises sur l'alcool et la restauration
-
-**DONNÉES DE PERFORMANCE (30 derniers jours):**
-- Revenus totaux: $${dataSummary.totalRevenue.toFixed(2)} CAD
-- Nombre de ventes: ${dataSummary.totalSales}
-- Valeur moyenne par transaction: $${dataSummary.avgSaleValue.toFixed(2)} CAD
-
-**TOP 5 MEILLEURS VENDEURS (détails complets):**
-${topProductsText}
-
-**ÉTAT DES STOCKS:**
-- Produits en rupture: ${dataSummary.outOfStockCount}
-- Produits à stock faible: ${dataSummary.lowStockCount}
-- Total produits en inventaire: ${dataSummary.productCount}
-
-**INSTRUCTIONS:**
-Génère 4 insights actionnables et pertinents pour un bar/restaurant québécois.
-Tiens compte des spécificités locales (ex: popularité du vin, bière locale, spiritueux québécois).
-Utilise des montants en dollars canadiens.
-
-Réponds en JSON:
-{
-  "insights": [
-    {
-      "type": "revenue|product|alert|warning",
-      "title": "Titre court",
-      "value": "Valeur ou chiffre",
-      "trend": "positive|negative|warning|neutral",
-      "description": "Description détaillée et actionnable adaptée au contexte québécois"
-    }
-  ]
-}`;
-
-    console.log("[Insights] Appel OpenAI avec prompt:", aiPrompt.substring(0, 200) + "...");
-    const aiInsights = await callOpenAIJSON<{ insights: Array<{
-      type: string;
-      title: string;
-      value: string;
-      trend: string;
-      description: string;
-    }> }>(aiPrompt, "Tu es un expert en analyse de données spécialisé dans l'industrie de la restauration et des bars au Québec, Canada. Tu comprends les tendances du marché québécois, les habitudes de consommation locales, et les réglementations en vigueur. Tu fournis des conseils pratiques adaptés au contexte québécois.");
-
-    console.log("[Insights] Réponse OpenAI:", aiInsights ? `${aiInsights.insights?.length || 0} insights` : "Aucune réponse");
-
-    // Utiliser les insights IA si disponibles, sinon fallback sur les insights basiques
-    let insights = [];
-    if (aiInsights && aiInsights.insights && aiInsights.insights.length > 0) {
-      console.log("[Insights] Utilisation des insights IA");
-      insights = aiInsights.insights;
-    } else {
-      // Fallback sur les insights basiques
-    if (totalRevenue > 0) {
-      insights.push({
-        type: "revenue",
-        title: "Revenus des 30 derniers jours",
-        value: `$${Math.round(totalRevenue * 100) / 100}`,
-        trend: "positive",
-        description: `Moyenne de $${Math.round(avgSaleValue * 100) / 100} par transaction`,
-      });
-    }
-
-    if (topProduct) {
-      insights.push({
-        type: "product",
-        title: "Produit le plus vendu",
-        value: topProduct.name,
-        trend: "positive",
-        description: `${productSales[topProductId]} unités vendues`,
-      });
-    }
-
-    if (outOfStock.length > 0) {
-      insights.push({
-        type: "alert",
-        title: "Produits en rupture",
-        value: `${outOfStock.length} produit(s)`,
-        trend: "negative",
-        description: "Réapprovisionnement urgent nécessaire",
-      });
-    }
-
-    if (lowStock.length > 0) {
-      insights.push({
-        type: "warning",
-        title: "Stock faible",
-        value: `${lowStock.length} produit(s)`,
-        trend: "warning",
-        description: "Surveillez ces produits de près",
-      });
-      }
-    }
-
-    res.json({
-      insights,
-      summary: {
-        totalRevenue: Math.round(totalRevenue * 100) / 100,
-        totalSales,
-        avgSaleValue: Math.round(avgSaleValue * 100) / 100,
-        outOfStockCount: outOfStock.length,
-        lowStockCount: lowStock.length,
-      },
-    });
-  } catch (error: any) {
-    console.error("[Insights] Erreur complète:", error);
-    console.error("[Insights] Stack trace:", error.stack);
-    res.status(500).json({
-      error: "Failed to get insights",
-      message: error.message || "Erreur inconnue",
-      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
+const analyticsNotImplemented: RequestHandler = async (req, res) => {
+  return res.status(501).json({
+    error: 'Not implemented',
+    message: 'Analytics routes require Firestore migration. Data must be sent from client via POST body.',
+    route: req.path
+  });
 };
 
-/**
- * GET /api/analytics/recipe-recommendations - Recommandations de cocktails/recettes basées sur les ventes
- */
-export const getRecipeRecommendations: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les recettes et les ventes
-    const recipes = db.prepare("SELECT * FROM recipes").all() as any[];
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? AND recipeId IS NOT NULL ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser les ventes par recette
-    const recipeSales: Record<string, { quantity: number; revenue: number; days: number }> = {};
-    const recipeFirstSale: Record<string, string> = {};
-    const recipeLastSale: Record<string, string> = {};
-
-    sales.forEach((sale) => {
-      const recipeId = sale.recipeId;
-      if (!recipeId) return;
-
-      const date = sale.createdAt.split("T")[0];
-      if (!recipeFirstSale[recipeId]) {
-        recipeFirstSale[recipeId] = date;
-      }
-      recipeLastSale[recipeId] = date;
-
-      if (!recipeSales[recipeId]) {
-        recipeSales[recipeId] = { quantity: 0, revenue: 0, days: 0 };
-      }
-      recipeSales[recipeId].quantity += sale.quantity;
-      recipeSales[recipeId].revenue += sale.price * sale.quantity;
-    });
-
-    // Calculer les jours actifs
-    Object.keys(recipeSales).forEach((recipeId) => {
-      const first = new Date(recipeFirstSale[recipeId]);
-      const last = new Date(recipeLastSale[recipeId]);
-      const daysActive = Math.max(1, Math.ceil((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24)));
-      recipeSales[recipeId].days = daysActive;
-    });
-
-    // Recommandations basées sur la popularité et la rentabilité
-    const recommendations = recipes
-      .map((recipe) => {
-        const salesData = recipeSales[recipe.id];
-        if (!salesData || salesData.days === 0) {
-          // Recette jamais vendue - suggérer de la promouvoir
-          return {
-            recipeId: recipe.id,
-            recipeName: recipe.name,
-            recommendation: "Nouvelle recette - Promouvoir",
-            reason: "Cette recette n'a pas encore été vendue. Considérez la promouvoir.",
-            priority: 1,
-            potentialRevenue: recipe.price * 5, // Estimation basée sur 5 ventes
-          };
-        }
-
-        const dailySales = salesData.quantity / salesData.days;
-        const avgRevenue = salesData.revenue / salesData.quantity;
-        const margin = 0.6; // Marge estimée
-        const profit = salesData.revenue * margin;
-
-        let recommendation = "Performance normale";
-        let reason = "";
-        let priority = 0;
-
-        if (dailySales > 3 && profit > 50) {
-          recommendation = "Top performer - Mettre en avant";
-          reason = `Excellent vendeur avec ${dailySales.toFixed(1)} ventes/jour et ${profit.toFixed(2)}$ de profit`;
-          priority = 3;
-        } else if (dailySales < 0.5 && profit < 20) {
-          recommendation = "Performance faible - Réviser ou retirer";
-          reason = `Faible demande (${dailySales.toFixed(2)} ventes/jour). Considérez la retirer du menu.`;
-          priority = 2;
-        } else if (dailySales > 2) {
-          recommendation = "Populaire - Maintenir";
-          reason = `Bonne popularité avec ${dailySales.toFixed(1)} ventes/jour`;
-          priority = 1;
-        }
-
-        return {
-          recipeId: recipe.id,
-          recipeName: recipe.name,
-          recommendation,
-          reason,
-          priority,
-          dailySales: Math.round(dailySales * 100) / 100,
-          totalRevenue: Math.round(salesData.revenue * 100) / 100,
-          profit: Math.round(profit * 100) / 100,
-        };
-      })
-      .sort((a, b) => b.priority - a.priority);
-
-    res.json({
-      recommendations,
-      totalRecipes: recipes.length,
-    });
-  } catch (error: any) {
-    console.error("Error getting recipe recommendations:", error);
-    res.status(500).json({
-      error: "Failed to get recipe recommendations",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/anomaly-detection - Détection d'anomalies dans les ventes
- */
-export const getAnomalyDetection: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les ventes des 90 derniers jours
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const dateStr = ninetyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Calculer les statistiques de base
-    const dailySales: Record<string, { revenue: number; count: number }> = {};
-    sales.forEach((sale) => {
-      const date = sale.createdAt.split("T")[0];
-      if (!dailySales[date]) {
-        dailySales[date] = { revenue: 0, count: 0 };
-      }
-      dailySales[date].revenue += sale.price * sale.quantity;
-      dailySales[date].count += 1;
-    });
-
-    const dailyRevenues = Object.values(dailySales).map(d => d.revenue);
-    const avgRevenue = dailyRevenues.reduce((a, b) => a + b, 0) / dailyRevenues.length;
-    const variance = dailyRevenues.reduce((sum, val) => sum + Math.pow(val - avgRevenue, 2), 0) / dailyRevenues.length;
-    const stdDev = Math.sqrt(variance);
-
-    // Détecter les anomalies (valeurs > 2 écarts-types)
-    const anomalies: Array<{
-      date: string;
-      revenue: number;
-      deviation: number;
-      type: string;
-      severity: string;
-    }> = [];
-
-    Object.entries(dailySales).forEach(([date, data]) => {
-      const deviation = (data.revenue - avgRevenue) / stdDev;
-      if (Math.abs(deviation) > 2) {
-        anomalies.push({
-          date,
-          revenue: Math.round(data.revenue * 100) / 100,
-          deviation: Math.round(deviation * 100) / 100,
-          type: deviation > 0 ? "Pic de ventes" : "Chute de ventes",
-          severity: Math.abs(deviation) > 3 ? "Élevée" : "Modérée",
-        });
-      }
-    });
-
-    // Détecter les transactions suspectes (montants très élevés)
-    const suspiciousTransactions = sales
-      .filter((sale) => sale.price * sale.quantity > avgRevenue * 3)
-      .map((sale) => ({
-        id: sale.id,
-        date: sale.createdAt,
-        amount: Math.round(sale.price * sale.quantity * 100) / 100,
-        paymentMethod: sale.paymentMethod,
-        productId: sale.productId,
-        recipeId: sale.recipeId,
-      }))
-      .slice(0, 10); // Top 10
-
-    res.json({
-      anomalies: anomalies.sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation)),
-      suspiciousTransactions,
-      statistics: {
-        averageDailyRevenue: Math.round(avgRevenue * 100) / 100,
-        standardDeviation: Math.round(stdDev * 100) / 100,
-        totalDays: Object.keys(dailySales).length,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error detecting anomalies:", error);
-    res.status(500).json({
-      error: "Failed to detect anomalies",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/promotion-recommendations - Recommandations de promotions
- */
-export const getPromotionRecommendations: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-    const recipes = db.prepare("SELECT * FROM recipes").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser les ventes par produit/recette
-    const itemSales: Record<string, { quantity: number; revenue: number; days: number }> = {};
-    const itemFirstSale: Record<string, string> = {};
-    const itemLastSale: Record<string, string> = {};
-
-    sales.forEach((sale) => {
-      const itemId = sale.productId || sale.recipeId;
-      if (!itemId) return;
-
-      const date = sale.createdAt.split("T")[0];
-      if (!itemFirstSale[itemId]) {
-        itemFirstSale[itemId] = date;
-      }
-      itemLastSale[itemId] = date;
-
-      if (!itemSales[itemId]) {
-        itemSales[itemId] = { quantity: 0, revenue: 0, days: 0 };
-      }
-      itemSales[itemId].quantity += sale.quantity;
-      itemSales[itemId].revenue += sale.price * sale.quantity;
-    });
-
-    // Calculer les jours actifs
-    Object.keys(itemSales).forEach((itemId) => {
-      const first = new Date(itemFirstSale[itemId]);
-      const last = new Date(itemLastSale[itemId]);
-      const daysActive = Math.max(1, Math.ceil((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24)));
-      itemSales[itemId].days = daysActive;
-    });
-
-    // Recommandations de promotions
-    const recommendations: Array<{
-      itemId: string;
-      itemName: string;
-      type: string;
-      currentPrice: number;
-      suggestedDiscount: number;
-      reason: string;
-      expectedImpact: string;
-      bestTime: string;
-    }> = [];
-
-    // Produits à faible vente - promouvoir
-    products.forEach((product) => {
-      const salesData = itemSales[product.id];
-      if (!salesData || salesData.days === 0) {
-        recommendations.push({
-          itemId: product.id,
-          itemName: product.name,
-          type: "product",
-          currentPrice: product.price,
-          suggestedDiscount: 15,
-          reason: "Produit jamais vendu - Promotion recommandée pour le lancer",
-          expectedImpact: "Augmentation estimée de 50-100% des ventes",
-          bestTime: "Week-end ou heure de pointe",
-        });
-      } else {
-        const dailySales = salesData.quantity / salesData.days;
-        if (dailySales < 0.5 && product.quantity > 10) {
-          recommendations.push({
-            itemId: product.id,
-            itemName: product.name,
-            type: "product",
-            currentPrice: product.price,
-            suggestedDiscount: 20,
-            reason: `Faible vente (${dailySales.toFixed(2)}/jour) avec stock élevé`,
-            expectedImpact: "Réduction du stock et augmentation des ventes",
-            bestTime: "Happy hour ou promotion du jour",
-          });
-        }
-      }
-    });
-
-    // Produits populaires - promotions limitées pour booster
-    products.forEach((product) => {
-      const salesData = itemSales[product.id];
-      if (salesData && salesData.days > 0) {
-        const dailySales = salesData.quantity / salesData.days;
-        if (dailySales > 3) {
-          recommendations.push({
-            itemId: product.id,
-            itemName: product.name,
-            type: "product",
-            currentPrice: product.price,
-            suggestedDiscount: 10,
-            reason: "Produit populaire - Promotion limitée pour augmenter le trafic",
-            expectedImpact: "Augmentation de 20-30% des ventes et attraction de nouveaux clients",
-            bestTime: "Heure creuse pour équilibrer la demande",
-          });
-        }
-      }
-    });
-
-    res.json({
-      recommendations: recommendations.slice(0, 10), // Top 10
-      totalRecommendations: recommendations.length,
-    });
-  } catch (error: any) {
-    console.error("Error getting promotion recommendations:", error);
-    res.status(500).json({
-      error: "Failed to get promotion recommendations",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/stockout-prediction - Prédictions de rupture de stock
- */
-export const getStockoutPrediction: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? AND productId IS NOT NULL ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Calculer la consommation par produit
-    const productConsumption: Record<string, { quantity: number; days: number; trend: number }> = {};
-    const productFirstSale: Record<string, string> = {};
-    const productLastSale: Record<string, string> = {};
-
-    sales.forEach((sale) => {
-      const productId = sale.productId;
-      if (!productId) return;
-
-      const date = sale.createdAt.split("T")[0];
-      if (!productFirstSale[productId]) {
-        productFirstSale[productId] = date;
-      }
-      productLastSale[productId] = date;
-
-      if (!productConsumption[productId]) {
-        productConsumption[productId] = { quantity: 0, days: 0, trend: 0 };
-      }
-      productConsumption[productId].quantity += sale.quantity;
-    });
-
-    // Calculer la tendance (première moitié vs deuxième moitié)
-    const midPoint = Math.floor(sales.length / 2);
-    const firstHalf = sales.slice(0, midPoint);
-    const secondHalf = sales.slice(midPoint);
-
-    const firstHalfConsumption: Record<string, number> = {};
-    const secondHalfConsumption: Record<string, number> = {};
-
-    firstHalf.forEach((sale) => {
-      if (sale.productId) {
-        firstHalfConsumption[sale.productId] = (firstHalfConsumption[sale.productId] || 0) + sale.quantity;
-      }
-    });
-
-    secondHalf.forEach((sale) => {
-      if (sale.productId) {
-        secondHalfConsumption[sale.productId] = (secondHalfConsumption[sale.productId] || 0) + sale.quantity;
-      }
-    });
-
-    // Prédictions de rupture
-    const predictions = products
-      .map((product) => {
-        const consumption = productConsumption[product.id];
-        if (!consumption || consumption.days === 0) {
-          return null;
-        }
-
-        const firstHalfQty = firstHalfConsumption[product.id] || 0;
-        const secondHalfQty = secondHalfConsumption[product.id] || 0;
-        const trend = secondHalfQty > 0 ? (secondHalfQty - firstHalfQty) / firstHalfQty : 0;
-
-        const dailyConsumption = consumption.quantity / consumption.days;
-        const adjustedDailyConsumption = dailyConsumption * (1 + trend); // Ajuster selon la tendance
-        const daysUntilStockout = product.quantity / adjustedDailyConsumption;
-
-        let riskLevel = "Faible";
-        if (daysUntilStockout < 3) riskLevel = "Critique";
-        else if (daysUntilStockout < 7) riskLevel = "Élevé";
-        else if (daysUntilStockout < 14) riskLevel = "Modéré";
-
-        return {
-          productId: product.id,
-          productName: product.name,
-          currentStock: product.quantity,
-          dailyConsumption: Math.round(dailyConsumption * 100) / 100,
-          adjustedDailyConsumption: Math.round(adjustedDailyConsumption * 100) / 100,
-          trend: Math.round(trend * 100) / 100,
-          daysUntilStockout: Math.round(daysUntilStockout * 100) / 100,
-          riskLevel,
-          recommendedOrder: Math.ceil(adjustedDailyConsumption * 14), // 2 semaines
-          category: product.category,
-        };
-      })
-      .filter((p) => p !== null && p.daysUntilStockout < 30) // Seulement ceux à risque dans les 30 jours
-      .sort((a, b) => a.daysUntilStockout - b.daysUntilStockout);
-
-    res.json({
-      predictions,
-      totalAtRisk: predictions.length,
-    });
-  } catch (error: any) {
-    console.error("Error predicting stockouts:", error);
-    res.status(500).json({
-      error: "Failed to predict stockouts",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/menu-optimization - Optimisation du menu
- */
-export const getMenuOptimization: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-    const recipes = db.prepare("SELECT * FROM recipes").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser les performances
-    const itemPerformance: Record<string, {
-      quantity: number;
-      revenue: number;
-      profit: number;
-      days: number;
-    }> = {};
-
-    sales.forEach((sale) => {
-      const itemId = sale.productId || sale.recipeId;
-      if (!itemId) return;
-
-      if (!itemPerformance[itemId]) {
-        itemPerformance[itemId] = { quantity: 0, revenue: 0, profit: 0, days: 0 };
-      }
-      itemPerformance[itemId].quantity += sale.quantity;
-      itemPerformance[itemId].revenue += sale.price * sale.quantity;
-      itemPerformance[itemId].profit += sale.price * sale.quantity * 0.6; // Marge estimée
-    });
-
-    // Produits à retirer (faible performance)
-    const itemsToRemove = [...products, ...recipes]
-      .map((item) => {
-        const perf = itemPerformance[item.id];
-        if (!perf || perf.quantity === 0) {
-          return {
-            itemId: item.id,
-            itemName: item.name,
-            type: products.find(p => p.id === item.id) ? "product" : "recipe",
-            reason: "Jamais vendu",
-            recommendation: "Retirer du menu",
-          };
-        }
-
-        const dailySales = perf.quantity / 30;
-        const avgProfit = perf.profit / perf.quantity;
-
-        if (dailySales < 0.2 && avgProfit < 5) {
-          return {
-            itemId: item.id,
-            itemName: item.name,
-            type: products.find(p => p.id === item.id) ? "product" : "recipe",
-            reason: `Faible performance: ${dailySales.toFixed(2)} ventes/jour, ${avgProfit.toFixed(2)}$ profit/unité`,
-            recommendation: "Considérer retirer ou remplacer",
-          };
-        }
-
-        return null;
-      })
-      .filter((item) => item !== null);
-
-    // Suggestions de nouveaux produits basées sur les catégories populaires
-    const categoryPerformance: Record<string, { revenue: number; quantity: number }> = {};
-    sales.forEach((sale) => {
-      const product = products.find(p => p.id === sale.productId);
-      if (product) {
-        if (!categoryPerformance[product.category]) {
-          categoryPerformance[product.category] = { revenue: 0, quantity: 0 };
-        }
-        categoryPerformance[product.category].revenue += sale.price * sale.quantity;
-        categoryPerformance[product.category].quantity += sale.quantity;
-      }
-    });
-
-    const topCategories = Object.entries(categoryPerformance)
-      .sort(([, a], [, b]) => b.revenue - a.revenue)
-      .slice(0, 3)
-      .map(([category]) => category);
-
-    const suggestions = topCategories.map((category) => ({
-      category,
-      reason: `Catégorie très populaire - Considérez ajouter plus de produits dans cette catégorie`,
-      potentialImpact: "Augmentation estimée de 15-25% des ventes dans cette catégorie",
-    }));
-
-    res.json({
-      itemsToRemove: itemsToRemove.slice(0, 10),
-      suggestions,
-      totalItems: products.length + recipes.length,
-      underperformingItems: itemsToRemove.length,
-    });
-  } catch (error: any) {
-    console.error("Error optimizing menu:", error);
-    res.status(500).json({
-      error: "Failed to optimize menu",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/temporal-trends - Analyse de tendances temporelles
- */
-export const getTemporalTrends: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les ventes des 90 derniers jours
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const dateStr = ninetyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser par jour de la semaine
-    const dayOfWeekStats: Record<number, { revenue: number; count: number }> = {};
-
-    sales.forEach((sale) => {
-      const date = new Date(sale.createdAt);
-      const dayOfWeek = date.getDay(); // 0 = Dimanche, 6 = Samedi
-
-      if (!dayOfWeekStats[dayOfWeek]) {
-        dayOfWeekStats[dayOfWeek] = { revenue: 0, count: 0 };
-      }
-      dayOfWeekStats[dayOfWeek].revenue += sale.price * sale.quantity;
-      dayOfWeekStats[dayOfWeek].count += 1;
-    });
-
-    const dayNames = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-
-    const bestDays = Object.entries(dayOfWeekStats)
-      .map(([day, stats]) => ({
-        day: parseInt(day),
-        dayName: dayNames[parseInt(day)],
-        revenue: Math.round(stats.revenue * 100) / 100,
-        count: stats.count,
-        avgRevenue: Math.round((stats.revenue / stats.count) * 100) / 100,
-      }))
-      .sort((a, b) => b.revenue - a.revenue);
-
-    res.json({
-      bestDays,
-      insights: {
-        bestDay: bestDays[0],
-        worstDay: bestDays[bestDays.length - 1],
-      },
-    });
-  } catch (error: any) {
-    console.error("Error getting temporal trends:", error);
-    res.status(500).json({
-      error: "Failed to get temporal trends",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/dynamic-pricing - Recommandations de prix dynamiques
- */
-export const getDynamicPricing: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const products = db.prepare("SELECT * FROM products").all() as any[];
-
-    // Récupérer les ventes des 30 derniers jours
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? AND productId IS NOT NULL ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Analyser la demande par produit
-    const productDemand: Record<string, { quantity: number; days: number; trend: number }> = {};
-    const productFirstSale: Record<string, string> = {};
-    const productLastSale: Record<string, string> = {};
-
-    sales.forEach((sale) => {
-      const productId = sale.productId;
-      if (!productId) return;
-
-      const date = sale.createdAt.split("T")[0];
-      if (!productFirstSale[productId]) {
-        productFirstSale[productId] = date;
-      }
-      productLastSale[productId] = date;
-
-      if (!productDemand[productId]) {
-        productDemand[productId] = { quantity: 0, days: 0, trend: 0 };
-      }
-      productDemand[productId].quantity += sale.quantity;
-    });
-
-    // Calculer la tendance
-    const midPoint = Math.floor(sales.length / 2);
-    const firstHalf = sales.slice(0, midPoint);
-    const secondHalf = sales.slice(midPoint);
-
-    const firstHalfDemand: Record<string, number> = {};
-    const secondHalfDemand: Record<string, number> = {};
-
-    firstHalf.forEach((sale) => {
-      if (sale.productId) {
-        firstHalfDemand[sale.productId] = (firstHalfDemand[sale.productId] || 0) + sale.quantity;
-      }
-    });
-
-    secondHalf.forEach((sale) => {
-      if (sale.productId) {
-        secondHalfDemand[sale.productId] = (secondHalfDemand[sale.productId] || 0) + sale.quantity;
-      }
-    });
-
-    // Recommandations de prix dynamiques
-    const recommendations = products
-      .map((product) => {
-        const demand = productDemand[product.id];
-        if (!demand || demand.days === 0) {
-          return null;
-        }
-
-        const firstHalfQty = firstHalfDemand[product.id] || 0;
-        const secondHalfQty = secondHalfDemand[product.id] || 0;
-        const trend = secondHalfQty > 0 ? (secondHalfQty - firstHalfQty) / firstHalfQty : 0;
-
-        const dailyDemand = demand.quantity / demand.days;
-        const elasticity = 1.5; // Élasticité de la demande estimée
-
-        let suggestedPrice = product.price;
-        let priceChange = 0;
-        let reason = "Prix optimal";
-        let expectedImpact = "";
-
-        // Si demande en hausse, on peut augmenter le prix
-        if (trend > 0.2 && dailyDemand > 2) {
-          suggestedPrice = product.price * 1.1; // +10%
-          priceChange = suggestedPrice - product.price;
-          reason = `Demande en hausse (${(trend * 100).toFixed(0)}%) - Prix premium justifié`;
-          expectedImpact = `Baisse estimée de 5% des ventes mais hausse de 4.5% des revenus`;
-        }
-        // Si demande en baisse, réduire le prix
-        else if (trend < -0.2 && dailyDemand < 1) {
-          suggestedPrice = product.price * 0.9; // -10%
-          priceChange = suggestedPrice - product.price;
-          reason = `Demande en baisse (${(trend * 100).toFixed(0)}%) - Réduction pour stimuler les ventes`;
-          expectedImpact = `Hausse estimée de 15% des ventes, revenus stables`;
-        }
-        // Si très populaire, prix premium
-        else if (dailyDemand > 5) {
-          suggestedPrice = product.price * 1.05; // +5%
-          priceChange = suggestedPrice - product.price;
-          reason = "Produit très populaire - Prix premium possible";
-          expectedImpact = "Impact minimal sur les ventes, revenus augmentés";
-        }
-
-        return {
-          productId: product.id,
-          productName: product.name,
-          currentPrice: product.price,
-          suggestedPrice: Math.round(suggestedPrice * 100) / 100,
-          priceChange: Math.round(priceChange * 100) / 100,
-          reason,
-          expectedImpact,
-          dailyDemand: Math.round(dailyDemand * 100) / 100,
-          trend: Math.round(trend * 100) / 100,
-        };
-      })
-      .filter((r) => r !== null && Math.abs(r.priceChange) > 0.01)
-      .sort((a, b) => Math.abs(b.priceChange) - Math.abs(a.priceChange));
-
-    res.json({
-      recommendations: recommendations.slice(0, 10),
-      totalRecommendations: recommendations.length,
-    });
-  } catch (error: any) {
-    console.error("Error getting dynamic pricing:", error);
-    res.status(500).json({
-      error: "Failed to get dynamic pricing",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/revenue-forecast - Prédictions de revenus mensuels/annuels
- */
-export const getRevenueForecast: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const { period = "monthly" } = req.query;
-
-    // Récupérer les ventes des 12 derniers mois
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
-    const dateStr = twelveMonthsAgo.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(dateStr) as any[];
-
-    // Grouper par mois
-    const monthlyRevenue: Record<string, number> = {};
-    sales.forEach((sale) => {
-      const date = new Date(sale.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + sale.price * sale.quantity;
-    });
-
-    const monthlyValues = Object.values(monthlyRevenue);
-    const avgMonthlyRevenue = monthlyValues.length > 0
-      ? monthlyValues.reduce((a, b) => a + b, 0) / monthlyValues.length
-      : 0;
-
-    // Calculer la tendance
-    const sortedMonths = Object.keys(monthlyRevenue).sort();
-    const trend = sortedMonths.length > 1
-      ? (monthlyRevenue[sortedMonths[sortedMonths.length - 1]] - monthlyRevenue[sortedMonths[0]]) / sortedMonths.length
-      : 0;
-
-    // Prédictions mensuelles pour les 12 prochains mois
-    const monthlyForecast = [];
-    for (let i = 1; i <= 12; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const predictedRevenue = Math.max(0, avgMonthlyRevenue + (trend * i));
-      monthlyForecast.push({
-        month: monthKey,
-        monthName: date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
-        predictedRevenue: Math.round(predictedRevenue * 100) / 100,
-        confidence: monthlyValues.length > 6 ? 0.85 : 0.65,
-      });
-    }
-
-    // Prédiction annuelle
-    const annualForecast = monthlyForecast.reduce((sum, month) => sum + month.predictedRevenue, 0);
-
-    // Prédictions trimestrielles
-    const quarterlyForecast = [];
-    for (let q = 1; q <= 4; q++) {
-      const quarterMonths = monthlyForecast.slice((q - 1) * 3, q * 3);
-      const quarterRevenue = quarterMonths.reduce((sum, m) => sum + m.predictedRevenue, 0);
-      quarterlyForecast.push({
-        quarter: `Q${q}`,
-        predictedRevenue: Math.round(quarterRevenue * 100) / 100,
-      });
-    }
-
-    res.json({
-      monthlyForecast,
-      quarterlyForecast,
-      annualForecast: Math.round(annualForecast * 100) / 100,
-      averageMonthlyRevenue: Math.round(avgMonthlyRevenue * 100) / 100,
-      trend: Math.round(trend * 100) / 100,
-      dataPoints: monthlyValues.length,
-    });
-  } catch (error: any) {
-    console.error("Error getting revenue forecast:", error);
-    res.status(500).json({
-      error: "Failed to get revenue forecast",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/sales-report - Rapport détaillé des ventes
- */
-export const getSalesReport: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const { days = 30 } = req.query;
-    const daysCount = parseInt(days as string) || 30;
-
-    // Récupérer les ventes de la période
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysCount);
-    const dateStr = startDate.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE userId = ? AND createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(userId, dateStr) as any[];
-
-    // Calculs de base
-    const totalSales = sales.reduce((sum, sale) => sum + (sale.price * sale.quantity), 0);
-    const totalTransactions = sales.length;
-    const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-
-    // Ventes par catégorie
-    const salesByCategory: Record<string, { total: number; count: number }> = {};
-    sales.forEach((sale) => {
-      const category = sale.category || "other";
-      if (!salesByCategory[category]) {
-        salesByCategory[category] = { total: 0, count: 0 };
-      }
-      salesByCategory[category].total += sale.price * sale.quantity;
-      salesByCategory[category].count += 1;
-    });
-
-    const categoryArray = Object.entries(salesByCategory).map(([category, data]) => ({
-      category,
-      total: data.total,
-      count: data.count,
-      percentage: (data.total / totalSales) * 100,
-    })).sort((a, b) => b.total - a.total);
-
-    // Top produits
-    const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
-    sales.forEach((sale) => {
-      const productId = sale.productId || sale.id;
-      const productName = sale.productName || sale.name || "Produit inconnu";
-      if (!productSales[productId]) {
-        productSales[productId] = { name: productName, quantity: 0, revenue: 0 };
-      }
-      productSales[productId].quantity += sale.quantity;
-      productSales[productId].revenue += sale.price * sale.quantity;
-    });
-
-    const topProducts = Object.values(productSales)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    // Ventes quotidiennes
-    const dailySales: Record<string, { total: number; transactions: number }> = {};
-    sales.forEach((sale) => {
-      const date = sale.createdAt.split("T")[0];
-      if (!dailySales[date]) {
-        dailySales[date] = { total: 0, transactions: 0 };
-      }
-      dailySales[date].total += sale.price * sale.quantity;
-      dailySales[date].transactions += 1;
-    });
-
-    const dailySalesArray = Object.entries(dailySales)
-      .map(([date, data]) => ({ date, ...data }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    res.json({
-      totalSales,
-      totalTransactions,
-      averageTransaction,
-      salesByCategory: categoryArray,
-      topProducts,
-      dailySales: dailySalesArray,
-      period: `${daysCount} jours`,
-    });
-  } catch (error: any) {
-    console.error("Error getting sales report:", error);
-    res.status(500).json({
-      error: "Failed to get sales report",
-      message: error.message,
-    });
-  }
-};
-
-/**
- * GET /api/analytics/tax-report - Rapport détaillé des taxes
- */
-export const getTaxReport: RequestHandler = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const { days = 30 } = req.query;
-    const daysCount = parseInt(days as string) || 30;
-
-    // Récupérer les ventes de la période
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysCount);
-    const dateStr = startDate.toISOString().split("T")[0];
-
-    const sales = db
-      .prepare(
-        "SELECT * FROM sales WHERE userId = ? AND createdAt >= ? ORDER BY createdAt DESC"
-      )
-      .all(userId, dateStr) as any[];
-
-    // Récupérer les paramètres de taxe de l'utilisateur
-    const user = db
-      .prepare("SELECT taxRegion, currency FROM users WHERE id = ?")
-      .get(userId) as any;
-
-    let totalBeforeTax = 0;
-    let totalTaxes = 0;
-    let totalRevenue = 0;
-    const taxBreakdown: Record<string, number> = {};
-
-    // Calculer les taxes pour chaque vente
-    sales.forEach((sale) => {
-      const subtotal = sale.price * sale.quantity;
-      const tax = sale.tax || 0;
-      const total = subtotal + tax;
-
-      totalBeforeTax += subtotal;
-      totalTaxes += tax;
-      totalRevenue += total;
-
-      // Détail des taxes par type (si disponible)
-      if (sale.taxType) {
-        taxBreakdown[sale.taxType] = (taxBreakdown[sale.taxType] || 0) + tax;
-      }
-    });
-
-    const averageTaxRate = totalBeforeTax > 0 ? (totalTaxes / totalBeforeTax) * 100 : 0;
-
-    // Convertir taxBreakdown en array
-    const taxBreakdownArray = Object.entries(taxBreakdown).map(([name, amount]) => ({
-      name,
-      amount,
-      percentage: (amount / totalTaxes) * 100,
-      rate: user?.taxRegion ? getTaxRateForRegion(user.taxRegion) : 0,
-    }));
-
-    // Taxes par période (hebdomadaire)
-    const weeklyTaxes: Record<string, { taxes: number; revenue: number; transactions: number }> = {};
-    sales.forEach((sale) => {
-      const date = new Date(sale.createdAt);
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      const weekKey = weekStart.toISOString().split("T")[0];
-
-      if (!weeklyTaxes[weekKey]) {
-        weeklyTaxes[weekKey] = { taxes: 0, revenue: 0, transactions: 0 };
-      }
-      weeklyTaxes[weekKey].taxes += sale.tax || 0;
-      weeklyTaxes[weekKey].revenue += (sale.price * sale.quantity) + (sale.tax || 0);
-      weeklyTaxes[weekKey].transactions += 1;
-    });
-
-    const taxByPeriod = Object.entries(weeklyTaxes)
-      .map(([date, data]) => ({
-        period: `Semaine du ${new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`,
-        ...data,
-      }))
-      .sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime());
-
-    res.json({
-      totalTaxes,
-      totalBeforeTax,
-      totalRevenue,
-      averageTaxRate,
-      taxBreakdown: taxBreakdownArray.length > 0 ? taxBreakdownArray : [{
-        name: "Taxe principale",
-        amount: totalTaxes,
-        percentage: 100,
-        rate: user?.taxRegion ? getTaxRateForRegion(user.taxRegion) : 0,
-      }],
-      taxByPeriod,
-      region: user?.taxRegion || "Non défini",
-      currency: user?.currency || "CAD",
-    });
-  } catch (error: any) {
-    console.error("Error getting tax report:", error);
-    res.status(500).json({
-      error: "Failed to get tax report",
-      message: error.message,
-    });
-  }
-};
-
-// Helper function to get tax rate for a region
-function getTaxRateForRegion(region: string): number {
-  // Simplified tax rates - should match settings
-  const taxRates: Record<string, number> = {
-    quebec: 14.975, // TPS 5% + TVQ 9.975%
-    ontario: 13,
-    "british-columbia": 15, // TPS 5% + PST 10%
-    alberta: 5,
-    manitoba: 12, // TPS 5% + TVD 7%
-    saskatchewan: 11, // TPS 5% + PST 6%
-    "nova-scotia": 15,
-    "new-brunswick": 15,
-    newfoundland: 15,
-    "prince-edward-island": 15,
-  };
-  return taxRates[region] || 0;
-}
-
-/**
- * GET /api/analytics/food-wine-pairing - Recommandations d'accords mets-vin avec IA
- */
+// Implementation de getFoodWinePairing pour suggérer des accords mets-vins basés sur l'inventaire
 export const getFoodWinePairing: RequestHandler = async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    // Récupérer les produits depuis SQLite
-    const products = db.prepare("SELECT * FROM products").all() as any[];
+    const wines = req.body.wines || []; // Vins de l'inventaire envoyés par le client
+    const barProfile = req.body.barProfile || {}; // Profil du bar
     
-    // Filtrer les vins
-    const wines = products.filter(p => 
-      p.category === "wine" || 
-      (p.name && p.name.toLowerCase().includes("vin"))
-    );
-
-    // Si pas de vins, retourner des suggestions génériques
-    if (wines.length === 0) {
-      return res.json({
-        pairings: [
-          {
-            food: "Steak grillé",
-            wine: "Cabernet Sauvignon",
-            reason: "Le tannin du Cabernet Sauvignon complète parfaitement la richesse du steak",
-            description: "Un accord classique et intemporel"
-          },
-          {
-            food: "Saumon",
-            wine: "Pinot Grigio",
-            reason: "La fraîcheur du Pinot Grigio équilibre la texture du saumon",
-            description: "Accord délicat et raffiné"
-          }
-        ]
+    if (!wines || wines.length === 0) {
+      return res.status(400).json({
+        error: 'No wines provided',
+        message: 'Veuillez envoyer la liste des vins de votre inventaire'
       });
     }
 
-    // Utiliser OpenAI pour générer des accords personnalisés
-    const wineList = wines.map(w => w.name).join(", ");
-    const prompt = `En tant que sommelier expert, recommande 5 accords mets-vin pour un bar/restaurant. 
-    
-Vins disponibles: ${wineList}
+    // Créer une liste des vins disponibles pour l'IA
+    const wineList = wines
+      .map((w: any) => `${w.name || w.productName} (${w.category || 'vin'}, Stock: ${w.stock || w.quantity || 0})`)
+      .join('\n');
 
-Pour chaque accord, fournis:
-- Le plat (ex: steak, saumon, fromage, etc.)
-- Le vin recommandé (choisis parmi la liste)
-- La raison de l'accord
-- Une brève description
+    // Construire le contexte complet du bar si disponible
+    let barContext = "";
+    if (barProfile && Object.keys(barProfile).length > 0) {
+      const currencySymbols: Record<string, string> = {
+        USD: "$", EUR: "€", GBP: "£", CAD: "$", AUD: "A$", MXN: "Mex$",
+        ARS: "$", CLP: "$", COP: "$", PEN: "S/", UYU: "$U", NZD: "NZ$", CHF: "CHF",
+      };
+      
+      const currency = currencySymbols[barProfile.currency] || barProfile.currency || "$";
+      
+      barContext = `\n\n=== CONTEXTE DE L'ÉTABLISSEMENT ===`;
+      barContext += `\n📍 ${barProfile.barName || 'Bar'}`;
+      if (barProfile.address) barContext += ` - ${barProfile.address}`;
+      
+      barContext += `\n\n🏢 PROFIL :`;
+      barContext += `\n- Type : ${barProfile.barType || 'bar casual'}`;
+      barContext += `\n- Ambiance : ${barProfile.barAmbiance || 'décontractée'}`;
+      barContext += `\n- Clientèle : ${barProfile.primaryClientele || 'mixte'}`;
+      barContext += `\n- Positionnement : ${barProfile.priceRange || 'modéré'}`;
+      barContext += `\n- Service : ${barProfile.servingStyle || 'table-service'}`;
+      
+      if (barProfile.specialties) {
+        barContext += `\n- Spécialités : ${barProfile.specialties}`;
+      }
+      if (barProfile.targetMarket) {
+        barContext += `\n- Marché cible : ${barProfile.targetMarket}`;
+      }
+      
+      barContext += `\n\n⚠️ Adapte les suggestions de plats au style, clientèle et positionnement de cet établissement.`;
+      barContext += `\n===================================`;
+    }
 
-Réponds en JSON avec ce format:
+    const prompt = `Tu es sommelier expert en accords mets-vins. Voici les vins disponibles dans l'inventaire du bar :
+
+${wineList}
+${barContext}
+
+Ta tâche est de créer des accords mets-vins en utilisant UNIQUEMENT les vins de cet inventaire.
+
+INSTRUCTIONS :
+1. Pour chaque accord, choisis un vin de la liste ci-dessus
+2. Suggère un plat qui s'accorde parfaitement avec ce vin ET qui convient au profil de l'établissement
+3. Tiens compte du type d'établissement, de la clientèle et du positionnement prix
+4. Explique pourquoi cet accord fonctionne
+5. Crée 5-8 accords variés (entrées, plats principaux, desserts)
+6. Retourne du JSON valide
+
+Structure JSON attendue :
+
 {
   "pairings": [
     {
-      "food": "nom du plat",
-      "wine": "nom du vin",
-      "reason": "explication de l'accord",
-      "description": "description courte"
+      "wine": "Nom exact du vin de l'inventaire",
+      "wineCategory": "rouge|blanc|rosé|mousseux|fortifié",
+      "dish": "Nom du plat suggéré",
+      "dishCategory": "entrée|plat principal|dessert|fromage",
+      "reason": "Pourquoi cet accord fonctionne (arômes, texture, etc.)",
+      "servingTemp": "Température de service recommandée",
+      "glassType": "Type de verre recommandé"
     }
-  ]
-}`;
+  ],
+  "suggestions": [
+    {
+      "wineType": "Type de vin manquant dans l'inventaire",
+      "reason": "Pourquoi l'ajouter améliorerait les options d'accords pour ce type d'établissement",
+      "examples": "Exemples de vins à ajouter"
+    }
+  ],
+  "tip": "Conseil général sur les accords mets-vins pour ce type de bar"
+}
 
-    console.log("[Food-Wine Pairing] Appel OpenAI avec prompt:", prompt.substring(0, 200) + "...");
-    const aiResponse = await callOpenAIJSON<{ pairings: Array<{
-      food: string;
-      wine: string;
-      reason: string;
-      description: string;
-    }> }>(prompt, "Tu es un sommelier expert avec une connaissance approfondie des accords mets-vin.");
+Retourne UNIQUEMENT le JSON, sans autre texte.`;
 
-    console.log("[Food-Wine Pairing] Réponse OpenAI:", aiResponse ? `${aiResponse.pairings?.length || 0} accords` : "Aucune réponse");
-
-    if (aiResponse && aiResponse.pairings) {
-      console.log("[Food-Wine Pairing] Utilisation des accords IA");
-      return res.json({
-        pairings: aiResponse.pairings.slice(0, 5)
+    const response = await callOpenAIJSON(prompt);
+    
+    if (!response || !response.pairings || response.pairings.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid response from AI',
+        message: 'Could not generate wine pairings'
       });
     }
 
-    // Fallback si OpenAI ne répond pas
-    return res.json({
-      pairings: [
-        {
-          food: "Steak grillé",
-          wine: wines[0]?.name || "Vin rouge",
-          reason: "Le tannin du vin rouge complète la richesse du steak",
-          description: "Accord classique"
-        }
-      ]
+    res.json({
+      pairings: response.pairings || [],
+      suggestions: response.suggestions || [],
+      tip: response.tip || 'Les accords mets-vins rehaussent l\'expérience culinaire de vos clients.',
+      totalWinesAnalyzed: wines.length
     });
-  } catch (error: any) {
-    console.error("Error getting food-wine pairing:", error);
+  } catch (error) {
+    console.error('Error in getFoodWinePairing:', error);
     res.status(500).json({
-      error: "Failed to get food-wine pairing",
-      message: error.message,
+      error: 'Failed to generate wine pairings',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
+
+// Implementation de getInsights pour fournir des insights business généraux
+export const getInsights: RequestHandler = async (req, res) => {
+  try {
+    const sales = req.body.sales || []; // Ventes envoyées par le client
+    const inventory = req.body.inventory || []; // Inventaire envoyé par le client
+    const barProfile = req.body.barProfile || {}; // Profil du bar
+    
+    if (!sales || sales.length === 0) {
+      return res.status(400).json({
+        error: 'No sales data provided',
+        message: 'Veuillez envoyer les données de ventes pour générer des insights'
+      });
+    }
+
+    // Construire le contexte du bar
+    let barContext = "";
+    if (barProfile && Object.keys(barProfile).length > 0) {
+      const currencySymbols: Record<string, string> = {
+        USD: "$", EUR: "€", GBP: "£", CAD: "$", AUD: "A$", MXN: "Mex$",
+        ARS: "$", CLP: "$", COP: "$", PEN: "S/", UYU: "$U", NZD: "NZ$", CHF: "CHF",
+      };
+      
+      const currency = currencySymbols[barProfile.currency] || barProfile.currency || "$";
+      
+      barContext = `\n\n=== CONTEXTE DE L'ÉTABLISSEMENT ===`;
+      barContext += `\n📍 ${barProfile.barName || 'Bar'}`;
+      barContext += `\n💰 Devise : ${currency}`;
+      barContext += `\n🏢 Type : ${barProfile.barType || 'bar casual'}`;
+      barContext += `\n👥 Clientèle : ${barProfile.primaryClientele || 'mixte'}`;
+      barContext += `\n===================================`;
+    }
+    // Calculer les métriques clés stables
+    let totalRevenue = 0;
+    let totalTax = 0;
+    let totalTip = 0;
+    const productStats: Record<string, { name: string; quantity: number; revenue: number }> = {};
+    
+    sales.forEach((sale: any) => {
+      totalRevenue += sale.total || 0;
+      totalTax += sale.tax || 0;
+      totalTip += sale.tip || 0;
+      
+      const items = Array.isArray(sale.items) ? sale.items : [];
+      items.forEach((item: any) => {
+        const name = item.name || 'Produit inconnu';
+        if (!productStats[name]) {
+          productStats[name] = { name, quantity: 0, revenue: 0 };
+        }
+        productStats[name].quantity += item.quantity || 1;
+        productStats[name].revenue += (item.quantity || 1) * (item.price || 0);
+      });
+    });
+    
+    // Trouver le produit vedette (meilleure revenue)
+    const topProduct = Object.values(productStats).sort((a, b) => b.revenue - a.revenue)[0];
+    const topProductName = topProduct?.name || 'N/A';
+    const topProductRevenue = topProduct?.revenue || 0;
+    
+    // Calculer la marge nette
+    const netRevenue = totalRevenue - totalTax;
+    const marginPercentage = sales.length > 0 ? ((netRevenue / totalRevenue) * 100).toFixed(2) : '0';
+
+    // Préparer un résumé des ventes pour l'IA
+    const salesSummary = sales.slice(0, 50).flatMap((sale: any) => {
+      // Extraire les items de la vente (structure: { items: [...] })
+      const items = Array.isArray(sale.items) ? sale.items : [];
+      return items.map((item: any) => 
+        `${item.name || 'Produit inconnu'}: ${item.quantity || 1} unités à ${item.price || 0} $`
+      );
+    }).join('\n');
+
+    // Calculer les comparatifs par semaine, mois et année
+    const weeklyStats: Record<string, { sales: number; revenue: number }> = {};
+    const monthlyStats: Record<string, { sales: number; revenue: number }> = {};
+    const yearlyStats: Record<string, { sales: number; revenue: number }> = {};
+    
+    sales.forEach((sale: any) => {
+      // Convertir le timestamp Firestore correctement
+      let timestamp: Date;
+      if (sale.timestamp?.toDate) {
+        // C'est un Firestore Timestamp côté client
+        timestamp = sale.timestamp.toDate();
+      } else if (sale.timestamp instanceof Date) {
+        timestamp = sale.timestamp;
+      } else if (typeof sale.timestamp === 'number') {
+        timestamp = new Date(sale.timestamp);
+      } else if (typeof sale.timestamp === 'string') {
+        timestamp = new Date(sale.timestamp);
+      } else {
+        timestamp = new Date(); // Fallback
+      }
+      
+      // Hebdomadaire
+      const weekStart = new Date(timestamp);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekKey = `Semaine du ${weekStart.toLocaleDateString('fr-CA')}`;
+      if (!weeklyStats[weekKey]) {
+        weeklyStats[weekKey] = { sales: 0, revenue: 0 };
+      }
+      weeklyStats[weekKey].sales += 1;
+      weeklyStats[weekKey].revenue += sale.total || 0;
+      
+      // Mensuel
+      const monthKey = `${timestamp.toLocaleString('fr-CA', { month: 'long' })} ${timestamp.getFullYear()}`;
+      if (!monthlyStats[monthKey]) {
+        monthlyStats[monthKey] = { sales: 0, revenue: 0 };
+      }
+      monthlyStats[monthKey].sales += 1;
+      monthlyStats[monthKey].revenue += sale.total || 0;
+      
+      // Annuel
+      const yearKey = timestamp.getFullYear().toString();
+      if (!yearlyStats[yearKey]) {
+        yearlyStats[yearKey] = { sales: 0, revenue: 0 };
+      }
+      yearlyStats[yearKey].sales += 1;
+      yearlyStats[yearKey].revenue += sale.total || 0;
+    });
+    
+    const weeklyComparison = Object.entries(weeklyStats)
+      .sort((a, b) => {
+        const dateA = new Date(a[0].replace('Semaine du ', ''));
+        const dateB = new Date(b[0].replace('Semaine du ', ''));
+        return dateA.getTime() - dateB.getTime();
+      })
+      .map(([week, stats]) => `${week}: ${stats.sales} ventes, ${stats.revenue.toFixed(2)} $`)
+      .join('\n');
+    
+    const monthlyComparison = Object.entries(monthlyStats)
+      .sort((a, b) => {
+        const monthOrder: Record<string, number> = {
+          'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5,
+          'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11
+        };
+        const [monthA, yearA] = a[0].split(' ');
+        const [monthB, yearB] = b[0].split(' ');
+        const yearDiff = parseInt(yearB) - parseInt(yearA);
+        if (yearDiff !== 0) return yearDiff;
+        return (monthOrder[monthA.toLowerCase()] || 0) - (monthOrder[monthB.toLowerCase()] || 0);
+      })
+      .map(([month, stats]) => `${month}: ${stats.sales} ventes, ${stats.revenue.toFixed(2)} $`)
+      .join('\n');
+    
+    const yearlyComparison = Object.entries(yearlyStats)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([year, stats]) => `${year}: ${stats.sales} ventes, ${stats.revenue.toFixed(2)} $`)
+      .join('\n');
+
+    const prompt = `Tu es consultant business expert pour bars et liquor stores. 
+
+MÉTRIQUES ACTUELLES :
+- Marge nette: ${marginPercentage}%
+- Revenu total: ${totalRevenue.toFixed(2)} $
+- Taxes totales: ${totalTax.toFixed(2)} $
+- Pourboires totaux: ${totalTip.toFixed(2)} $
+- Produit vedette: ${topProductName} (${topProductRevenue.toFixed(2)} $)
+
+VENTES RÉCENTES :
+${salesSummary}
+
+COMPARATIFS :
+Hebdomadaire: ${weeklyComparison || 'N/A'}
+Mensuel: ${monthlyComparison || 'N/A'}
+Annuel: ${yearlyComparison || 'N/A'}
+
+TÂCHE : Pour chaque métrique, détermine la tendance (positive/negative/neutral/warning) et écris une courte description (1-2 phrases) évaluant cette métrique.
+
+Structure JSON attendue :
+
+{
+  "metrics": [
+    {
+      "name": "Marge nette",
+      "value": "${marginPercentage}%",
+      "trend": "positive|negative|neutral|warning",
+      "description": "Évaluation courte et actionnable"
+    },
+    {
+      "name": "Revenu total",
+      "value": "${totalRevenue.toFixed(2)} $",
+      "trend": "positive|negative|neutral|warning",
+      "description": "Évaluation courte et actionnable"
+    },
+    {
+      "name": "Taxes totales",
+      "value": "${totalTax.toFixed(2)} $",
+      "trend": "neutral",
+      "description": "Information informative"
+    },
+    {
+      "name": "Pourboires totaux",
+      "value": "${totalTip.toFixed(2)} $",
+      "trend": "positive|negative|neutral|warning",
+      "description": "Évaluation courte et actionnable"
+    },
+    {
+      "name": "Produit vedette",
+      "value": "${topProductName}",
+      "trend": "positive|negative|neutral|warning",
+      "description": "Évaluation du produit vedette"
+    }
+  ],
+  "summary": {
+    "totalSalesAnalyzed": ${sales.length},
+    "topCategory": "${topProductName}",
+    "keyRecommendation": "Recommandation principale basée sur les données"
+  }
+}
+
+Retourne UNIQUEMENT le JSON, sans autre texte.`;
+
+    const response = await callOpenAIJSON(prompt);
+    
+    console.log('[getInsights] Réponse OpenAI:', JSON.stringify(response).substring(0, 200));
+    
+    if (!response) {
+      console.error('[getInsights] OpenAI API returned null - check OPENAI_API_KEY in .env');
+      // Retourner les métriques brutes si OpenAI échoue
+      return res.json({
+        metrics: [
+          { name: 'Marge nette', value: `${marginPercentage}%`, trend: 'neutral' as const, description: 'Évaluation en cours...' },
+          { name: 'Revenu total', value: `${totalRevenue.toFixed(2)} $`, trend: 'neutral' as const, description: 'Évaluation en cours...' },
+          { name: 'Taxes totales', value: `${totalTax.toFixed(2)} $`, trend: 'neutral' as const, description: 'Information' },
+          { name: 'Pourboires totaux', value: `${totalTip.toFixed(2)} $`, trend: 'neutral' as const, description: 'Évaluation en cours...' },
+          { name: 'Produit vedette', value: topProductName, trend: 'positive' as const, description: `Produit le plus rentable avec ${topProductRevenue.toFixed(2)} $` }
+        ],
+        comparatives: {
+          weekly: weeklyComparison,
+          monthly: monthlyComparison,
+          yearly: yearlyComparison
+        },
+        summary: {
+          totalSalesAnalyzed: sales.length,
+          topCategory: topProductName,
+          keyRecommendation: "Vérifiez que votre clé OpenAI est configurée pour des évaluations détaillées"
+        }
+      });
+    }
+    
+    if (!response.metrics || response.metrics.length === 0) {
+      console.error('[getInsights] Pas de métriques reçues:', response);
+      // Retourner les métriques brutes même si OpenAI n'en retourne pas
+      return res.json({
+        metrics: [
+          { name: 'Marge nette', value: `${marginPercentage}%`, trend: 'neutral' as const, description: 'Évaluation IA non disponible' },
+          { name: 'Revenu total', value: `${totalRevenue.toFixed(2)} $`, trend: 'neutral' as const, description: 'Évaluation IA non disponible' },
+          { name: 'Taxes totales', value: `${totalTax.toFixed(2)} $`, trend: 'neutral' as const, description: 'Information' },
+          { name: 'Pourboires totaux', value: `${totalTip.toFixed(2)} $`, trend: 'neutral' as const, description: 'Évaluation IA non disponible' },
+          { name: 'Produit vedette', value: topProductName, trend: 'positive' as const, description: `Produit le plus rentable` }
+        ],
+        comparatives: {
+          weekly: weeklyComparison,
+          monthly: monthlyComparison,
+          yearly: yearlyComparison
+        },
+        summary: {
+          totalSalesAnalyzed: sales.length,
+          topCategory: topProductName,
+          keyRecommendation: "Données stables retournées"
+        }
+      });
+    }
+
+    res.json({
+      metrics: response.metrics || [],
+      comparatives: {
+        weekly: weeklyComparison,
+        monthly: monthlyComparison,
+        yearly: yearlyComparison
+      },
+      summary: response.summary || {
+        totalSalesAnalyzed: sales.length,
+        topCategory: topProductName,
+        keyRecommendation: "Continuez à enregistrer vos ventes pour plus d'insights"
+      }
+    });
+  } catch (error) {
+    console.error('Error in getInsights:', error);
+    res.status(500).json({
+      error: 'Failed to generate insights',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const getReorderRecommendations: RequestHandler = analyticsNotImplemented;
+export const getProfitabilityAnalysis: RequestHandler = analyticsNotImplemented;
+export const getPriceOptimization: RequestHandler = analyticsNotImplemented;
+export const getRecipeRecommendations: RequestHandler = analyticsNotImplemented;
+export const getAnomalyDetection: RequestHandler = analyticsNotImplemented;
+export const getPromotionRecommendations: RequestHandler = analyticsNotImplemented;
+export const getStockoutPrediction: RequestHandler = analyticsNotImplemented;
+export const getMenuOptimization: RequestHandler = analyticsNotImplemented;
+export const getTemporalTrends: RequestHandler = analyticsNotImplemented;
+export const getDynamicPricing: RequestHandler = analyticsNotImplemented;
+
+// Implementation de getRevenueForecast pour prévoir les revenus futurs
+export const getRevenueForecast: RequestHandler = async (req, res) => {
+  try {
+    const sales = req.body.sales || []; // Ventes historiques envoyées par le client
+    const barProfile = req.body.barProfile || {}; // Profil du bar
+    
+    if (!sales || sales.length === 0) {
+      return res.status(400).json({
+        error: 'No sales data provided',
+        message: 'Veuillez envoyer les données de ventes historiques pour générer des prévisions'
+      });
+    }
+
+    // Construire le contexte du bar
+    let barContext = "";
+    if (barProfile && Object.keys(barProfile).length > 0) {
+      const currencySymbols: Record<string, string> = {
+        USD: "$", EUR: "€", GBP: "£", CAD: "$", AUD: "A$", MXN: "Mex$",
+        ARS: "$", CLP: "$", COP: "$", PEN: "S/", UYU: "$U", NZD: "NZ$", CHF: "CHF",
+      };
+      
+      const currency = currencySymbols[barProfile.currency] || barProfile.currency || "$";
+      
+      barContext = `\n\n=== CONTEXTE DE L'ÉTABLISSEMENT ===`;
+      barContext += `\n📍 ${barProfile.barName || 'Bar'}`;
+      barContext += `\n💰 Devise : ${currency}`;
+      barContext += `\n🏢 Type : ${barProfile.barType || 'bar casual'}`;
+      barContext += `\n📊 Capacité : ${barProfile.seatingCapacity || 50} places`;
+      barContext += `\n===================================`;
+    }
+
+    // Calculer le revenu total historique
+    const totalRevenue = sales.reduce((sum: number, sale: any) => 
+      sum + (Number(sale.total) || Number(sale.price) * Number(sale.quantity) || 0), 0
+    );
+    
+    const avgDailyRevenue = totalRevenue / Math.max(1, sales.length);
+
+    const prompt = `Tu es analyste financier expert pour l'industrie de l'hospitalité. Analyse ces ventes historiques et génère des prévisions de revenus.
+${barContext}
+
+DONNÉES HISTORIQUES :
+- Total des ventes analysées : ${sales.length}
+- Revenu total : ${totalRevenue.toFixed(2)} $
+- Revenu quotidien moyen : ${avgDailyRevenue.toFixed(2)} $
+
+INSTRUCTIONS :
+1. Analyse la tendance de croissance
+2. Prévois les revenus pour les 4 prochains trimestres
+3. Calcule le revenu annuel prévu
+4. Tiens compte de la saisonnalité typique pour un bar
+5. Fournis une moyenne mensuelle
+6. Retourne du JSON valide avec tous les champs numériques
+
+Structure JSON attendue :
+
+{
+  "annualForecast": 125000.00,
+  "averageMonthlyRevenue": 10416.67,
+  "trend": 5.5,
+  "quarterlyForecast": [
+    {
+      "quarter": "Q1 2026",
+      "predictedRevenue": 28000.00,
+      "confidence": 0.85
+    },
+    {
+      "quarter": "Q2 2026",
+      "predictedRevenue": 32000.00,
+      "confidence": 0.80
+    },
+    {
+      "quarter": "Q3 2026",
+      "predictedRevenue": 35000.00,
+      "confidence": 0.75
+    },
+    {
+      "quarter": "Q4 2026",
+      "predictedRevenue": 30000.00,
+      "confidence": 0.70
+    }
+  ],
+  "insight": "Explication de la prévision et facteurs clés"
+}
+
+Retourne UNIQUEMENT le JSON, sans autre texte.`;
+
+    const response = await callOpenAIJSON(prompt);
+    
+    if (!response) {
+      console.error('[getRevenueForecast] OpenAI API returned null - check OPENAI_API_KEY in .env');
+      return res.status(503).json({
+        error: 'OpenAI API unavailable',
+        message: 'La clé API OpenAI n\'est pas configurée. Vérifiez OPENAI_API_KEY dans .env'
+      });
+    }
+    
+    res.json({
+      annualForecast: Number(response.annualForecast) || 0,
+      averageMonthlyRevenue: Number(response.averageMonthlyRevenue) || 0,
+      trend: Number(response.trend) || 0,
+      quarterlyForecast: response.quarterlyForecast || [],
+      insight: response.insight || "Prévisions basées sur l'historique des ventes",
+      basedOnSales: sales.length
+    });
+  } catch (error) {
+    console.error('Error in getRevenueForecast:', error);
+    res.status(500).json({
+      error: 'Failed to generate revenue forecast',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const getSalesReport: RequestHandler = analyticsNotImplemented;
+export const getTaxReport: RequestHandler = analyticsNotImplemented;

@@ -83,29 +83,55 @@ export async function callOpenAIJSON<T>(
   console.log("[OpenAI] Prompt système:", systemPrompt?.substring(0, 100) || "Aucun");
   console.log("[OpenAI] Prompt utilisateur (premiers 200 caractères):", prompt.substring(0, 200));
   
-  const response = await callOpenAI(
-    `${prompt}\n\nRéponds UNIQUEMENT avec un JSON valide, sans texte avant ou après.`,
-    systemPrompt,
-    model
-  );
-
-  if (!response) {
-    console.warn("[OpenAI] Aucune réponse reçue de l'API");
+  const client = getOpenAIClient();
+  if (!client) {
+    console.warn("[OpenAI] Client OpenAI non initialisé");
     return null;
   }
 
-  console.log("[OpenAI] Réponse reçue (premiers 300 caractères):", response.substring(0, 300));
-
   try {
-    // Nettoyer la réponse pour extraire le JSON si nécessaire
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const jsonString = jsonMatch ? jsonMatch[0] : response;
-    const parsed = JSON.parse(jsonString) as T;
-    console.log("[OpenAI] JSON parsé avec succès");
-    return parsed;
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
+    
+    if (systemPrompt) {
+      messages.push({ role: "system", content: systemPrompt });
+    }
+    
+    messages.push({ role: "user", content: prompt });
+
+    // Use JSON mode for strict JSON output
+    const response = await client.chat.completions.create({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: "json_object" },
+    });
+
+    const responseText = response.choices[0]?.message?.content || null;
+    
+    if (!responseText) {
+      console.warn("[OpenAI] Aucune réponse reçue de l'API");
+      return null;
+    }
+
+    console.log("[OpenAI] Réponse reçue (premiers 300 caractères):", responseText.substring(0, 300));
+
+    try {
+      const parsed = JSON.parse(responseText) as T;
+      console.log("[OpenAI] JSON parsé avec succès");
+      return parsed;
+    } catch (error: any) {
+      console.error("[OpenAI] Erreur lors du parsing JSON:", error?.message || "Erreur inconnue");
+      console.error("[OpenAI] Réponse complète qui a échoué:", responseText);
+      return null;
+    }
   } catch (error: any) {
-    console.error("[OpenAI] Erreur lors du parsing JSON:", error?.message || "Erreur inconnue");
-    console.error("[OpenAI] Réponse complète qui a échoué:", response);
+    const errorMessage = error.message || "Erreur inconnue";
+    if (errorMessage.includes("api key") || errorMessage.includes("401") || errorMessage.includes("403")) {
+      console.error("[OpenAI] Erreur d'authentification - Vérifiez votre clé API dans .env");
+    } else {
+      console.error("[OpenAI] Erreur lors de l'appel API:", errorMessage);
+    }
     return null;
   }
 }

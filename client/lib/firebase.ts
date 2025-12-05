@@ -1,5 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 // Configuration Firebase - Les valeurs doivent être définies dans les variables d'environnement
 const firebaseConfig = {
@@ -14,6 +15,7 @@ const firebaseConfig = {
 // Initialiser Firebase seulement si les variables d'environnement sont définies
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+let db: Firestore | null = null;
 
 // Debug: Afficher les valeurs de configuration (sans les valeurs sensibles)
 console.log("Firebase Config Check:", {
@@ -37,7 +39,8 @@ if (firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.project
     }
     
     auth = getAuth(app);
-    console.log("Firebase Auth initialisé");
+    db = getFirestore(app);
+    console.log("Firebase Auth et Firestore initialisés");
   } catch (error) {
     console.error("Erreur lors de l'initialisation de Firebase:", error);
   }
@@ -61,8 +64,8 @@ if (firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.project
 // Provider Google
 export const googleProvider = auth ? new GoogleAuthProvider() : null;
 
-// Exporter auth et app
-export { auth, app };
+// Exporter auth, app et db
+export { auth, app, db };
 
 // Fonction helper pour vérifier si Firebase est configuré
 export const isFirebaseConfigured = (): boolean => {

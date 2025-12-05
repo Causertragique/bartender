@@ -43,6 +43,8 @@ export interface Translations {
         origin: string;
         quantity: string;
         pricePerBottle: string;
+        bottleSizeInMl: string;
+        bottleSizeHint: string;
         inventoryCode: string;
         inventoryCodeHint: string;
         inventoryCodePlaceholder: string;
@@ -178,6 +180,33 @@ export interface Translations {
     revenueReports: string;
     revenueReportsDesc: string;
     comingSoon: string;
+  };
+
+  // Audit Logs page
+  auditLogs: {
+    title: string;
+    subtitle: string;
+    accessDenied: string;
+    accessDeniedDesc: string;
+    suspiciousActivity: string;
+    noSuspiciousActivity: string;
+    statistics: string;
+    totalChanges: string;
+    byAction: string;
+    byRole: string;
+    activeUsers: string;
+    recentChanges: string;
+    noLogs: string;
+    actions: {
+      create: string;
+      update: string;
+      delete: string;
+      restock: string;
+      adjustment: string;
+      sale: string;
+    };
+    changeInfo: string;
+    priceChange: string;
   };
 
   // NotFound page
@@ -426,6 +455,8 @@ const translations: Record<Language, Translations> = {
         origin: "Origin",
         quantity: "Quantity",
         pricePerBottle: "Price per Bottle",
+        bottleSizeInMl: "Bottle Size (ml)",
+        bottleSizeHint: "The capacity of the bottle in milliliters. Example: 750ml for a standard wine bottle",
         inventoryCode: "Inventory Code",
         inventoryCodeHint: "Auto-generated if empty",
         inventoryCodePlaceholder: "Enter code or leave empty for auto-generation",
@@ -555,6 +586,31 @@ const translations: Record<Language, Translations> = {
       revenueReports: "Revenue Reports",
       revenueReportsDesc: "View detailed revenue breakdowns by category",
       comingSoon: "Analytics dashboard coming soon. Continue adding features to build out this section!",
+    },
+    auditLogs: {
+      title: "Audit Logs",
+      subtitle: "Inventory change history and fraud detection",
+      accessDenied: "Access Denied",
+      accessDeniedDesc: "You don't have permission to view audit logs. Only managers and above can access this page.",
+      suspiciousActivity: "Suspicious Activity Detected",
+      noSuspiciousActivity: "No suspicious activity detected",
+      statistics: "Statistics",
+      totalChanges: "Total Changes",
+      byAction: "By Action",
+      byRole: "By Role",
+      activeUsers: "Active Users",
+      recentChanges: "Recent Changes",
+      noLogs: "No inventory changes recorded yet",
+      actions: {
+        create: "Created",
+        update: "Updated",
+        delete: "Deleted",
+        restock: "Restocked",
+        adjustment: "Adjusted",
+        sale: "Sale",
+      },
+      changeInfo: "changed from {prev} to {new}",
+      priceChange: "Price: ${prev} → ${new}",
     },
     notFound: {
       title: "404",
@@ -709,6 +765,27 @@ const translations: Record<Language, Translations> = {
         theme: "Theme",
         language: "Language",
       },
+      security: {
+        title: "Security and Data",
+        description: "Manage your personal data and account security",
+        downloadData: "Download My Data",
+        downloadDataDesc: "Download a copy of all your data (products, sales, recipes, settings)",
+        downloadButton: "Download Data",
+        downloading: "Downloading...",
+        downloadSuccess: "Data downloaded successfully!",
+        downloadError: "Error downloading data.",
+        deleteAccount: "Delete Account",
+        deleteAccountDesc: "Permanently delete your account and all your data. This action is irreversible.",
+        deleteButton: "Delete My Account",
+        deleteConfirmTitle: "Confirm Account Deletion",
+        deleteConfirmMessage: "Are you absolutely sure you want to delete your account? This will permanently delete all your data (products, sales, recipes, settings). This action is IRREVERSIBLE.",
+        deleteConfirmPlaceholder: "Type 'DELETE' to confirm",
+        deleteConfirmButton: "Yes, delete permanently",
+        deleteCancel: "Cancel",
+        deleteSuccess: "Account deleted successfully. You will be logged out.",
+        deleteError: "Error deleting account.",
+        confirmationRequired: "Please type 'DELETE' to confirm",
+      },
     },
     common: {
       light: "Light",
@@ -789,6 +866,8 @@ const translations: Record<Language, Translations> = {
         origin: "Provenance",
         quantity: "Quantité",
         pricePerBottle: "Prix par bouteille",
+        bottleSizeInMl: "Taille de la bouteille (ml)",
+        bottleSizeHint: "La capacité de la bouteille en millilitres. Exemple : 750ml pour une bouteille de vin standard",
         inventoryCode: "Code d'inventaire",
         inventoryCodeHint: "Auto-généré si vide",
         inventoryCodePlaceholder: "Entrez un code ou laissez vide pour la génération automatique",
@@ -918,6 +997,31 @@ const translations: Record<Language, Translations> = {
       revenueReports: "Rapports de revenus",
       revenueReportsDesc: "Consultez les répartitions détaillées des revenus par catégorie",
       comingSoon: "Tableau de bord d'analyses à venir. Continuez à ajouter des fonctionnalités pour développer cette section !",
+    },
+    auditLogs: {
+      title: "Logs d'audit",
+      subtitle: "Historique des modifications d'inventaire et détection de fraude",
+      accessDenied: "Accès refusé",
+      accessDeniedDesc: "Vous n'avez pas la permission de consulter les logs d'audit. Seuls les gérants et supérieurs peuvent accéder à cette page.",
+      suspiciousActivity: "Activité suspecte détectée",
+      noSuspiciousActivity: "Aucune activité suspecte détectée",
+      statistics: "Statistiques",
+      totalChanges: "Modifications totales",
+      byAction: "Par action",
+      byRole: "Par rôle",
+      activeUsers: "Utilisateurs actifs",
+      recentChanges: "Modifications récentes",
+      noLogs: "Aucune modification d'inventaire enregistrée",
+      actions: {
+        create: "Créé",
+        update: "Modifié",
+        delete: "Supprimé",
+        restock: "Réapprovisionné",
+        adjustment: "Ajusté",
+        sale: "Vente",
+      },
+      changeInfo: "passé de {prev} à {new}",
+      priceChange: "Prix : {prev}$ → {new}$",
     },
     notFound: {
       title: "404",
@@ -1072,6 +1176,27 @@ const translations: Record<Language, Translations> = {
         theme: "Thème",
         language: "Langue",
       },
+      security: {
+        title: "Sécurité et données",
+        description: "Gérez vos données personnelles et la sécurité de votre compte",
+        downloadData: "Télécharger mes données",
+        downloadDataDesc: "Téléchargez une copie de toutes vos données (produits, ventes, recettes, paramètres)",
+        downloadButton: "Télécharger les données",
+        downloading: "Téléchargement en cours...",
+        downloadSuccess: "Données téléchargées avec succès !",
+        downloadError: "Erreur lors du téléchargement des données.",
+        deleteAccount: "Supprimer le compte",
+        deleteAccountDesc: "Supprimez définitivement votre compte et toutes vos données. Cette action est irréversible.",
+        deleteButton: "Supprimer mon compte",
+        deleteConfirmTitle: "Confirmer la suppression du compte",
+        deleteConfirmMessage: "Êtes-vous absolument sûr de vouloir supprimer votre compte ? Cette action supprimera définitivement toutes vos données (produits, ventes, recettes, paramètres). Cette action est IRRÉVERSIBLE.",
+        deleteConfirmPlaceholder: "Tapez 'SUPPRIMER' pour confirmer",
+        deleteConfirmButton: "Oui, supprimer définitivement",
+        deleteCancel: "Annuler",
+        deleteSuccess: "Compte supprimé avec succès. Vous allez être déconnecté.",
+        deleteError: "Erreur lors de la suppression du compte.",
+        confirmationRequired: "Veuillez taper 'SUPPRIMER' pour confirmer",
+      },
     },
     common: {
       light: "Clair",
@@ -1152,6 +1277,8 @@ const translations: Record<Language, Translations> = {
         origin: "Origen",
         quantity: "Cantidad",
         pricePerBottle: "Precio por botella",
+        bottleSizeInMl: "Tamaño de botella (ml)",
+        bottleSizeHint: "La capacidad de la botella en mililitros. Ejemplo: 750ml para una botella de vino estándar",
         inventoryCode: "Código de inventario",
         inventoryCodeHint: "Auto-generado si está vacío",
         inventoryCodePlaceholder: "Ingrese un código o deje vacío para generación automática",
@@ -1435,6 +1562,39 @@ const translations: Record<Language, Translations> = {
         theme: "Tema",
         language: "Idioma",
       },
+      security: {
+        title: "Seguridad y Datos",
+        description: "Gestiona tus datos personales y la seguridad de tu cuenta",
+        downloadData: "Descargar Mis Datos",
+        downloadDataDesc: "Descarga una copia de todos tus datos (productos, ventas, recetas, configuración)",
+        downloadButton: "Descargar Datos",
+        downloading: "Descargando...",
+        downloadSuccess: "¡Datos descargados con éxito!",
+        downloadError: "Error al descargar los datos.",
+        deleteAccount: "Eliminar Cuenta",
+        deleteAccountDesc: "Elimina permanentemente tu cuenta y todos tus datos. Esta acción es irreversible.",
+        deleteButton: "Eliminar Mi Cuenta",
+        deleteConfirmTitle: "Confirmar Eliminación de Cuenta",
+        deleteConfirmMessage: "¿ Estás absolutamente seguro de que deseas eliminar tu cuenta? Esto eliminará permanentemente todos tus datos (productos, ventas, recetas, configuración). Esta acción es IRREVERSIBLE.",
+        deleteConfirmPlaceholder: "Escribe 'ELIMINAR' para confirmar",
+        deleteConfirmButton: "Sí, eliminar permanentemente",
+        deleteCancel: "Cancelar",
+        deleteSuccess: "Cuenta eliminada con éxito. Serás desconectado.",
+        deleteError: "Error al eliminar la cuenta.",
+        confirmationRequired: "Por favor escribe 'ELIMINAR' para confirmar",
+      },
+        deleteAccount: "Eliminar Cuenta",
+        deleteAccountDesc: "Elimina permanentemente tu cuenta y todos tus datos. Esta acción es irreversible.",
+        deleteButton: "Eliminar Mi Cuenta",
+        deleteConfirmTitle: "Confirmar Eliminación de Cuenta",
+        deleteConfirmMessage: "¿ Estás absolutamente seguro de que deseas eliminar tu cuenta? Esto eliminará permanentemente todos tus datos (productos, ventas, recetas, configuración). Esta acción es IRREVERSIBLE.",
+        deleteConfirmPlaceholder: "Escribe 'ELIMINAR' para confirmar",
+        deleteConfirmButton: "Sí, eliminar permanentemente",
+        deleteCancel: "Cancelar",
+        deleteSuccess: "Cuenta eliminada con éxito. Serás desconectado.",
+        deleteError: "Error al eliminar la cuenta.",
+        confirmationRequired: "Por favor escribe 'ELIMINAR' para confirmar",
+      },
     },
     common: {
       light: "Claro",
@@ -1515,6 +1675,8 @@ const translations: Record<Language, Translations> = {
         origin: "Herkunft",
         quantity: "Menge",
         pricePerBottle: "Preis pro Flasche",
+        bottleSizeInMl: "Flaschenraum (ml)",
+        bottleSizeHint: "Die Kapazität der Flasche in Millilitern. Beispiel: 750ml für eine Standard-Weinflasche",
         inventoryCode: "Inventarcode",
         inventoryCodeHint: "Automatisch generiert wenn leer",
         inventoryCodePlaceholder: "Code eingeben oder leer lassen für automatische Generierung",
@@ -1797,6 +1959,27 @@ const translations: Record<Language, Translations> = {
         description: "Passen Sie das Aussehen und Verhalten der Anwendung an",
         theme: "Thema",
         language: "Sprache",
+      },
+      security: {
+        title: "Sicherheit und Daten",
+        description: "Verwalten Sie Ihre persönlichen Daten und Kontosicherheit",
+        downloadData: "Meine Daten Herunterladen",
+        downloadDataDesc: "Laden Sie eine Kopie aller Ihrer Daten herunter (Produkte, Verkäufe, Rezepte, Einstellungen)",
+        downloadButton: "Daten Herunterladen",
+        downloading: "Wird heruntergeladen...",
+        downloadSuccess: "Daten erfolgreich heruntergeladen!",
+        downloadError: "Fehler beim Herunterladen der Daten.",
+        deleteAccount: "Konto Löschen",
+        deleteAccountDesc: "Löschen Sie Ihr Konto und alle Ihre Daten dauerhaft. Diese Aktion ist unwiderruflich.",
+        deleteButton: "Mein Konto Löschen",
+        deleteConfirmTitle: "Kontolöschung Bestätigen",
+        deleteConfirmMessage: "Sind Sie absolut sicher, dass Sie Ihr Konto löschen möchten? Dies löscht dauerhaft alle Ihre Daten (Produkte, Verkäufe, Rezepte, Einstellungen). Diese Aktion ist UNWIDERRUFLICH.",
+        deleteConfirmPlaceholder: "Geben Sie 'LÖSCHEN' ein, um zu bestätigen",
+        deleteConfirmButton: "Ja, dauerhaft löschen",
+        deleteCancel: "Abbrechen",
+        deleteSuccess: "Konto erfolgreich gelöscht. Sie werden abgemeldet.",
+        deleteError: "Fehler beim Löschen des Kontos.",
+        confirmationRequired: "Bitte geben Sie 'LÖSCHEN' ein, um zu bestätigen",
       },
     },
     common: {

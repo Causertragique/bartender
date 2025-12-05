@@ -32,7 +32,6 @@ export default defineConfig({
         // External dependencies that should not be bundled
         "express",
         "cors",
-        "better-sqlite3",
         "otplib",
         "qrcode",
       ],

@@ -9,6 +9,7 @@ export interface Product {
   unit: string;
   lastRestocked?: string;
   imageUrl?: string;
+  bottleSizeInMl?: number;
 }
 
 export interface RecipeIngredient {

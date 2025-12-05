@@ -70,6 +70,7 @@ function initDatabase() {
       unit TEXT NOT NULL,
       lastRestocked TEXT,
       imageUrl TEXT,
+      bottleSizeInMl INTEGER,
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -160,6 +161,20 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_stripe_keys_userId ON stripe_keys(userId);
   `);
+
+  // Migration: Add bottleSizeInMl column if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(products)").all() as any[];
+    const bottleSizeColumn = tableInfo.find(col => col.name === "bottleSizeInMl");
+    if (!bottleSizeColumn) {
+      console.log("[SQLite] Migrating: Adding bottleSizeInMl column to products table...");
+      db.exec("ALTER TABLE products ADD COLUMN bottleSizeInMl INTEGER");
+      console.log("[SQLite] Migration complete: bottleSizeInMl column added");
+    }
+  } catch (error) {
+    console.warn("[SQLite] Migration warning: Could not add bottleSizeInMl column", error);
+    // Ignorer les erreurs de migration (la colonne existe peut-être déjà)
+  }
 
   // Migration: Permettre password NULL pour les utilisateurs Firebase
   // SQLite ne supporte pas ALTER COLUMN, donc on vérifie si la colonne existe et on la modifie si nécessaire

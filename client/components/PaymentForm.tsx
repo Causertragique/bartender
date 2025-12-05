@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CreditCard, Apple, AlertCircle, Check, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/I18nContext";
@@ -31,6 +31,18 @@ export default function PaymentForm({
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isStripeConfigured, setIsStripeConfigured] = useState(false);
+
+  // Vérifier si Stripe est configuré au chargement
+  useEffect(() => {
+    fetch("/api/stripe-keys")
+      .then(res => res.json())
+      .then(data => {
+        const configured = !!(data.secretKey && data.publishableKey);
+        setIsStripeConfigured(configured);
+      })
+      .catch(() => setIsStripeConfigured(false));
+  }, []);
 
   const handleCardChange = (field: string, value: string) => {
     let formattedValue = value;
@@ -147,20 +159,22 @@ export default function PaymentForm({
           {t.paymentForm.choosePaymentMethod}
         </p>
 
-        {/* Stripe Terminal Payment */}
-        <button
-          type="button"
-          onClick={() => setPaymentMethod("terminal")}
-          className={cn(
-            "w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 font-medium",
-            paymentMethod === "terminal"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-secondary hover:border-primary/50 text-foreground",
-          )}
-        >
-          <Terminal className="h-5 w-5" />
-          Card Reader (Stripe Terminal)
-        </button>
+        {/* Stripe Terminal Payment - uniquement si configuré */}
+        {isStripeConfigured && (
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("terminal")}
+            className={cn(
+              "w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 font-medium",
+              paymentMethod === "terminal"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-secondary hover:border-primary/50 text-foreground",
+            )}
+          >
+            <Terminal className="h-5 w-5" />
+            Card Reader (Stripe Terminal)
+          </button>
+        )}
 
         <button
           type="button"

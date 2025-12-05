@@ -6,6 +6,7 @@ interface SAQProductDetails {
   origin?: string;
   price?: number;
   description?: string;
+  bottleSizeInMl?: number;
 }
 
 export const handleSAQScrape: RequestHandler = async (req, res) => {
@@ -34,30 +35,58 @@ export const handleSAQScrape: RequestHandler = async (req, res) => {
     const html = await response.text();
     const details: SAQProductDetails = {};
 
-    // Extract price - SAQ uses various patterns
-    const pricePatterns = [
-      /"price":\s*"([^"]+)"/,
-      /"price":\s*([0-9.]+)/,
-      /data-price="([^"]+)"/,
-      /data-price="([0-9.]+)"/,
-      /prix[^>]*>([^<]+)</i,
-      /class="[^"]*price[^"]*"[^>]*>([^<]+)</i,
-      /<span[^>]*class="[^"]*price[^"]*"[^>]*>([^<]+)</i,
-      /\$([0-9]+[.,][0-9]{2})/,
-      /([0-9]+[.,][0-9]{2})\s*\$/,
-      /([0-9]+[.,][0-9]{2})\s*CAD/i,
-      /prix.*?([0-9]+[.,][0-9]{2})/i
+    // Extract price - prioritize restaurant/wholesale price over public price
+    // SAQ often shows different prices for restaurants vs public
+    const restaurantPricePatterns = [
+      /prix.*?restaura[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /restaura.*?prix[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /prix.*?professionnel[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /professionnel.*?prix[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /prix.*?gros[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /wholesale.*?price[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+      /"restaurantPrice":\s*"?([0-9]+[.,][0-9]{2})"?/i,
+      /"wholesalePrice":\s*"?([0-9]+[.,][0-9]{2})"?/i,
     ];
     
-    for (const pattern of pricePatterns) {
+    // Try to find restaurant price first
+    for (const pattern of restaurantPricePatterns) {
       const priceMatch = html.match(pattern);
       if (priceMatch) {
         const priceStr = priceMatch[1].replace(/[^0-9.,]/g, "").replace(",", ".");
         const price = parseFloat(priceStr);
-        if (!isNaN(price) && price > 0 && price < 10000) { // Reasonable price range
+        if (!isNaN(price) && price > 0 && price < 10000) {
           details.price = price;
-          console.log(`Price extracted: ${price} from pattern`);
+          console.log(`Restaurant price extracted: ${price} from pattern`);
           break;
+        }
+      }
+    }
+    
+    // If no restaurant price found, fall back to regular price patterns
+    if (!details.price) {
+      const pricePatterns = [
+        /"price":\s*"([^"]+)"/,
+        /"price":\s*([0-9.]+)/,
+        /data-price="([^"]+)"/,
+        /data-price="([0-9.]+)"/,
+        /prix[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+        /class="[^"]*price[^"]*"[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+        /<span[^>]*class="[^"]*price[^"]*"[^>]*>.*?\$?\s*([0-9]+[.,][0-9]{2})/i,
+        /\$\s*([0-9]+[.,][0-9]{2})/,
+        /([0-9]+[.,][0-9]{2})\s*\$/,
+        /([0-9]+[.,][0-9]{2})\s*CAD/i,
+      ];
+      
+      for (const pattern of pricePatterns) {
+        const priceMatch = html.match(pattern);
+        if (priceMatch) {
+          const priceStr = priceMatch[1].replace(/[^0-9.,]/g, "").replace(",", ".");
+          const price = parseFloat(priceStr);
+          if (!isNaN(price) && price > 0 && price < 10000) {
+            details.price = price;
+            console.log(`Price extracted: ${price} from pattern`);
+            break;
+          }
         }
       }
     }
@@ -147,6 +176,54 @@ export const handleSAQScrape: RequestHandler = async (req, res) => {
           console.log(`Subcategory extracted from breadcrumb: ${details.subcategory}`);
         }
       }
+    }
+
+    // Extract bottle size in ml
+    const bottleSizePatterns = [
+      /(\d+)\s*ml\b/i,
+      /(\d+)\s*mL\b/,
+      /volume[^>]*>(\d+)\s*ml/i,
+      /size[^>]*>(\d+)\s*ml/i,
+      /capacity[^>]*>(\d+)\s*ml/i,
+      /"volume":\s*"(\d+)\s*ml"/i,
+      /data-volume="(\d+)"/i,
+      /(\d+)\s*cl\b/i,  // Centiliters - convert to ml
+      /volume[^>]*>(\d+)\s*cl/i,
+    ];
+    
+    for (const pattern of bottleSizePatterns) {
+      const sizeMatch = html.match(pattern);
+      if (sizeMatch && sizeMatch[1]) {
+        let size = parseInt(sizeMatch[1], 10);
+        // If it's in centiliters (cl), convert to ml
+        if (pattern.toString().includes('cl')) {
+          size = size * 10;
+        }
+        // Validate reasonable bottle size (between 100ml and 5000ml)
+        if (size >= 100 && size <= 5000) {
+          details.bottleSizeInMl = size;
+          console.log(`Bottle size extracted: ${size}ml from pattern`);
+          break;
+        }
+      }
+    }
+
+    // If no bottle size found, use category defaults
+    if (!details.bottleSizeInMl) {
+      if (details.category === "beer") {
+        details.bottleSizeInMl = 330; // Default beer bottle size
+      } else if (details.category === "wine") {
+        details.bottleSizeInMl = 750; // Default wine bottle size
+      } else if (details.category === "spirits") {
+        details.bottleSizeInMl = 750; // Default spirits bottle size
+      } else if (details.category === "juice") {
+        details.bottleSizeInMl = 1000; // Default juice bottle size (1L)
+      } else if (details.category === "soda") {
+        details.bottleSizeInMl = 355; // Default soda can size
+      } else {
+        details.bottleSizeInMl = 500; // Default for other categories
+      }
+      console.log(`Using default bottle size: ${details.bottleSizeInMl}ml for category ${details.category}`);
     }
 
     res.json(details);

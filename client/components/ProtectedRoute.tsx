@@ -1,23 +1,24 @@
-import { ReactNode, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const navigate = useNavigate();
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    const authStatus = localStorage.getItem("bartender-auth");
-    if (authStatus !== "authenticated") {
-      navigate("/");
-    }
-  }, [navigate]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
-  const authStatus = localStorage.getItem("bartender-auth");
-  if (authStatus !== "authenticated") {
-    return null;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
