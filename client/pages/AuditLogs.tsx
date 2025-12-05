@@ -9,7 +9,7 @@ import { FirestoreInventoryLog } from "@shared/firestore-schema";
 import { useI18n } from "@/contexts/I18nContext";
 
 export default function AuditLogs() {
-  const { language } = useI18n();
+  const { t, language } = useI18n();
   const [logs, setLogs] = useState<FirestoreInventoryLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<any>(null);
@@ -41,20 +41,19 @@ export default function AuditLogs() {
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Shield className="h-6 w-6 text-destructive" />
-                <CardTitle>Accès refusé</CardTitle>
+                <CardTitle>{t.auditLogs.accessDenied}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Vous n'avez pas la permission de consulter les logs d'audit.
-                Cette fonctionnalité est réservée aux managers, administrateurs et propriétaires.
+                {t.auditLogs.accessDeniedDesc}
               </p>
             </CardContent>
           </Card>
         </div>
       </Layout>
     );
-  }
+  };
 
   const getActionIcon = (action: string) => {
     switch (action) {
@@ -70,12 +69,12 @@ export default function AuditLogs() {
 
   const getActionLabel = (action: string) => {
     const labels: Record<string, string> = {
-      create: "Création",
-      update: "Modification",
-      delete: "Suppression",
-      restock: "Réapprovisionnement",
-      adjustment: "Ajustement",
-      sale: "Vente",
+      create: t.auditLogs.actions.create,
+      update: t.auditLogs.actions.update,
+      delete: t.auditLogs.actions.delete,
+      restock: t.auditLogs.actions.restock,
+      adjustment: t.auditLogs.actions.adjustment,
+      sale: t.auditLogs.actions.sale,
     };
     return labels[action] || action;
   };
@@ -103,10 +102,10 @@ export default function AuditLogs() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
               <Shield className="h-8 w-8" />
-              Logs d'audit - Sécurité Inventaire
+              {t.auditLogs.title}
             </h1>
             <p className="text-muted-foreground mt-2">
-              Traçabilité complète des modifications d'inventaire pour prévenir la fraude
+              {t.auditLogs.subtitle}
             </p>
           </div>
           <Button onClick={loadAuditLogs} disabled={loading}>
@@ -122,7 +121,7 @@ export default function AuditLogs() {
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
                 <CardTitle className="text-destructive">
-                  Activité suspecte détectée
+                  {t.auditLogs.suspiciousActivity}
                 </CardTitle>
               </div>
             </CardHeader>
@@ -144,7 +143,7 @@ export default function AuditLogs() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Total modifications</CardTitle>
+                <CardTitle className="text-sm font-medium">{t.auditLogs.totalChanges}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{report.totalChanges}</p>
@@ -153,7 +152,7 @@ export default function AuditLogs() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Par action</CardTitle>
+                <CardTitle className="text-sm font-medium">{t.auditLogs.byAction}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
@@ -169,7 +168,7 @@ export default function AuditLogs() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Par rôle</CardTitle>
+                <CardTitle className="text-sm font-medium">{t.auditLogs.byRole}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
@@ -185,7 +184,7 @@ export default function AuditLogs() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Utilisateurs actifs</CardTitle>
+                <CardTitle className="text-sm font-medium">{t.auditLogs.activeUsers}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{Object.keys(report.byUser).length}</p>
@@ -197,7 +196,7 @@ export default function AuditLogs() {
         {/* Liste des logs */}
         <Card>
           <CardHeader>
-            <CardTitle>Historique des modifications</CardTitle>
+            <CardTitle>{t.auditLogs.recentChanges}</CardTitle>
             <CardDescription>
               {logs.length} enregistrements récents
             </CardDescription>
