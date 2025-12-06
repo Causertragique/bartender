@@ -64,7 +64,16 @@ const mapTaxRegionToRegion = (taxRegion: string): string => {
 export const getSalesPrediction: RequestHandler = async (req, res) => {
   try {
     // Récupérer la région depuis le body (sent by client from barProfile.taxRegion)
-    let region = req.body.region || (req.query.region as string) || "Quebec";
+    let rawRegion = req.body.region ?? req.query.region ?? "Quebec";
+    let region: string;
+    // Ensure region is a string, not an array or other type
+    if (typeof rawRegion === 'string') {
+      region = rawRegion;
+    } else if (Array.isArray(rawRegion) && typeof rawRegion[0] === 'string') {
+      region = rawRegion[0];
+    } else {
+      region = "Quebec";
+    }
     // Mapper taxRegion (ex: "quebec") à région lisible (ex: "Quebec")
     if (region.includes("-") || region.length < 5) {
       region = mapTaxRegionToRegion(region);
