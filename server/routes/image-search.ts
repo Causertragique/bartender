@@ -27,7 +27,6 @@ export const searchImages: RequestHandler = async (req, res) => {
     
     console.log("[ImageSearch] Search query:", searchQuery);
     console.log("[ImageSearch] API Key configured:", !!GOOGLE_API_KEY);
-    console.log("[ImageSearch] API Key prefix:", GOOGLE_API_KEY ? GOOGLE_API_KEY.substring(0, 10) + "..." : "Not set");
     console.log("[ImageSearch] CX:", GOOGLE_CX);
 
     // Recherche d'images
