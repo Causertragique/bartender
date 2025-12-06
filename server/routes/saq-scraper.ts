@@ -11,30 +11,17 @@ interface SAQProductDetails {
 
 export const handleSAQScrape: RequestHandler = async (req, res) => {
   try {
-    const { url } = req.query;
+    const { productCode } = req.query;
 
-    if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "URL is required" });
+    if (!productCode || typeof productCode !== "string" || !/^[0-9]{6,8}$/.test(productCode)) {
+      return res.status(400).json({ error: "A valid SAQ product code is required" });
     }
 
-    // Strict SSRF prevention: parse and allow-list protocols and hostnames
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      return res.status(400).json({ error: "Malformed URL" });
-    }
+    // Build the SAQ product URL using a fixed base and strict encoding
+    const saqProductUrl = `https://www.saq.com/en/produit/${encodeURIComponent(productCode)}`;
 
-    const allowedHostnames = ["www.saq.com", "saq.com"];
-    if (
-      !["https:", "http:"].includes(parsedUrl.protocol) ||
-      !allowedHostnames.includes(parsedUrl.hostname)
-    ) {
-      return res.status(400).json({ error: "URL must be a valid saq.com URL" });
-    }
-
-    // Fetch the SAQ product page
-    const response = await fetch(parsedUrl.toString(), {
+    // Fetch the SAQ product page (no user input in the host)
+    const response = await fetch(saqProductUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
