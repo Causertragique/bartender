@@ -17,12 +17,24 @@ export const handleSAQScrape: RequestHandler = async (req, res) => {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    if (!url.includes("saq.com")) {
-      return res.status(400).json({ error: "URL must be from saq.com" });
+    // Strict SSRF prevention: parse and allow-list protocols and hostnames
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return res.status(400).json({ error: "Malformed URL" });
+    }
+
+    const allowedHostnames = ["www.saq.com", "saq.com"];
+    if (
+      !["https:", "http:"].includes(parsedUrl.protocol) ||
+      !allowedHostnames.includes(parsedUrl.hostname)
+    ) {
+      return res.status(400).json({ error: "URL must be a valid saq.com URL" });
     }
 
     // Fetch the SAQ product page
-    const response = await fetch(url, {
+    const response = await fetch(parsedUrl.toString(), {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
