@@ -39,5 +39,5 @@
     "vite.config.ts",
     "vite.config.server.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["InventoryVault/node_modules", "dist"]
 }
