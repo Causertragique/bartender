@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "af9e2d82-8996-41f8-a74b-0527c17a230b"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.inventoryvault.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
