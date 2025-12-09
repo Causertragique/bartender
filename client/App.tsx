@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { I18nProvider } from "@/contexts/I18nContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -42,7 +42,7 @@ export default function App() {
             >
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  <Route path="/" element={<Login />} />
+                  <Route path="/" element={<Navigate to="/inventory" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route 
                     path="/inventory" 

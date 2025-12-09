@@ -23,6 +23,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useI18n } from "@/contexts/I18nContext";
 import { Product } from "./ProductCard";
 import { Download, RefreshCw, Search, Image as ImageIcon } from "lucide-react";
+import { parseSaqProductPage, type SaqProductDetails } from "@shared/saq-parser";
 
 
 interface AddProductModalProps {
@@ -670,41 +671,77 @@ export default function AddProductModal(props: AddProductModalProps) {
     }
   };
 
-  // Fetch product details from SAQ.com page via backend
-  const fetchProductDetailsFromSAQ = async (
+  const PUBLIC_SAQ_PROXY = "https://api.allorigins.win/raw?url=";
+
+  const fetchProductDetailsViaProxy = async (
     productPageUrl: string
-  ): Promise<{
-    category?: string;
-    subcategory?: string;
-    origin?: string;
-    price?: number;
-    bottleSizeInMl?: number;
-  } | null> => {
+  ): Promise<SaqProductDetails | null> => {
     try {
-      // Accept both saq.com and www.saq.com
-      if (
-        !productPageUrl ||
-        (!productPageUrl.includes("saq.com") &&
-          !productPageUrl.includes("www.saq.com"))
-      ) {
+      const proxyResponse = await fetch(
+        `${PUBLIC_SAQ_PROXY}${encodeURIComponent(productPageUrl)}`
+      );
+      if (!proxyResponse.ok) {
+        console.warn(
+          "[SAQ fallback] Proxy responded with",
+          proxyResponse.status
+        );
         return null;
       }
-      // Use backend endpoint to scrape SAQ page (avoids CORS issues)
+      const html = await proxyResponse.text();
+      if (!html.trim().startsWith("<")) {
+        console.warn("[SAQ fallback] Proxy payload does not look like HTML");
+        return null;
+      }
+      const parsed = parseSaqProductPage(html, { sourceUrl: productPageUrl });
+      console.log("[SAQ fallback] Parsed product details depuis proxy:", parsed);
+      return parsed;
+    } catch (error) {
+      console.warn("[SAQ fallback] Unable to fetch via proxy:", error);
+      return null;
+    }
+  };
+
+  // Fetch product details from SAQ.com page via backend (fallback to proxy if backend indisponible)
+  const fetchProductDetailsFromSAQ = async (
+    productPageUrl: string
+  ): Promise<SaqProductDetails | null> => {
+    if (
+      !productPageUrl ||
+      (!productPageUrl.includes("saq.com") &&
+        !productPageUrl.includes("www.saq.com"))
+    ) {
+      return null;
+    }
+
+    try {
       const response = await fetch(
         `/api/saq-scrape?url=${encodeURIComponent(productPageUrl)}`
       );
       if (response.ok) {
-        const details = await response.json();
-        console.log("Product details extracted from SAQ:", details);
-        return details;
+        const raw = await response.text();
+        try {
+          const parsed = JSON.parse(raw);
+          console.log("[SAQ backend] Product details:", parsed);
+          return parsed;
+        } catch (parseError) {
+          console.warn(
+            "[SAQ backend] Payload non JSON, fallback to proxy. Aperçu:",
+            raw.slice(0, 200)
+          );
+        }
       } else {
-        console.log("Failed to fetch product details from backend");
-        return null;
+        const text = await response.text();
+        console.warn(
+          "[SAQ backend] HTTP error:",
+          response.status,
+          text.slice(0, 200)
+        );
       }
     } catch (error) {
-      console.error("Error fetching product details:", error);
-      return null;
+      console.warn("[SAQ backend] Erreur réseau:", error);
     }
+
+    return fetchProductDetailsViaProxy(productPageUrl);
   };
 
   // Apply selected product result to form

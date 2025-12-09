@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
-import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List, Search } from "lucide-react";
+import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List, Search, SlidersHorizontal } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
 import { getCurrentUserRole, hasPermission } from "@/lib/permissions";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,12 +60,117 @@ interface Tab {
 
 const categoryColors = {
   spirits: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
-  wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30 hover:bg-red-200 dark:hover:bg-red-500/30",
-  beer: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover:bg-slate-200 dark:hover:bg-slate-500/30",
+  wine: "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/30 hover:bg-red-200 dark:hover-bg-red-500/30",
+  beer: "bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-500/30 hover-bg-slate-200 dark:hover-bg-slate-500/30",
   soda: "bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30 hover:bg-cyan-200 dark:hover:bg-cyan-500/30",
   juice: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-500/30 hover:bg-orange-200 dark:hover:bg-orange-500/30",
   other: "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/30 hover:bg-green-200 dark:hover:bg-green-500/30",
   cocktail: "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-500/30 hover:bg-indigo-200 dark:hover:bg-indigo-500/30",
+};
+
+type BaseCategory = "spirits" | "wine" | "beer" | "soda" | "juice" | "other";
+
+interface ServingFormat {
+  id: string;
+  label: string;
+  volumeMl: number;
+  defaultMargin: number;
+  defaultBottleMl?: number;
+}
+
+type ServingConfig = Record<BaseCategory, ServingFormat[]>;
+type ServingOverrides = Partial<Record<BaseCategory, Partial<Record<string, { margin: number }>>>>;
+
+const DEFAULT_SERVING_CONFIG: ServingConfig = {
+  spirits: [
+    { id: "shot", label: "Shooter 1.5 oz", volumeMl: 44, defaultMargin: 200, defaultBottleMl: 750 },
+    { id: "double", label: "Double 3 oz", volumeMl: 88, defaultMargin: 180, defaultBottleMl: 750 },
+  ],
+  wine: [
+    { id: "white-glass", label: "Verre vin blanc 150 ml", volumeMl: 150, defaultMargin: 180, defaultBottleMl: 750 },
+    { id: "red-glass", label: "Verre vin rouge 180 ml", volumeMl: 180, defaultMargin: 200, defaultBottleMl: 750 },
+  ],
+  beer: [
+    { id: "pint", label: "Pinte 473 ml", volumeMl: 473, defaultMargin: 150, defaultBottleMl: 473 },
+    { id: "bock", label: "Bock 355 ml", volumeMl: 355, defaultMargin: 140, defaultBottleMl: 355 },
+  ],
+  soda: [
+    { id: "rtb", label: "Prêt-à-boire 250 ml", volumeMl: 250, defaultMargin: 120, defaultBottleMl: 330 },
+  ],
+  juice: [
+    { id: "glass", label: "Verre 250 ml", volumeMl: 250, defaultMargin: 120, defaultBottleMl: 330 },
+  ],
+  other: [
+    { id: "portion", label: "Portion 200 ml", volumeMl: 200, defaultMargin: 150, defaultBottleMl: 330 },
+  ],
+};
+
+const SERVING_CATEGORY_LABELS: Record<BaseCategory, string> = {
+  spirits: "Spiritueux",
+  wine: "Vins",
+  beer: "Bières",
+  soda: "Prêt-à-boire",
+  juice: "Jus",
+  other: "Autres",
+};
+
+const PRICING_STORAGE_KEY = "bartender-serving-config";
+
+const loadServingOverrides = (): ServingOverrides => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(PRICING_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveServingOverrides = (overrides: ServingOverrides) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PRICING_STORAGE_KEY, JSON.stringify(overrides));
+};
+
+const getFormatMargin = (
+  category: BaseCategory,
+  format: ServingFormat,
+  overrides: ServingOverrides
+) => overrides[category]?.[format.id]?.margin ?? format.defaultMargin;
+
+const buildServingItems = (
+  inventoryProducts: Product[],
+  overrides: ServingOverrides
+): Recipe[] => {
+  return inventoryProducts
+    .map((product) => {
+      const baseCategory = (product.category as BaseCategory) || "other";
+      const formats = DEFAULT_SERVING_CONFIG[baseCategory];
+      return formats.map((format) => {
+        const bottleSize = (product as any).bottleSizeInMl || format.defaultBottleMl || 750;
+        if (!product.price || bottleSize <= 0) return null;
+        const servingsPerBottle = Math.max(1, bottleSize / format.volumeMl);
+        const costPerServing = product.price / servingsPerBottle;
+        const margin = getFormatMargin(baseCategory, format, overrides) / 100;
+        const finalPrice = parseFloat((costPerServing * (1 + margin)).toFixed(2));
+        return {
+          id: `${product.id}__${format.id}`,
+          name: `${product.name} (${format.label})`,
+          price: finalPrice,
+          ingredients: [
+            {
+              productId: product.id,
+              productName: product.name,
+              quantity: format.volumeMl,
+              unit: "ml",
+            },
+          ],
+          category: baseCategory,
+          servingSize: format.volumeMl,
+        } as Recipe;
+      });
+    })
+    .flat()
+    .filter((item): item is Recipe => Boolean(item));
 };
 
 export default function Sales() {
@@ -102,60 +207,63 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [tip, setTip] = useState(0);
   const [tipPercentage, setTipPercentage] = useState<number | null>(null);
-  
-  // Redirige ou bloque si l'utilisateur n'a pas le droit de vendre
+  const [servingOverrides, setServingOverrides] = useState<ServingOverrides>(() => loadServingOverrides());
+  const [showServingConfigDialog, setShowServingConfigDialog] = useState(false);
+  const [draftOverrides, setDraftOverrides] = useState<ServingOverrides>({});
+  const glassItems = useMemo(
+    () => buildServingItems(inventoryProducts, servingOverrides),
+    [inventoryProducts, servingOverrides]
+  );
+
+  const openServingConfig = () => {
+    setDraftOverrides(JSON.parse(JSON.stringify(servingOverrides || {})));
+    setShowServingConfigDialog(true);
+  };
+
+  const handleMarginDraftChange = (category: BaseCategory, formatId: string, value: number) => {
+    setDraftOverrides((prev) => {
+      const next = { ...(prev || {}) };
+      if (!next[category]) next[category] = {};
+      if (!next[category]![formatId]) next[category]![formatId] = { margin: value };
+      next[category]![formatId] = { margin: value };
+      return next;
+    });
+  };
+
+  const handleServingConfigSave = () => {
+    setServingOverrides(draftOverrides);
+    setShowServingConfigDialog(false);
+  };
+
   if (!canProcessSales) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <h2 className="text-2xl font-bold text-destructive mb-4">{t.sales?.accessDenied || "Accès refusé"}</h2>
-          <p className="text-muted-foreground text-center max-w-md">{t.sales?.noSalesPermission || "Vous n'avez pas la permission d'effectuer des ventes avec ce rôle. Contactez un administrateur."}</p>
+          <h2 className="text-2xl font-bold text-destructive mb-4">
+            {t.sales?.accessDenied || "Accès refusé"}
+          </h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            {t.sales?.noSalesPermission ||
+              "Vous n'avez pas la permission d'effectuer des ventes avec ce rôle. Contactez un administrateur."}
+          </p>
         </div>
       </Layout>
     );
   }
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const [products, recipesList] = await Promise.all([
-          getProducts(user.uid),
-          getRecipes(user.uid),
-        ]);
-        setInventoryProducts(products as Product[]);
-        // Map FirestoreRecipe to local Recipe interface
-        const mappedRecipes: Recipe[] = recipesList
-          .filter(r => r.id) // Filter out recipes without id
-          .map(r => ({
-            ...r,
-            id: r.id!, // Assert id exists after filter
-            price: (r as any).price || 0, // Use price from Firestore or default to 0
-            ingredients: r.ingredients.filter(ing => ing.productId), // Filter out ingredients without productId
-            category: r.category === "mocktail" ? "other" : "cocktail" as "cocktail" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other",
-          }));
-        setRecipes(mappedRecipes);
-      } catch (error: any) {
-        console.error("Erreur chargement données:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les produits et recettes",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user, authLoading, toast]);
-
   // Save view mode to localStorage
   useEffect(() => {
     localStorage.setItem("sales-view-mode", viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    saveServingOverrides(servingOverrides);
+  }, [servingOverrides]);
+
+  useEffect(() => {
+    if (!showServingConfigDialog) {
+      setDraftOverrides(servingOverrides);
+    }
+  }, [showServingConfigDialog, servingOverrides]);
 
   const categories: Array<"all" | "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail"> = [
     "all",
@@ -173,7 +281,7 @@ export default function Sales() {
     spirits: categoriesObj.spirits || "Spiritueux",
     wine: categoriesObj.wine || "Vin",
     beer: categoriesObj.beer || "Bière",
-    soda: categoriesObj.soda || "Boissons gazeuses",
+    soda: categoriesObj.soda || "Prêt-à-boire",
     juice: categoriesObj.juice || "Jus",
     other: categoriesObj.other || "Autres",
     cocktail: categoriesObj.cocktail || "Cocktails",
@@ -208,9 +316,9 @@ export default function Sales() {
     return unit; // Fallback to original if not found
   };
 
-  // Combine inventory products and recipes for display
+  // Combine inventory products (vendus au verre) et recettes
   const allProductsForSale: (Product | Recipe)[] = [
-    // Only show recipes/cocktails created in Sales page, not inventory products
+    ...glassItems.map((item) => ({ ...item, isRecipe: true })),
     ...recipes.map(r => ({ ...r, isRecipe: true }))
   ];
   
@@ -959,6 +1067,13 @@ export default function Sales() {
             >
               <Wine className="h-4 w-4 sm:h-5 sm:w-5" />
               + Produits (cocktail, au verres etc...)
+            </button>
+            <button
+              onClick={openServingConfig}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 border-2 border-foreground/20 rounded-lg text-sm sm:text-base font-medium hover:border-primary hover:text-primary transition-colors"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Formats & marges
             </button>
             {openTabs.length > 0 && (
               <button
@@ -1829,9 +1944,9 @@ export default function Sales() {
             </DialogDescription>
           </DialogHeader>
           {/* Formulaire de création de recette */}
-          <RecipeForm
-            inventoryProducts={inventoryProducts}
-            recipes={recipes}
+      <RecipeForm
+        inventoryProducts={inventoryProducts}
+        recipes={recipes}
             onSave={async (recipe) => {
               try {
                 // Sauvegarder la recette dans Firestore
@@ -1864,15 +1979,78 @@ export default function Sales() {
                 });
               }
             }}
-            onCancel={() => setShowRecipeDialog(false)}
-          />
-          {/* Dropdown cocktail affiché en dehors du render dynamique, à synchroniser avec la catégorie du RecipeForm */}
-          {/* À faire : lever l'état de la catégorie dans Sales et le passer à RecipeForm pour afficher le dropdown au bon moment */}
+        onCancel={() => setShowRecipeDialog(false)}
+      />
+      {/* Dropdown cocktail affiché en dehors du render dynamique, à synchroniser avec la catégorie du RecipeForm */}
+      {/* À faire : lever l'état de la catégorie dans Sales et le passer à RecipeForm pour afficher le dropdown au bon moment */}
+    </DialogContent>
+  </Dialog>
+      <Dialog open={showServingConfigDialog} onOpenChange={setShowServingConfigDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Formats & marges</DialogTitle>
+            <DialogDescription>
+              Ajustez la marge appliquée à chaque format de service (prix final = coût au verre × (1 + marge/100)).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+            {(Object.keys(DEFAULT_SERVING_CONFIG) as BaseCategory[]).map((category) => (
+              <div key={category} className="space-y-2">
+                <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  {SERVING_CATEGORY_LABELS[category]}
+                </h4>
+                <div className="space-y-2">
+                  {DEFAULT_SERVING_CONFIG[category].map((format) => {
+                    const marginValue =
+                      draftOverrides[category]?.[format.id]?.margin ?? format.defaultMargin;
+                    return (
+                      <div
+                        key={format.id}
+                        className="flex flex-col sm:flex-row sm:items-center gap-3 border border-border rounded-lg p-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-foreground">{format.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format.volumeMl} ml • marge par défaut {format.defaultMargin}%
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            step={5}
+                            value={marginValue}
+                            onChange={(e) =>
+                              handleMarginDraftChange(
+                                category,
+                                format.id,
+                                Number(e.target.value) || 0
+                              )
+                            }
+                            className="w-24 text-right"
+                          />
+                          <span className="text-sm font-medium">%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowServingConfigDialog(false)}>
+              {t.common.cancel}
+            </Button>
+            <Button onClick={handleServingConfigSave}>
+              {t.settings?.saveChanges || "Enregistrer"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* End of all dialogs */}
-    </Layout>
-  );
+    {/* End of all dialogs */}
+  </Layout>
+);
 }
 
 // Convert ounces to ml (1 oz = 29.5735 ml) - Utility function

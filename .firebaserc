@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "inventorybar"
-  }
+  },
+  "targets": {
+    "inventorybar": {
+      "hosting": {
+        "app": [
+          "inventorybar"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

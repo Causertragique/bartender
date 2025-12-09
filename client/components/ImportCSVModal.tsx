@@ -3,7 +3,7 @@ import Papa from "papaparse";
 import { Button } from "./ui/button";
 
 interface ImportCSVModalProps {
-  onImport: (products: ImportedProduct[]) => void;
+  onImport: (products: ImportedProduct[]) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -20,6 +20,27 @@ export default function ImportCSVModal({ onImport, onClose }: ImportCSVModalProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const slugify = (key: string) =>
+    key
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "");
+
+  const getValue = (row: Record<string, unknown>, keys: string[]) => {
+    const map: Record<string, unknown> = {};
+    Object.keys(row).forEach((key) => {
+      const slug = slugify(key);
+      if (slug) map[slug] = row[key];
+    });
+    for (const key of keys) {
+      if (map[key] !== undefined && map[key] !== null && map[key] !== "") {
+        return map[key];
+      }
+    }
+    return undefined;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] || null);
     setError(null);
@@ -33,16 +54,43 @@ export default function ImportCSVModal({ onImport, onClose }: ImportCSVModalProp
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const products: ImportedProduct[] = results.data.map((row: any) => ({
-          name: row["nom"] || row["Nom"] || row["name"] || row["Name"],
-          category: row["catégorie"] || row["Catégorie"] || row["category"] || row["Category"],
-          price: parseFloat(row["prix"] || row["Prix"] || row["price"] || row["Price"]),
-          format: row["format"] || row["Format"] || "",
-          origin: row["origine"] || row["Origine"] || row["origin"] || row["Origin"] || "",
-        })).filter(p => p.name && p.category && !isNaN(p.price));
-        onImport(products);
-        setLoading(false);
-        onClose();
+        const products: ImportedProduct[] = results.data
+          .map((row: Record<string, any>) => {
+            const name = getValue(row, ["nom", "nomduproduit", "produit", "name"]);
+            const category = getValue(row, ["categorie", "familleproduit", "family", "category"]);
+            const rawPrice = getValue(row, ["prixtitulaire", "prix", "price"]);
+            const price = rawPrice !== undefined
+              ? parseFloat(String(rawPrice).replace(/[^\d,.-]/g, "").replace(",", "."))
+              : NaN;
+            const format = (getValue(row, ["format", "formatml"]) as string) || "";
+            const origin = (getValue(row, ["paysdorigine", "origine", "origin"]) as string) || "";
+            return {
+              name: typeof name === "string" ? name.trim() : "",
+              category: typeof category === "string" ? category.trim() : "",
+              price,
+              format,
+              origin,
+            };
+          })
+          .filter((p) => p.name && !Number.isNaN(p.price));
+
+        if (!products.length) {
+          setError("Aucun produit valide trouvé dans ce fichier.");
+          setLoading(false);
+          return;
+        }
+
+        (async () => {
+          try {
+            await onImport(products);
+            setLoading(false);
+            onClose();
+          } catch (importError) {
+            console.error("Erreur lors de l'importation:", importError);
+            setError("Impossible d'importer les produits. Réessayez.");
+            setLoading(false);
+          }
+        })();
       },
       error: () => {
         setError("Erreur lors de la lecture du fichier CSV.");
@@ -58,7 +106,9 @@ export default function ImportCSVModal({ onImport, onClose }: ImportCSVModalProp
         <input type="file" accept=".csv" onChange={handleFileChange} className="mb-4" />
         {error && <p className="text-red-600 mb-2">{error}</p>}
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Annuler
+          </Button>
           <Button onClick={handleImport} disabled={!file || loading}>
             {loading ? "Import..." : "Importer"}
           </Button>

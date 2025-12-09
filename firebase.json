@@ -1,18 +1,20 @@
 {
-  
   "hosting": {
     "public": "dist/spa",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
-      }
+        "source": "/api/**",
+        "run": {
+          "serviceId": "inventorybar",
+          "region": "us-central1"
+        }
+      },
+      { "source": "**", "destination": "/index.html" }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
-  
 }
