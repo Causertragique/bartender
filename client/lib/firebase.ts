@@ -62,6 +62,7 @@ if (firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.project
 }
 
 // Provider Google
+// Provider Google
 export const googleProvider = auth ? new GoogleAuthProvider() : null;
 
 // Exporter auth, app et db

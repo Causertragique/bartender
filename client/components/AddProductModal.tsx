@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+
+import type { ImportedProduct } from "./ImportCSVModal";
 import {
   Dialog,
   DialogContent,
@@ -22,21 +24,29 @@ import { useI18n } from "@/contexts/I18nContext";
 import { Product } from "./ProductCard";
 import { Download, RefreshCw, Search, Image as ImageIcon } from "lucide-react";
 
+
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (product: Product) => void;
   editingProduct?: Product | null;
+  importedProducts?: ImportedProduct[];
 }
 
-export default function AddProductModal({
-  isOpen,
-  onClose,
-  onSave,
-  editingProduct,
-}: AddProductModalProps) {
+export default function AddProductModal(props: AddProductModalProps) {
+    // Récupère les infos du CSV SAQ via l'API backend
+    // Removed duplicate async function fetchProductInfoFromCSV
+  // Hooks principaux en haut du composant
   const { t } = useI18n();
-  const [formData, setFormData] = useState({
+  const {
+    isOpen,
+    onClose,
+    onSave,
+    editingProduct,
+    importedProducts = [],
+  } = props;
+  // Initialisation sûre de formData
+  const [formData, setFormData] = useState(() => ({
     name: "",
     category: "",
     subcategory: "",
@@ -46,7 +56,28 @@ export default function AddProductModal({
     inventoryCode: "",
     imageUrl: "",
     bottleSizeInMl: "",
-  });
+  }));
+
+  // Suggestion automatique depuis le CSV importé
+  useEffect(() => {
+    if (!editingProduct && isOpen && formData.name && formData.category && importedProducts.length > 0) {
+      const nameLower = formData.name.trim().toLowerCase();
+      const categoryLower = formData.category.trim().toLowerCase();
+      const match = importedProducts.find(p => {
+        const matchName = p.name.trim().toLowerCase() === nameLower;
+        const matchCategory = p.category.trim().toLowerCase() === categoryLower;
+        return matchName && matchCategory;
+      });
+      if (match) {
+        setFormData(prev => ({
+          ...prev,
+          pricePerBottle: match.price ? match.price.toString() : prev.pricePerBottle,
+          origin: match.origin || prev.origin,
+          bottleSizeInMl: match.format || prev.bottleSizeInMl,
+        }));
+      }
+    }
+  }, [formData.name, formData.category, importedProducts, isOpen, editingProduct]);
 
   // Load product data when editing
   useEffect(() => {
@@ -75,6 +106,16 @@ export default function AddProductModal({
         imageUrl: editingProduct.imageUrl || "",
         bottleSizeInMl: (editingProduct.bottleSizeInMl || "").toString(),
       });
+      // Remplissage automatique du pays d'origine via l'API Excel
+      if (editingProduct.name && editingProduct.category) {
+        fetch(`/api/prix-restauration?nom=${encodeURIComponent(editingProduct.name)}&categorie=${encodeURIComponent(editingProduct.category)}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.pays) {
+              setFormData(prev => ({ ...prev, origin: data.pays }));
+            }
+          });
+      }
       setWasCodeManuallySet(true); // Don't auto-generate when editing
     } else if (!editingProduct && isOpen) {
       // Reset form when adding new product
@@ -90,6 +131,19 @@ export default function AddProductModal({
         bottleSizeInMl: "",
       });
       setWasCodeManuallySet(false);
+    }
+  }, [editingProduct, isOpen]);
+
+  // Remplissage automatique du pays d'origine lors de l'ajout d'un produit
+  useEffect(() => {
+    if (!editingProduct && isOpen && formData.name && formData.category) {
+      fetch(`/api/prix-restauration?nom=${encodeURIComponent(formData.name)}&categorie=${encodeURIComponent(formData.category)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.pays) {
+            setFormData(prev => ({ ...prev, origin: data.pays }));
+          }
+        });
     }
   }, [editingProduct, isOpen]);
 
@@ -624,6 +678,7 @@ export default function AddProductModal({
     subcategory?: string;
     origin?: string;
     price?: number;
+    bottleSizeInMl?: number;
   } | null> => {
     try {
       // Accept both saq.com and www.saq.com
@@ -634,12 +689,10 @@ export default function AddProductModal({
       ) {
         return null;
       }
-      
       // Use backend endpoint to scrape SAQ page (avoids CORS issues)
       const response = await fetch(
         `/api/saq-scrape?url=${encodeURIComponent(productPageUrl)}`
       );
-      
       if (response.ok) {
         const details = await response.json();
         console.log("Product details extracted from SAQ:", details);
@@ -970,6 +1023,30 @@ export default function AddProductModal({
   // Button is disabled if: name is empty OR (category required AND category empty) OR search in progress
   const isSearchDisabled = !formData.name.trim() || isCategoryRequiredForSearch() || isSearchingImage;
 
+  function fetchProductInfoFromCSV() {
+    // Recherche d'un produit importé correspondant au nom et à la catégorie
+    if (!formData.name || !formData.category || importedProducts.length === 0) {
+      return;
+    }
+    const nameLower = formData.name.trim().toLowerCase();
+    const categoryLower = formData.category.trim().toLowerCase();
+    const match = importedProducts.find(p => {
+      const matchName = p.name.trim().toLowerCase() === nameLower;
+      const matchCategory = p.category.trim().toLowerCase() === categoryLower;
+      return matchName && matchCategory;
+    });
+    if (match) {
+      setFormData(prev => ({
+        ...prev,
+        name: match.name || prev.name,
+        category: match.category || prev.category,
+        origin: match.origin || prev.origin,
+        pricePerBottle: match.price ? match.price.toString() : prev.pricePerBottle,
+        bottleSizeInMl: match.format ? match.format.toString() : prev.bottleSizeInMl,
+      }));
+    }
+  }
+
   return (
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -1001,7 +1078,10 @@ export default function AddProductModal({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={searchProductImage}
+                onClick={() => {
+                  searchProductImage();
+                  fetchProductInfoFromCSV();
+                }}
                 disabled={isSearchDisabled}
                 className="gap-2"
               >
@@ -1019,6 +1099,10 @@ export default function AddProductModal({
                   </>
                 )}
               </Button>
+            </div>
+            {/* Note visible en bas de la modal */}
+            <div className="pt-4 text-xs text-muted-foreground text-center">
+              S.A.Q. Société des alcools du Québec — référence prix restauration 2025-11-09
             </div>
             
             {/* SAQ/Non-SAQ Toggle */}
@@ -1255,25 +1339,28 @@ export default function AddProductModal({
             />
           </div>
 
-          {/* Price per Bottle */}
+
+          {/* Prix par bouteille */}
           <div className="space-y-2">
-              <Label htmlFor="pricePerBottle">
-                {t.inventory.addProductModal.pricePerBottle} *
-              </Label>
+            <Label htmlFor="pricePerBottle">
+              {t.inventory.addProductModal.pricePerBottle} *
+            </Label>
             <Input
               id="pricePerBottle"
-                name="pricePerBottle"
-              type="number"
-                autoComplete="transaction-amount"
+              name="pricePerBottle"
+              type="text"
+              autoComplete="transaction-amount"
               step="0.01"
               min="0"
-              value={formData.pricePerBottle || ""}
-                onChange={(e) =>
-                  handleInputChange("pricePerBottle", e.target.value)
-                }
+              value={formData.pricePerBottle ? `${formData.pricePerBottle}*` : ""}
+              onChange={(e) =>
+                handleInputChange("pricePerBottle", e.target.value.replace(/\*/g, ""))
+              }
               placeholder="0.00"
+              title="* Prix restauration — référence S.A.Q. 2025-11-09"
             />
           </div>
+
 
           {/* Bottle Size in ml */}
           <div className="space-y-2">
@@ -1451,6 +1538,8 @@ export default function AddProductModal({
                       onClick={async (e) => {
                         e.stopPropagation();
                         await applyProductResult(result);
+                        setShowProductSelection(false);
+                        setCurrentPage(1);
                       }}
                       className="flex-shrink-0"
                     >

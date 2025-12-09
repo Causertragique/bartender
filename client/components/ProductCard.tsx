@@ -25,6 +25,8 @@ interface ProductCardProps {
   onRemoveStock?: (id: string, amount: number) => void;
   onClick?: (product: Product) => void;
   viewMode?: "grid" | "list";
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const categoryColors = {
@@ -44,6 +46,8 @@ export default function ProductCard({
   onRemoveStock,
   onClick,
   viewMode = "grid",
+  canEdit = true,
+  canDelete = true,
 }: ProductCardProps) {
   const { t } = useI18n();
   const isLowStock = product.quantity < 5;
@@ -198,20 +202,24 @@ export default function ProductCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onEdit?.(product);
+                if (canEdit) onEdit?.(product);
               }}
-              className="p-1.5 sm:p-2 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground"
+              className={`p-1.5 sm:p-2 rounded transition-colors ${canEdit ? "hover:bg-secondary text-muted-foreground hover:text-foreground" : "bg-secondary/50 text-muted-foreground/50 cursor-not-allowed"}`}
               aria-label="Edit product"
+              disabled={!canEdit}
+              title={canEdit ? undefined : "Vous n'avez pas la permission de modifier ce produit."}
             >
               <Edit2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete?.(product.id);
+                if (canDelete) onDelete?.(product.id);
               }}
-              className="p-1.5 sm:p-2 hover:bg-destructive/20 rounded transition-colors text-muted-foreground hover:text-destructive"
+              className={`p-1.5 sm:p-2 rounded transition-colors ${canDelete ? "hover:bg-destructive/20 text-muted-foreground hover:text-destructive" : "bg-secondary/50 text-muted-foreground/50 cursor-not-allowed"}`}
               aria-label="Delete product"
+              disabled={!canDelete}
+              title={canDelete ? undefined : "Vous n'avez pas la permission de supprimer ce produit."}
             >
               <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
@@ -303,11 +311,13 @@ export default function ProductCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onEdit?.(product);
+                if (canEdit) onEdit?.(product);
               }}
-              className="p-2 hover:bg-secondary rounded transition-colors text-muted-foreground hover:text-foreground"
+              className={`p-2 rounded transition-colors ${canEdit ? "hover:bg-secondary text-muted-foreground hover:text-foreground" : "bg-secondary/50 text-muted-foreground/50 cursor-not-allowed"}`}
               aria-label="Edit product"
               type="button"
+              disabled={!canEdit}
+              title={canEdit ? undefined : "Vous n'avez pas la permission de modifier ce produit."}
             >
               <Edit2 className="h-4 w-4" />
             </button>
@@ -338,11 +348,13 @@ export default function ProductCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete?.(product.id);
+                if (canDelete) onDelete?.(product.id);
               }}
-              className="p-2 hover:bg-destructive/20 rounded transition-colors text-muted-foreground hover:text-destructive"
+              className={`p-2 rounded transition-colors ${canDelete ? "hover:bg-destructive/20 text-muted-foreground hover:text-destructive" : "bg-secondary/50 text-muted-foreground/50 cursor-not-allowed"}`}
               aria-label="Delete product"
               type="button"
+              disabled={!canDelete}
+              title={canDelete ? undefined : "Vous n'avez pas la permission de supprimer ce produit."}
             >
               <Trash2 className="h-4 w-4" />
             </button>

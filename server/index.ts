@@ -20,6 +20,7 @@ import {
 
 import { searchImages } from "./routes/image-search";
 import { handleSAQScrape } from "./routes/saq-scraper";
+import { handlePrixRestauration } from "./routes/prix-restauration";
 import {
   createConnectionToken,
   createPaymentIntent,
@@ -57,6 +58,9 @@ export function createServer() {
 
   // SAQ product scraper endpoint
   app.get("/api/saq-scrape", handleSAQScrape);
+
+  // Prix restauration Excel endpoint
+  app.get("/api/prix-restauration", handlePrixRestauration);
 
   // Image search endpoint (server-side only, API key stays secure)
   app.post("/api/image-search", searchImages);

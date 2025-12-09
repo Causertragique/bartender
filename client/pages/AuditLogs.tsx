@@ -187,7 +187,7 @@ export default function AuditLogs() {
                 <CardTitle className="text-sm font-medium">{t.auditLogs.activeUsers}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{Object.keys(report.byUser).length}</p>
+                <p className="text-2xl font-bold">{report.byUser && typeof report.byUser === 'object' ? Object.keys(report.byUser).length : 0}</p>
               </CardContent>
             </Card>
           </div>

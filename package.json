@@ -34,6 +34,7 @@
     "@stripe/stripe-js": "^8.5.3",
     "@stripe/terminal-js": "^0.26.0",
     "cookie-parser": "^1.4.7",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
@@ -47,6 +48,7 @@
     "qrcode": "^1.5.3",
     "qrcode.react": "^4.2.0",
     "stripe": "^20.0.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import PaymentModal from "@/components/PaymentModal";
 import { Product } from "@/components/ProductCard";
 import { Trash2, Plus, Minus, CreditCard, DollarSign, UserPlus, Users, X, FileText, Eye, Wine, Grid3x3, List, Search } from "lucide-react";
 import { useI18n } from "@/contexts/I18nContext";
+import { getCurrentUserRole, hasPermission } from "@/lib/permissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { getProducts, updateProduct } from "@/services/firestore/products";
@@ -23,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 interface CartItem extends Omit<Product, 'category'> {
+  userId: string;
   category: "spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail";
   cartQuantity: number;
   isRecipe?: boolean;
@@ -69,6 +71,8 @@ const categoryColors = {
 export default function Sales() {
   const { t } = useI18n();
   const { user, loading: authLoading } = useAuth();
+  const role = getCurrentUserRole();
+  const canProcessSales = hasPermission(role, "canProcessSales");
   const { toast } = useToast();
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -99,7 +103,17 @@ export default function Sales() {
   const [tip, setTip] = useState(0);
   const [tipPercentage, setTipPercentage] = useState<number | null>(null);
   
-  // Load inventory products and recipes from Firestore
+  // Redirige ou bloque si l'utilisateur n'a pas le droit de vendre
+  if (!canProcessSales) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <h2 className="text-2xl font-bold text-destructive mb-4">{t.sales?.accessDenied || "Accès refusé"}</h2>
+          <p className="text-muted-foreground text-center max-w-md">{t.sales?.noSalesPermission || "Vous n'avez pas la permission d'effectuer des ventes avec ce rôle. Contactez un administrateur."}</p>
+        </div>
+      </Layout>
+    );
+  }
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
@@ -293,10 +307,11 @@ export default function Sales() {
           unit: "drink",
           cartQuantity: 1,
           isRecipe: true,
+          userId: ""
         };
         setCart([...cart, recipeItem]);
       } else {
-        setCart([...cart, { ...product, cartQuantity: 1, isRecipe: false }]);
+        setCart([...cart, { ...product, cartQuantity: 1, isRecipe: false, userId: user?.uid || "" }]);
       }
     }
   };
@@ -603,6 +618,16 @@ export default function Sales() {
   const total = subtotal + tax + tipAmount;
 
   const handleCheckout = () => {
+    // Décrémente la quantité des produits vendus
+        if (cart.length > 0) {
+          cart.forEach(async (cartItem) => {
+            if (cartItem.id && typeof cartItem.cartQuantity === "number") {
+              await updateProduct(cartItem.userId || user?.uid, cartItem.id, {
+                quantity: Math.max(0, (cartItem.quantity || 0) - cartItem.cartQuantity)
+              });
+            }
+          });
+        }
     if (paymentMethod === "cash") {
       alert(`${t.sales.alerts.cashPayment}$${(subtotal + tax).toFixed(2)}`);
       setCart([]);
@@ -891,6 +916,7 @@ export default function Sales() {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Dropdown de sélection de cocktail supprimé (désormais uniquement dans RecipeForm) */}
         {/* Page Header */}
         <div className="space-y-3 sm:space-y-4">
           <div>
@@ -1758,6 +1784,34 @@ export default function Sales() {
             <Button onClick={() => setShowPayTabDialog(false)}>
               {t.common.close}
             </Button>
+                        {/* Dropdown recette cocktail */}
+                        {filterCategory === "cocktail" && (
+                          <div className="mt-4">
+                            <label htmlFor="cocktail-recipe-select" className="block text-sm font-medium text-foreground mb-1">Recette de cocktail</label>
+                            <select
+                              id="cocktail-recipe-select"
+                              className="w-full p-2 border rounded"
+                              onChange={e => {
+                                const selectedRecipe = PRESET_RECIPES.find(r => r.name === e.target.value);
+                                if (selectedRecipe) {
+                                  // Ajoute la recette au panier
+                                  addToCart({
+                                    id: selectedRecipe.name!,
+                                    name: selectedRecipe.name!,
+                                    price: selectedRecipe.price || 0,
+                                    ingredients: selectedRecipe.ingredients || [],
+                                    category: "cocktail",
+                                  });
+                                }
+                              }}
+                            >
+                              <option value="">Sélectionner une recette...</option>
+                              {recipes.filter(r => r.category === "cocktail").map(r => (
+                                <option key={r.name} value={r.name}>{r.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1774,8 +1828,10 @@ export default function Sales() {
               Sélectionnez le type, la catégorie, les ingrédients et le prix
             </DialogDescription>
           </DialogHeader>
+          {/* Formulaire de création de recette */}
           <RecipeForm
             inventoryProducts={inventoryProducts}
+            recipes={recipes}
             onSave={async (recipe) => {
               try {
                 // Sauvegarder la recette dans Firestore
@@ -1783,7 +1839,6 @@ export default function Sales() {
                   // Map local category to Firestore schema (cocktail or mocktail)
                   const firestoreCategory: "cocktail" | "mocktail" = 
                     recipe.category === "other" ? "mocktail" : "cocktail";
-                  
                   await createRecipe(user.uid, {
                     name: recipe.name,
                     category: firestoreCategory,
@@ -1811,8 +1866,11 @@ export default function Sales() {
             }}
             onCancel={() => setShowRecipeDialog(false)}
           />
+          {/* Dropdown cocktail affiché en dehors du render dynamique, à synchroniser avec la catégorie du RecipeForm */}
+          {/* À faire : lever l'état de la catégorie dans Sales et le passer à RecipeForm pour afficher le dropdown au bon moment */}
         </DialogContent>
       </Dialog>
+      {/* End of all dialogs */}
     </Layout>
   );
 }
@@ -1823,6 +1881,7 @@ const ozToMlRecipe = (oz: number): number => oz * 29.5735;
 // Recipe Form Component
 interface RecipeFormProps {
   inventoryProducts: Product[];
+  recipes: Recipe[];
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
 }
@@ -1929,7 +1988,7 @@ const PRESET_RECIPES: Partial<Recipe>[] = [
   ]},
 ];
 
-function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
+function RecipeForm({ inventoryProducts, recipes, onSave, onCancel }: RecipeFormProps): JSX.Element {
   const { t } = useI18n();
   
   // Step 1: Type de service
@@ -1937,6 +1996,8 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
   
   // Step 2: Catégorie
   const [recipeCategory, setRecipeCategory] = useState<"spirits" | "wine" | "beer" | "soda" | "juice" | "other" | "cocktail">("spirits");
+  // Dropdown recette cocktail
+  const [selectedCocktailRecipe, setSelectedCocktailRecipe] = useState<string>("");
   
   // Marge de profit désirée (en %)
   const [profitMargin, setProfitMargin] = useState("30");
@@ -1951,6 +2012,12 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("ml");
+  // const [selectedCocktailRecipe, setSelectedCocktailRecipe] = useState("");
+
+  // Always return a JSX.Element, even if nothing to render
+  if (!inventoryProducts || !recipes || !onSave || !onCancel) {
+    return <div />;
+  }
 
   // Suggérer des produits de l'inventaire basés sur la recherche
   const getSuggestedProducts = (): Product[] => {
@@ -2051,7 +2118,7 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
       // Ajuster selon le type de service
       if (serviceType === "glass") {
         if (product.category === "wine") {
-          defaultQuantity = 150; // 5 oz
+          defaultQuantity = 150; // Verre de vin blanc 150ml
         } else if (product.category === "beer") {
           defaultQuantity = 473; // 16 oz (pinte)
         } else {
@@ -2182,7 +2249,6 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
       alert("Ce produit est déjà dans la recette");
       return;
     }
-    
     setIngredients([...ingredients, {
       productId: selectedProductId,
       productName: product.name,
@@ -2193,7 +2259,7 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
     setSelectedProductId("");
     setIngredientQuantity("");
     setIngredientUnit("ml");
-  };
+  }
 
   const removeIngredient = (productId: string) => {
     setIngredients(ingredients.filter(i => i.productId !== productId));
@@ -2256,7 +2322,7 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
           
           <button
             onClick={() => setServiceType("shot")}
-            className={`p-4 border-2 rounded-lg text-left transition-all ${
+            className={`p-4 border-2 rounded-lg Text-left CSSTransition-all ${
               serviceType === "shot"
                 ? "border-primary bg-primary/10"
                 : "border-border hover:border-primary/50"
@@ -2298,7 +2364,7 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
           <div className="space-y-3">
             <Label className="text-lg font-semibold">2. Catégorie</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {["spirits", "wine", "beer", "soda", "juice", "other"].map((cat) => (
+              {["spirits", "wine", "beer", "soda", "juice", "other", "cocktail"].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setRecipeCategory(cat as any)}
@@ -2314,14 +2380,46 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
                   {cat === "soda" && "Boissons gazeuses"}
                   {cat === "juice" && "Jus"}
                   {cat === "other" && "Mocktail/Autre"}
+                  {cat === "cocktail" && "Cocktail"}
                 </button>
               ))}
             </div>
+          {/* Étape 3: Recette cocktail préétablie (toujours affichée si catégorie cocktail, peu importe le type de service) */}
+          {recipeCategory === "cocktail" && (
+            <div className="space-y-2">
+              <Label htmlFor="cocktail-recipe-select" className="block text-sm font-medium text-foreground mb-1">3. Recette cocktail préétablie</Label>
+              <select
+                id="cocktail-recipe-select"
+                className="w-full p-2 border rounded"
+                value={selectedCocktailRecipe}
+                onChange={e => {
+                  setSelectedCocktailRecipe(e.target.value);
+                  const selectedRecipe = PRESET_RECIPES.find(r => r.name === e.target.value);
+                  if (selectedRecipe && selectedRecipe.ingredients) {
+                    setIngredients(selectedRecipe.ingredients.map(ing => ({
+                      productId: "", // On ne connaît pas l'id, à compléter si besoin
+                      productName: ing.productName,
+                      quantity: ing.quantity,
+                      unit: ing.unit,
+                    })));
+                    if (selectedRecipe.price) {
+                      setRecipePrice(selectedRecipe.price.toString());
+                    }
+                  }
+                }}
+              >
+                <option value="">Sélectionner une recette...</option>
+                {PRESET_RECIPES.filter(r => r.category === "cocktail").map(r => (
+                  <option key={r.name} value={r.name}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           </div>
 
-          {/* Étape 3: Ingrédients */}
+          {/* Étape 4: Ingrédients */}
           <div className="space-y-3">
-            <Label className="text-lg font-semibold">3. Ingrédients</Label>
+            <Label className="text-lg font-semibold">{recipeCategory === "cocktail" ? "4. Ingrédients" : "3. Ingrédients"}</Label>
             <p className="text-sm font-semibold text-muted-foreground">
               Ajoutez les ingrédients pour calculer le coût et gérer l'inventaire automatiquement
             </p>
@@ -2332,7 +2430,7 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
                 if (recipeCategory === "wine") {
                   return { quantity: "150", unit: "ml" }; // Verre de vin blanc 150ml
                 } else if (recipeCategory === "beer") {
-                  return { quantity: "341", unit: "ml" }; // Verre de bière 341ml
+                  return { quantity: "473", unit: "ml" }; // 16 oz (pinte)
                 } else if (recipeCategory === "spirits") {
                   return { quantity: "44", unit: "ml" }; // Shooter 44ml
                 } else if (recipeCategory === "juice" || recipeCategory === "soda") {
@@ -2641,4 +2739,3 @@ function RecipeForm({ inventoryProducts, onSave, onCancel }: RecipeFormProps) {
     </div>
   );
 }
-
