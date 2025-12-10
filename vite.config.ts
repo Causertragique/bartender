@@ -10,6 +10,10 @@ export default defineConfig(() => {
     server: {
       host: "::",
       port: 8080,
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+        "Cross-Origin-Embedder-Policy": "unsafe-none",
+      },
       fs: {
         allow: ["./", "./client", "./shared"],
         deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],

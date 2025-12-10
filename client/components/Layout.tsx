@@ -6,6 +6,7 @@ import { useI18n } from "@/contexts/I18nContext";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import { BarProfileSetupModal } from "@/components/BarProfileSetupModal";
 import { getCurrentUserRole, hasPermission } from "@/lib/permissions";
+import { logout as firebaseLogout } from "@/services/firestore/auth";
 
 interface LayoutProps {
   children: ReactNode;
@@ -66,24 +67,34 @@ export default function Layout({ children }: LayoutProps) {
     setShowProfileSetup(false);
   };
 
-  const handleLogout = () => {
-    // Clear all analytics cache
-    const userId = localStorage.getItem("bartender-user-id");
-    if (userId) {
-      const tools = [
-        "sales-prediction", "insights", "reorder", "profitability",
-        "price-optimization", "food-wine-pairing", "promotion-recommendations",
-        "stockout-prediction", "menu-optimization", "temporal-trends",
-        "dynamic-pricing", "revenue-forecast"
-      ];
-      tools.forEach(tool => {
-        localStorage.removeItem(`analytics-cache-${userId}-${tool}`);
-      });
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const handleLogout = async () => {
+    if (logoutLoading) return;
+    setLogoutLoading(true);
+    try {
+      // Clear analytics cache
+      const userId = localStorage.getItem("bartender-user-id");
+      if (userId) {
+        const tools = [
+          "sales-prediction", "insights", "reorder", "profitability",
+          "price-optimization", "food-wine-pairing", "promotion-recommendations",
+          "stockout-prediction", "menu-optimization", "temporal-trends",
+          "dynamic-pricing", "revenue-forecast"
+        ];
+        tools.forEach(tool => {
+          localStorage.removeItem(`analytics-cache-${userId}-${tool}`);
+        });
+      }
+
+      await firebaseLogout();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+      navigate("/login", { replace: true });
+    } finally {
+      setLogoutLoading(false);
     }
-    // Remove authentication token
-    localStorage.removeItem("bartender-auth");
-    // Redirect to home page
-    navigate("/");
   };
 
   const toggleSidebar = () => {
@@ -225,8 +236,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <button
             onClick={handleLogout}
+            disabled={logoutLoading}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-muted-foreground hover:text-foreground hover:bg-secondary/50",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full text-muted-foreground hover:text-foreground hover:bg-secondary/50 disabled:opacity-50",
               sidebarCollapsed && "justify-center"
             )}
             title={sidebarCollapsed ? "Déconnexion" : undefined}
@@ -271,7 +283,8 @@ export default function Layout({ children }: LayoutProps) {
                 <NotificationDropdown />
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1 px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors flex-shrink-0"
+                  disabled={logoutLoading}
+                  className="flex items-center gap-1 px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50"
                   title="Déconnexion"
                 >
                   <LogOut className="h-5 w-5 sm:h-6 sm:w-6" />

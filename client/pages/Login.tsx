@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getAuth, OAuthProvider, signInWithPopup } from "firebase/auth";
 // Provider Apple utilisé localement dans le handler
 import { auth } from "@/lib/firebase";
@@ -11,6 +11,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useToast } from "../hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
   const [isSignup, setIsSignup] = useState(false);
@@ -21,6 +22,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/inventory", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
     // Handler pour l'auth Apple
     const handleAppleAuth = async () => {

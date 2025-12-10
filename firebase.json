@@ -1,20 +1,36 @@
 {
   "hosting": {
+    "target": "app",
     "public": "dist/spa",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      {
-        "source": "/api/**",
-        "run": {
-          "serviceId": "inventorybar",
-          "region": "us-central1"
-        }
-      },
+      { "source": "/api/**", "run": { "serviceId": "inventorybar", "region": "us-central1" } },
       { "source": "**", "destination": "/index.html" }
     ]
   },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "storage": {
+    "rules": "storage.rules"
   }
 }
