@@ -1,12 +1,19 @@
 {
   "projects": {
-    "default": "inventorybar"
+    "default": "inventoryvault"
   },
   "targets": {
+    "inventoryvault": {
+      "hosting": {
+        "app": [
+          "inventoryvault"
+        ]
+      }
+    },
     "inventorybar": {
       "hosting": {
         "app": [
-          "inventorybar"
+          "baretender"
         ]
       }
     }

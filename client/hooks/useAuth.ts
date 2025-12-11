@@ -2,14 +2,11 @@ import { useState, useEffect } from "react";
 import { User } from "firebase/auth";
 import { onAuthChange } from "../services/firestore/auth";
 import { getUserProfile } from "../services/firestore/users";
-import { UserRole } from "@/lib/permissions";
+import { UserRole, normalizeUserRole } from "@/lib/permissions";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const isValidRole = (role: unknown): role is UserRole =>
-    role === "owner" || role === "admin" || role === "manager" || role === "employee";
 
   useEffect(() => {
     try {
@@ -29,19 +26,22 @@ export function useAuth() {
             photoURL: user.photoURL,
           }));
 
-          if (!localStorage.getItem("bartender-user-role")) {
-            (async () => {
-              try {
-                const profile = await getUserProfile(user.uid);
-                const role = profile?.role;
-                if (role && isValidRole(role)) {
-                  localStorage.setItem("bartender-user-role", role);
+          (async () => {
+            try {
+              const profile = await getUserProfile(user.uid);
+              const normalizedRole = normalizeUserRole(profile?.role);
+              if (normalizedRole) {
+                const currentRole = localStorage.getItem("bartender-user-role");
+                if (currentRole !== normalizedRole) {
+                  localStorage.setItem("bartender-user-role", normalizedRole);
                 }
-              } catch (err) {
-                console.error("Erreur lors du chargement du rôle utilisateur:", err);
+              } else {
+                console.warn("Profil utilisateur sans role valide dans Firestore:", user.uid);
               }
-            })();
-          }
+            } catch (err) {
+              console.error("Erreur lors du chargement du rôle utilisateur:", err);
+            }
+          })();
         } else {
           localStorage.removeItem("bartender-auth");
           localStorage.removeItem("bartender-user-id");

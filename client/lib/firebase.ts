@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
+import { initializeFirestore, Firestore } from "firebase/firestore";
 
 // Configuration Firebase - Les valeurs doivent être définies dans les variables d'environnement
 const firebaseConfig = {
@@ -39,13 +39,12 @@ if (firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.project
     }
     
     auth = getAuth(app);
-    // Force long polling in dev environments to avoid "client is offline" errors
+    // Use auto long polling detection to avoid "client is offline" errors on restrictive networks
     if (!db) {
-      initializeFirestore(app, {
-        experimentalForceLongPolling: true,
+      db = initializeFirestore(app, {
+        experimentalAutoDetectLongPolling: true,
         useFetchStreams: false,
       });
-      db = getFirestore(app);
     }
     console.log("Firebase Auth et Firestore initialisés");
   } catch (error) {
@@ -84,4 +83,3 @@ export const isFirebaseConfigured = (): boolean => {
     auth
   );
 };
-
